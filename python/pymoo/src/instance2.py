@@ -1,55 +1,53 @@
 import math
-from pyomo.environ import value
-from pyomo.opt import SolverFactory, TerminationCondition
-# Assuming the class is saved in a file named darp_model_lb.py
 from darp_model import DARPModelLB
 
-def get_demanding_instance():
+def calculate_distance(p1, p2):
+    return round(math.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2), 1)
+
+def get_instance_10_requests():
     """
-    Genera una instancia DARP con 7 solicitudes (16 nodos totales).
-    Incluye coordenadas para distancias realistas y ventanas de tiempo escalonadas.
+    Genera una instancia DARP con 10 solicitudes (20 nodos + depósito).
+    Distribución espacial en rejilla 20x20 y 3 franjas horarias.
     """
-    requests = list(range(1, 8))  # R = {1, 2, 3, 4, 5, 6, 7}
+    requests = list(range(1, 11))
     pickups = [f"{r}+" for r in requests]
     deliveries = [f"{r}-" for r in requests]
     nodes = pickups + deliveries
     all_nodes = ['0_start'] + nodes + ['0_end']
 
-    # Coordenadas (x, y) para simular un área de 100x100
-    # Esto genera tiempos de viaje heterogéneos (no solo 1s y 5s)
+    # Coordenadas (x, y) - Depósito Central (10, 10)
     coords = {
-        '0_start': (50, 50), '0_end': (50, 50),
-        '1+': (10, 15), '1-': (25, 30),
-        '2+': (85, 10), '2-': (70, 20),
-        '3+': (15, 85), '3-': (40, 75),
-        '4+': (90, 90), '4-': (75, 70),
-        '5+': (10, 50), '5-': (30, 55),
-        '6+': (60, 80), '6-': (50, 95),
-        '7+': (45, 10), '7-': (55, 35)
+        '0_start': (10, 10), '0_end': (10, 10),
+        '1+': (2, 18),  '1-': (18, 2),   # Diagonal larga
+        '2+': (3, 3),   '2-': (5, 5),    # Corto alcance
+        '3+': (17, 17), '3-': (15, 12),
+        '4+': (1, 5),   '4-': (10, 2),
+        '5+': (19, 5),  '5-': (12, 8),
+        '6+': (2, 2),   '6-': (8, 8),
+        '7+': (15, 3),  '7-': (18, 15),
+        '8+': (5, 15),  '8-': (2, 10),
+        '9+': (10, 18), '9-': (14, 14),
+        '10+': (8, 1),  '10-': (1, 12)
     }
 
-    def get_dist(n1, n2):
-        return round(math.sqrt((coords[n1][0]-coords[n2][0])**2 + 
-                               (coords[n1][1]-coords[n2][1])**2), 1)
+    travel_times = {(i, j): calculate_distance(coords[i], coords[j]) for i in all_nodes for j in all_nodes}
 
-    travel_times = {(i, j): get_dist(i, j) for i in all_nodes for j in all_nodes}
-
-    # Ventanas de tiempo (e_j, l_j) escalonadas para forzar la planificación
-    tw_start = {'0_start': 0, '0_end': 0}
-    tw_end = {'0_start': 240, '0_end': 240}
-    
-    # Horarios de recogida distribuidos
-    pickup_times = {
-        '1+': (0, 30), '2+': (10, 40), '3+': (20, 50), 
-        '4+': (30, 60), '5+': (40, 70), '6+': (50, 80), '7+': (60, 90)
+    # Ventanas de tiempo (e_j, l_j) divididas en 3 turnos
+    # Turno 1 (Early): Requests 1-4 | Turno 2 (Mid): 5-7 | Turno 3 (Late): 8-10
+    tw_data = {
+        # 'node': (start, end)
+        '0_start': (0, 200), '0_end': (0, 250),
+        '1+': (0, 40),   '1-': (10, 80),
+        '2+': (5, 45),   '2-': (15, 85),
+        '3+': (10, 50),  '3-': (20, 90),
+        '4+': (20, 60),  '4-': (30, 100),
+        '5+': (60, 100), '5-': (70, 140),
+        '6+': (65, 105), '6-': (75, 145),
+        '7+': (70, 110), '7-': (80, 150),
+        '8+': (110, 150),'8-': (120, 190),
+        '9+': (120, 160),'9-': (130, 200),
+        '10+':(130, 170),'10-':(140, 210),
     }
-
-    for p, (start, end) in pickup_times.items():
-        tw_start[p], tw_end[p] = start, end
-        # Las entregas tienen ventanas más amplias que dependen de la recogida
-        r_idx = p[0]
-        tw_start[f"{r_idx}-"] = start + 5
-        tw_end[f"{r_idx}-"] = end + 60
 
     data = {
         'Requests': requests,
@@ -57,29 +55,36 @@ def get_demanding_instance():
         'D': deliveries,
         'costs': travel_times,
         'travel_times': travel_times,
-        'service_times': {n: 2 for n in nodes} | {'0_start': 0, '0_end': 0}, # s_j = 2 min
+        'service_times': {n: 3 for n in nodes} | {'0_start': 0, '0_end': 0},
         'load_change': {
             **{'0_start': 0, '0_end': 0}, 
-            **{p: 1 for p in pickups}, 
-            **{d: -1 for d in deliveries}
+            **{f"{r}+": 1 for r in requests}, 
+            **{f"{r}-": -1 for r in requests}
         },
-        'tw_start': tw_start,
-        'tw_end': tw_end,
-        'max_ride_time': {r: 40 for r in requests}, # L_i = 40 min
+        'tw_start': {n: tw_data[n][0] for n in all_nodes},
+        'tw_end': {n: tw_data[n][1] for n in all_nodes},
+        'max_ride_time': {r: 50 for r in requests}, 
         'capacity': 3,
-        'vehicles': 2  # Usar 2 vehículos hace el problema más interesante que solo 1
+        'vehicles': 3  # Aumentado a 3 para manejar el volumen y las ventanas
     }
     return data
 
 if __name__ == "__main__":
-    # Load instance data
-    instance_data = get_demanding_instance()
+    print("--- Generando Instancia de 10 Solicitudes ---")
+    instance_data = get_instance_10_requests()
     
-    # Initialize the model using the LB class structure
     darp_instance = DARPModelLB(instance_data)
     
     try:
-        darp_instance.solve(solver_name='gurobi')
+        # Nota: El solver 'cbc' (Open Source) puede tardar unos minutos con 10 requests.
+        # Si tienes acceso a CPLEX o Gurobi, es el momento de usarlos.
+        print("Optimizando... (Esto puede tardar según el solver)")
+        darp_instance.solve(solver_name='cplex') 
+        
+        print("\n" + "="*30)
+        print("SOLUCIÓN ENCONTRADA")
+        print("="*30)
         darp_instance.print_route_summary()
+        
     except Exception as e:
-        print(f"An error occurred while solving the model: {e}")
+        print(f"Error en la ejecución: {e}")

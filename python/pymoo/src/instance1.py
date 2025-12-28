@@ -15,7 +15,7 @@ def get_example_instance():
     Parameters are based on Example 1 from the source literature.
     """
     # Define request, pickup, and delivery sets
-    requests = [1, 2, 3, 4] # R = {1, 2, 3, 4, 5}
+    requests = [1, 2, 3, 4, 5, 6] # R = {1, 2, 3, 4, 5}
     pickups = [f"{r}+" for r in requests] # P = {1+, 2+, 3+, 4+, 5+}
     deliveries = [f"{r}-" for r in requests] # D = {1-, 2-, 3-, 4-, 5-}
     nodes = pickups + deliveries
@@ -52,7 +52,7 @@ def get_example_instance():
         },
         'tw_end': {
             **{'0_start': 100, '0_end': 100}, 
-            **{n: 60 for n in nodes}  # l_j = 60
+            **{n: 10 for n in nodes}  # l_j = 60
         },
         'max_ride_time': {r: 100 for r in requests}, # L_i = 100
         'capacity': 3,  # Q = 3
@@ -68,7 +68,7 @@ if __name__ == "__main__":
     darp_instance = DARPModelLB(instance_data)
     
     try:
-        darp_instance.solve(solver_name='gurobi')
+        darp_instance.solve(solver_name='cplex')
         darp_instance.print_route_summary()
     except Exception as e:
         print(f"An error occurred while solving the model: {e}")

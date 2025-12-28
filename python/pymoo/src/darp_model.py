@@ -135,7 +135,7 @@ class DARPModelLB:
         # (1g) - Load Continuity
         # Models vehicle load progression and capacity limits.
         @m.Constraint(m.A)
-        def load_consistency(m_in, i, j):
+        def load_continuity(m_in, i, j):
             return m_in.Q[i] + m_in.q[j] - m_in.Q_max * (1 - m_in.x[i, j]) <= m_in.Q[j]
 
         # (1h) - Time Windows
@@ -160,7 +160,7 @@ class DARPModelLB:
             d = f"{r}-"
             return m_in.B[d] - (m_in.B[p] + m_in.s[p]) <= m_in.L[r]
 
-    def solve(self, solver_name='gurobi', executable_path=None):
+    def solve(self, solver_name='cplex', executable_path=None):
         """
         Solves the MILP model using the specified solver.
         """
