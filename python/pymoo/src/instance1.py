@@ -44,7 +44,7 @@ def get_example_instance():
         'load_change': {
             **{'0_start': 0, '0_end': 0}, 
             **{f"{r}+": 1 for r in requests},  # q_i = 1 for pickups
-            **{f"{r}-": -1 for r in requests}  # q_i = -1 for deliveries
+            **{f"{r}-": 1 for r in requests}  # q_i = 1 for deliveries. Note: negative handled in model
         },
         'tw_start': {
             **{'0_start': 0, '0_end': 0}, 

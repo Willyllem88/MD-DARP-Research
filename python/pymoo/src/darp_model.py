@@ -66,7 +66,7 @@ class DARPModelLB:
         m.Requests = Set(initialize=self.data['Requests']) # 
         m.P = Set(initialize=self.data['P']) # Pickup locations
         m.D = Set(initialize=self.data['D']) # Delivery locations
-        m.J_minus_depot = m.P | m.D
+        m.J_minus_depot = Set(initialize=list(m.P) + list(m.D)) # All customer nodes
         m.J = Set(initialize=['0_start'] + list(m.J_minus_depot) + ['0_end']) # All nodes
 
         # --- Valid Arcs ---
@@ -94,6 +94,8 @@ class DARPModelLB:
         m.x = Var(m.A, domain=Binary) # Sequence variables 
         m.B = Var(m.J, domain=NonNegativeReals) # Beginning of service 
         m.Q = Var(m.J, domain=NonNegativeReals) # Vehicle load after leaving location 
+        m.Q['0_start'].fix(0)
+        m.Q['0_end'].fix(0)
 
         # --- Objective (1a) ---
         # Minimize total routing costs.
@@ -136,7 +138,8 @@ class DARPModelLB:
         # Models vehicle load progression and capacity limits.
         @m.Constraint(m.A)
         def load_continuity(m_in, i, j):
-            return m_in.Q[i] + m_in.q[j] - m_in.Q_max * (1 - m_in.x[i, j]) <= m_in.Q[j]
+            I_val = 1 if j in m_in.P else -1
+            return m_in.Q[i] + I_val * m_in.q[j] - m_in.Q_max * (1 - m_in.x[i, j]) <= m_in.Q[j]
 
         # (1h) - Time Windows
         # Start of service must be within specified windows.
@@ -148,8 +151,9 @@ class DARPModelLB:
         # Load cannot exceed vehicle capacity Q.
         @m.Constraint(m.J)
         def capacity_bound(m_in, j):
-            lower = max(0, m_in.q[j])
-            upper = min(m_in.Q_max, m_in.Q_max + m_in.q[j])
+            I_val = 1 if j in m_in.P else -1
+            lower = max(0, m_in.q[j] * I_val)
+            upper = min(m_in.Q_max, m_in.Q_max + m_in.q[j] * I_val)
             return (lower, m_in.Q[j], upper)
 
         # (1j) - Maximum Ride Time
@@ -166,62 +170,123 @@ class DARPModelLB:
         """
         solver = SolverFactory(solver_name, executable=executable_path)
         results = solver.solve(self.model, tee=True)
+        
+        if results.solver.termination_condition == TerminationCondition.optimal:
+            print("¡Solución óptima encontrada!")
+        elif results.solver.termination_condition == TerminationCondition.infeasible:
+            print("El modelo es infactible. Revisa las ventanas de tiempo o capacidad.")
+        else:
+            print(f"Estado del solver: {results.solver.termination_condition}")
+            
         return results
     
     def get_route_summary(self):
         """ 
-        Extracts results into a clean dictionary with route, time, and load info.
+        Extracts solution results into a structured and detailed dictionary.
+        
+        This method compiles all route details, including precise timing (service start, 
+        duration, departure) and load information for each leg of the journey.
+        It decouples the data from the Pyomo model, allowing the print method 
+        to function independently without accessing the model.
+
+        Returns:
+            dict: A dictionary where keys are vehicle IDs and values are lists 
+                  of dictionaries, each representing a detailed route leg.
         """
         if not hasattr(self.model, 'x'):
             return "Model not solved yet."
             
-        routes = []
+        # 1. Build an adjacency map for active arcs from the solver results
+        # '0_start' may have multiple successors (one per vehicle used).
+        # Customer nodes will have exactly one successor in a valid solution.
+        next_nodes = {}
         for (i, j) in self.model.x:
             if value(self.model.x[i, j]) > 0.5:
-                routes.append({
-                    'from': i,
-                    'to': j,
-                    'depart_time': value(self.model.B[i]),
-                    'arrive_time': value(self.model.B[j]),
-                    'load_after': value(self.model.Q[j])
-                })
-        # Group by vehicle route (simple heuristic: start at depot)
+                if i not in next_nodes:
+                    next_nodes[i] = []
+                next_nodes[i].append(j)
+
         summary = {}
-        for route in routes:
-            if route['from'] == '0_start':
-                current = route['to']
-                path = [route['from'], current]
-                times = [route['depart_time'], route['arrive_time']]
-                loads = [0, route['load_after']]
-                while current != '0_end':
-                    next_leg = next((r for r in routes if r['from'] == current), None)
-                    if not next_leg:
+        vehicle_id = 1
+        
+        # 2. Reconstruct routes starting from the depot
+        if '0_start' in next_nodes:
+            # Iterate over each vehicle leaving the depot
+            for first_stop in next_nodes['0_start']:
+                route_legs = []
+                current_node = '0_start'
+                next_node = first_stop
+                
+                while True:
+                    # Extract timing and load data from the model variables and parameters
+                    
+                    # B[i] represents the Start of Service Time
+                    start_service = value(self.model.B[current_node])
+                    service_duration = self.model.s[current_node]
+                    
+                    # Departure Time is typically: Start Service + Service Duration
+                    # This calculation is done here so the print function doesn't need logic.
+                    departure_time = start_service + service_duration
+                    
+                    # Arrival Time at the next node
+                    arrival_time = value(self.model.B[next_node])
+                    
+                    # Load of the vehicle after visiting the next node
+                    load_after = value(self.model.Q[next_node])
+                    
+                    # Store all rich data for this leg
+                    leg_data = {
+                        'from_node': current_node,
+                        'to_node': next_node,
+                        'start_service_time': start_service,
+                        'service_duration': service_duration,
+                        'departure_time': departure_time,
+                        'arrival_time': arrival_time,
+                        'load_after': int(load_after)
+                    }
+                    route_legs.append(leg_data)
+                    
+                    # Advance to the next node in the path
+                    current_node = next_node
+                    if current_node == '0_end':
                         break
-                    current = next_leg['to']
-                    path.append(current)
-                    times.append(next_leg['arrive_time'])
-                    loads.append(next_leg['load_after'])
-                summary[path[1]] = {
-                    'route': path,
-                    'times': times,
-                    'loads': loads
-                }
+                    
+                    # Find the next connection
+                    if current_node in next_nodes:
+                        next_node = next_nodes[current_node][0]
+                    else:
+                        break # Should not happen in optimal solutions
+                
+                summary[vehicle_id] = route_legs
+                vehicle_id += 1
+                
         return summary
 
     def print_route_summary(self):
         """
-        Prints the route summary in a readable format.
+        Prints the route summary in the classic readable format.
+        
+        This method relies solely on the data structure returned by 
+        get_route_summary() and performs no calculations or model lookups.
         """
         summary = self.get_route_summary()
+        
+        # Handle case where model isn't solved or summary returns a message string
         if isinstance(summary, str):
             print(summary)
             return
-        for vehicle, info in summary.items():
-            print(f"Vehicle starting at {info['route'][0]}:")
-            for idx in range(len(info['route']) - 1):
-                print(f"  From {info['route'][idx]} to {info['route'][idx + 1]} | "
-                      f"Depart: {info['times'][idx]:.2f}, Arrive: {info['times'][idx + 1]:.2f}, "
-                      f"Load after: {int(info['loads'][idx + 1])}")
+
+        for vehicle_id, legs in summary.items():
+            start_node = legs[0]['from_node']
+            print(f"Vehicle {vehicle_id} starting at {start_node}:")
+            
+            for leg in legs:
+                print(f"  From {leg['from_node']:<7} to {leg['to_node']:<7} | "
+                      f"Depart: {leg['departure_time']:5.2f}, "
+                      f"Duration: {leg['service_duration']:5.2f}, "
+                      f"Arrive: {leg['arrival_time']:5.2f}, "
+                      f"Load after: {leg['load_after']}")
             print("")
+            
 
    
