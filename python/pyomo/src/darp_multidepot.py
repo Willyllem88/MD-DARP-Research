@@ -80,23 +80,22 @@ class DARPMultiDepot:
 
         # --- Restricciones ---
 
-        # 1. Cada petición servida una vez
+        # Cada petición servida una vez (c1)
         def serve_request_rule(m, i):
-            # FIX: Usamos ii, j, kk del iterador
-            return sum(m.x[ii, j, kk] for (ii, j, kk) in m.A_k if ii == i) == 1
+            return sum(m.x[i, j, k] for k in m.K for j in m.V if (i, j, k) in m.A_k) == 1
         m.ServeRequest = pyo.Constraint(m.P, rule=serve_request_rule)
 
-        # 2. Conservación de flujo
+        # Conservación de flujo (c2)
         def flow_balance_rule(m, i, k):
             if i not in data['P'] and i not in data['D']:
                 return pyo.Constraint.Skip
             # FIX: Usamos los iteradores correctos del set
-            in_flow = sum(m.x[jj, ii, kk] for (jj, ii, kk) in m.A_k if ii == i and kk == k)
-            out_flow = sum(m.x[ii, jj, kk] for (ii, jj, kk) in m.A_k if ii == i and kk == k)
+            in_flow = sum(m.x[j, i, k] for j in m.V if (j, i, k) in m.A_k)
+            out_flow = sum(m.x[i, j, k] for j in m.V if (i, j, k) in m.A_k)
             return in_flow - out_flow == 0
         m.FlowBalance = pyo.Constraint((m.P | m.D), m.K, rule=flow_balance_rule)
 
-        # 3. Flujo en Depósitos
+        # Flujo en Depósitos (c3)
         def start_depot_rule(m, k):
             sk = data['Start'][k]
             return sum(m.x[sk, j, k] for (ii, j, kk) in m.A_k if ii == sk and kk == k) == 1
@@ -107,7 +106,7 @@ class DARPMultiDepot:
             return sum(m.x[j, ek, k] for (j, ii, kk) in m.A_k if ii == ek and kk == k) == 1
         m.EndDepot = pyo.Constraint(m.K, rule=end_depot_rule)
 
-        # 4. Pairing
+        # Pairing (c4)
         def pairing_rule(m, i, k):
             delivery_node = i + m.n.value
             sum_i = sum(m.x[i, j, k] for (ii, j, kk) in m.A_k if ii == i and kk == k)
@@ -115,47 +114,61 @@ class DARPMultiDepot:
             return sum_i - sum_delivery == 0
         m.Pairing = pyo.Constraint(m.P, m.K, rule=pairing_rule)
 
-        # 5. Tiempos
+        # Tiempos consistentes (c5)
         def time_consistency_rule(m, i, j, k):
             M = 10000 
             return m.u[j, k] >= m.u[i, k] + m.serv_time[i] + m.travel_time[i, j] - M * (1 - m.x[i, j, k])
         m.TimeConsistency = pyo.Constraint(m.A_k, rule=time_consistency_rule)
 
-        # 6. Ride Time y Precedencia
-        def ride_time_calc_rule(m, i, k):
-            delivery_node = i + m.n.value
-            return m.r_time[i, k] == m.u[delivery_node, k] - (m.u[i, k] + m.serv_time[i])
-        m.RideTimeCalc = pyo.Constraint(m.P, m.K, rule=ride_time_calc_rule)
-
-        def ride_time_limit_rule(m, i, k):
-            return m.r_time[i, k] <= m.L
-        m.RideTimeLimit = pyo.Constraint(m.P, m.K, rule=ride_time_limit_rule)
-        
-        def precedence_rule(m, i, k):
-            delivery_node = i + m.n.value
-            return m.u[delivery_node, k] >= m.u[i, k] + m.serv_time[i] + m.travel_time[i, delivery_node]
-        m.Precedence = pyo.Constraint(m.P, m.K, rule=precedence_rule)
-
-        # 7. Carga
+        # 7. Carga consistente (c6)
         def load_consistency_rule(m, i, j, k):
             M = 1000 
             return m.w[j, k] >= m.w[i, k] + m.load_q[j] - M * (1 - m.x[i, j, k])
         m.LoadConsistency = pyo.Constraint(m.A_k, rule=load_consistency_rule)
 
-        def capacity_limit_rule(m, i, k):
-            return m.w[i, k] <= m.Q[k]
-        m.CapacityLimit = pyo.Constraint(m.V, m.K, rule=capacity_limit_rule)
+        # Ride Time y Precedencia (c7)
+        def ride_time_calc_rule(m, i, k):
+            delivery_node = i + m.n.value
+            return m.r_time[i, k] >= m.u[delivery_node, k] - (m.u[i, k] + m.serv_time[i])
+        m.RideTimeCalc = pyo.Constraint(m.P, m.K, rule=ride_time_calc_rule)
 
-        # 8. Ventanas de Tiempo
-        def time_window_rule_lower(m, i, k):
-            return m.early[i] <= m.u[i, k]
-        m.TimeWindowLower = pyo.Constraint(m.V, m.K, rule=time_window_rule_lower)
-        
-        def time_window_rule_upper(m, i, k):
-            return m.u[i, k] <= m.late[i]
-        m.TimeWindowUpper = pyo.Constraint(m.V, m.K, rule=time_window_rule_upper)
+        # Máximo Ride Time (c8)
+        def max_ride_time_rule(m, k):
+            return m.u[data['End'][k], k] - m.u[data['Start'][k], k] <= m.T_max[k]
+        m.MaxRideTime = pyo.Constraint(m.K, rule=max_ride_time_rule)
 
-    def solve(self, solver_name='cplex', executable_path=None, time_limit=60):
+        # Ventanas de Tiempo (c9)
+        def time_window_rule(m, i, k):
+            return pyo.inequality(m.early[i], m.u[i, k], m.late[i])
+        m.TimeWindow = pyo.Constraint(m.V, m.K, rule=time_window_rule)
+
+        # Ride Time dentro de Límite (c10)
+        #TODO: Revisar lógica ride_time_bounds y precedence_rule a <= b <= c
+        def ride_time_bounds(m, i, k):
+            delivery_node = i + m.n.value
+            k_serves_i = sum(m.x[i, j, k] for j in m.V if (i, j, k) in m.A_k)
+            M = 10000
+            return m.r_time[i, k] <= m.L * k_serves_i + M * (1 - k_serves_i)
+        m.RideTimeBounds = pyo.Constraint(m.P, m.K, rule=ride_time_bounds)
+
+        def precedence_rule(m, i, k):
+            delivery_node = i + m.n.value
+            k_serves_i = sum(m.x[i, j, k] for j in m.V if (i, j, k) in m.A_k)
+            M = 10000  
+            return m.u[delivery_node, k] >= m.u[i, k] + m.serv_time[i] + \
+                m.travel_time[i, delivery_node] - M * (1 - k_serves_i)
+        m.Precedence = pyo.Constraint(m.P, m.K, rule=precedence_rule)
+
+        # Carga dentro de Límites (c11)
+        def load_feasible_bounds(m, i, k):
+            lower_bound = max(0, m.load_q[i])
+            upper_bound = min(m.Q[k], m.Q[k] + m.load_q[i])
+            return pyo.inequality(lower_bound, m.w[i, k], upper_bound)
+        m.LoadFeasibleBounds = pyo.Constraint(m.V, m.K, rule=load_feasible_bounds)
+
+        #TODO: depot initial and final load constraints if needed
+
+    def solve(self, solver_name='cplex', executable_path=None, time_limit=None):
         """
         Solves the model using the specified solver.
         """
@@ -261,7 +274,19 @@ class DARPMultiDepot:
             print(f"Vehículo {k} (Start: {start_node}):")
             
             for leg in legs:
-                print(f"  {leg['from_node']:<4} -> {leg['to_node']:<4} | "
+                i = leg['from_node']
+                j = leg['to_node']
+                def pprint_node(n):
+                    if n in self.data['P']:
+                        return f"{n}+"
+                    elif n in self.data['D']:
+                        return f"{n - len(self.data['P'])}-"
+                    else:
+                        return str(n)
+                from_node = pprint_node(i)
+                to_node = pprint_node(j)
+
+                print(f"  {from_node:<4} -> {to_node:<4} | "
                       f"Arr: {leg['arrival_time']:5.1f} | "  # Arrival at destination
                       f"ServStart: {leg['start_service_time']:5.1f} | "
                       f"Load: {leg['load_after']:<3.1f}")
