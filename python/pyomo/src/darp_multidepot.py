@@ -101,7 +101,7 @@ class DARPMultiDepot:
 
         def end_depot_rule(m, k):
             ek = data['End'][k]
-            return sum(m.x[j, ek, k] for (j, ii, kk) in m.A_k if ii == ek and kk == k) == 1
+            return sum(m.x[i, ek, k] for (i, ii, kk) in m.A_k if ii == ek and kk == k) == 1
         m.EndDepot = pyo.Constraint(m.K, rule=end_depot_rule)
 
         # Pairing (c4)
