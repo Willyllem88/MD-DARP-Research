@@ -4,13 +4,30 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 import osmnx as ox
 
-# Importamos la lógica del otro archivo
 from logic import DARPGraphManager
+
+class MultiFieldDialog(simpledialog.Dialog):
+    def __init__(self, parent, title, fields):
+        self.fields = fields
+        self.vars = {}
+        super().__init__(parent, title)
+
+    def body(self, master):
+        for i, f in enumerate(self.fields):
+            tk.Label(master, text=f['label']).grid(row=i, column=0, sticky="w")
+            v = tk.IntVar(value=f.get('default', 0))
+            tk.Entry(master, textvariable=v, width=10).grid(row=i, column=1)
+            self.vars[f['key']] = v
+        return master
+
+    def apply(self):
+        self.result = {k: v.get() for k, v in self.vars.items()}
+
 
 class DarpApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Generador Interactivo DARP")
+        self.root.title("Interactive DARP-MD Instance Generator")
         self.root.geometry("1200x800")
         
         self.manager = DARPGraphManager()
@@ -36,20 +53,30 @@ class DarpApp:
 
     def setup_config_ui(self):
         # Título
-        tk.Label(self.left_panel, text="Configuración DARP", font=("Arial", 14, "bold"), bg="#f0f0f0").pack(pady=10)
+        tk.Label(self.left_panel, text="DARP Configuration", font=("Arial", 14, "bold"), bg="#f0f0f0").pack(pady=10)
         
         # Inputs
-        tk.Label(self.left_panel, text="Lugar (ej: Gracia, Barcelona):", bg="#f0f0f0").pack(anchor="w", padx=5)
-        self.entry_place = tk.Entry(self.left_panel)
-        self.entry_place.insert(0, "Gracia, Barcelona, Spain")
+        PLACES = [
+            "Gracia, Barcelona, Spain",
+            "Sarrià-Sant Gervasi, Barcelona, Spain",
+            "Chamberí, Madrid, Spain",
+            "Salamanca, Madrid, Spain",
+            "Barcelona, Spain",
+            "Cardedeu, Spain",
+            "Westminster, London, UK",
+            "Other (write manually)"
+        ]
+        tk.Label(self.left_panel, text="Place (e.g., Gracia, Barcelona):", bg="#f0f0f0").pack(anchor="w", padx=5)
+        self.entry_place = ttk.Combobox(self.left_panel, values=PLACES, state="normal")
+        self.entry_place.set(PLACES[0])
         self.entry_place.pack(fill=tk.X, padx=5)
         
-        tk.Label(self.left_panel, text="Nº Peticiones:", bg="#f0f0f0").pack(anchor="w", padx=5, pady=(10,0))
+        tk.Label(self.left_panel, text="Number of Requests:", bg="#f0f0f0").pack(anchor="w", padx=5, pady=(10,0))
         self.entry_reqs = tk.Entry(self.left_panel)
         self.entry_reqs.insert(0, "2")
         self.entry_reqs.pack(fill=tk.X, padx=5)
         
-        tk.Label(self.left_panel, text="Nº Vehículos:", bg="#f0f0f0").pack(anchor="w", padx=5, pady=(10,0))
+        tk.Label(self.left_panel, text="Number of Vehicles:", bg="#f0f0f0").pack(anchor="w", padx=5, pady=(10,0))
         self.entry_vehs = tk.Entry(self.left_panel)
         self.entry_vehs.insert(0, "1")
         self.entry_vehs.pack(fill=tk.X, padx=5)
@@ -59,16 +86,16 @@ class DarpApp:
         self.entry_lride.insert(0, "1800")
         self.entry_lride.pack(fill=tk.X, padx=5)
 
-        self.btn_load = tk.Button(self.left_panel, text="Cargar Mapa", command=self.load_map, bg="#4CAF50", fg="white")
+        self.btn_load = tk.Button(self.left_panel, text="Load Map", command=self.load_map, bg="#4CAF50", fg="white")
         self.btn_load.pack(pady=20, fill=tk.X, padx=5)
         
-        # Area de instrucciones / Estado
-        self.lbl_status = tk.Label(self.left_panel, text="Estado: Esperando config...", fg="blue", bg="#f0f0f0", wraplength=280)
+        # Instructions / Status Area
+        self.lbl_status = tk.Label(self.left_panel, text="Status: Waiting for config...", fg="blue", bg="#f0f0f0", wraplength=280, font=("Arial", 16))
         self.lbl_status.pack(pady=20, padx=5)
 
     def setup_map_placeholder(self):
         self.fig, self.ax = plt.subplots(figsize=(8, 6))
-        self.ax.set_title("El mapa aparecerá aquí")
+        self.ax.set_title("The map will appear here")
         self.ax.axis('off')
         
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.right_panel)
@@ -81,29 +108,29 @@ class DarpApp:
     def load_map(self):
         place = self.entry_place.get()
         try:
-            # Bloquear UI
-            self.lbl_status.config(text="Descargando grafo... Por favor espera (puede tardar).")
+            # Lock UI
+            self.lbl_status.config(text="Downloading graph... Please wait (this may take a while).", fg="blue", bg="#f0f0f0", wraplength=280)
             self.root.update()
             
-            # Descargar lógica
+            # Download logic
             self.manager.download_graph(place)
             
-            # Dibujar mapa base
+            # Draw base map
             self.ax.clear()
-            # Usamos osmnx para plotear sobre nuestro eje 'ax'
+            # Use osmnx to plot on our 'ax' axis
             ox.plot_graph(self.manager.G, ax=self.ax, show=False, close=False, node_size=0, edge_linewidth=0.5, bgcolor='white')
-            self.ax.set_title(f"Mapa: {place}")
+            self.ax.set_title(f"Map: {place}")
             self.canvas.draw()
             
-            # Preparar datos
+            # Prepare data
             self.n_req = int(self.entry_reqs.get())
             self.n_veh = int(self.entry_vehs.get())
             
-            # Inicializar listas vacías
+            # Initialize empty lists
             self.requests_data = [{} for _ in range(self.n_req)]
             self.vehicles_data = [{} for _ in range(self.n_veh)]
             
-            # Iniciar secuencia de selección
+            # Start selection sequence
             self.start_selection_sequence()
             
         except Exception as e:
@@ -112,15 +139,15 @@ class DarpApp:
 
     def start_selection_sequence(self):
         self.step = "PICKING"
-        # Cola de pasos: (tipo, indice, subtipo)
+        # Queue of steps: (type, index, subtype)
         self.pick_queue = []
         
-        # 1. Peticiones (Pickup y Delivery)
+        # 1. Requests (Pickup and Delivery)
         for i in range(self.n_req):
             self.pick_queue.append(('req', i, 'pickup'))
             self.pick_queue.append(('req', i, 'delivery'))
             
-        # 2. Vehículos (Start y End)
+        # 2. Vehicles (Start and End)
         for i in range(self.n_veh):
             self.pick_queue.append(('veh', i, 'start'))
             self.pick_queue.append(('veh', i, 'end'))
@@ -137,88 +164,120 @@ class DarpApp:
         
         msg = ""
         if tipo == 'req':
-            msg = f"👉 Haz CLIC en el mapa para: Petición {idx+1} ({sub.upper()})"
+            msg = f"Click on the map for: Request {idx+1} ({sub.upper()})"
         else:
-            msg = f"👉 Haz CLIC en el mapa para: Vehículo {idx+1} ({sub.upper()})"
+            msg = f"Click on the map for: Vehicle {idx+1} ({sub.upper()})"
             
-        self.lbl_status.config(text=msg, fg="red", font=("Arial", 12, "bold"))
+        self.lbl_status.config(text=msg)
 
     def on_map_click(self, event):
         if self.step != "PICKING" or event.xdata is None or event.ydata is None:
             return
             
-        # 1. Obtener nodo más cercano
+        # 1. Get nearest node
         node = self.manager.get_nearest_node(event.ydata, event.xdata) # lat (y), lon (x)
         
-        # 2. Marcar en mapa
+        # 2. Mark on map
         y = self.manager.nodes_data[node]['y']
         x = self.manager.nodes_data[node]['x']
         
         tipo, idx, sub = self.current_pick_target
-        color = 'blue' if tipo == 'req' and sub == 'pickup' else 'orange' if tipo == 'req' else 'green'
-        marker = 'o' if sub == 'pickup' or sub == 'start' else 'x'
+        color_map = {'pickup': 'blue', 'delivery': 'blue', 'start': 'green', 'end': 'red'}
+        color = color_map.get(sub, 'black')
+        filled = sub != 'delivery'
         
-        self.ax.plot(x, y, marker=marker, color=color, markersize=10, markeredgecolor='black')
+        self.ax.plot(
+            x, y,
+            marker='o',
+            markersize=12,
+            markeredgecolor=color,
+            markerfacecolor=color if filled else 'none',
+            markeredgewidth=2
+        )
+        self.ax.text(x, y, str(idx+1), color='black', fontsize=10, fontweight='bold', ha='center', va='center', 
+                     bbox=dict(facecolor='white', edgecolor='none', alpha=0.7, boxstyle='round,pad=0.2'))
         self.canvas.draw()
         
-        # 3. Pedir datos adicionales
+        # 3. Ask for additional data
         self.ask_node_params(tipo, idx, sub, node)
         
-        # 4. Siguiente paso
+        # 4. Next step
         self.process_next_pick()
 
     def ask_node_params(self, tipo, idx, sub, node_id):
-        """Lanza popups simples para pedir datos"""
+        """Launch simple popups to ask for data"""
         if tipo == 'req':
             if sub == 'pickup':
-                # Preguntas Pickup
+                # Pickup questions
                 self.requests_data[idx]['pickup_node'] = node_id
-                d = simpledialog.askinteger("Datos", f"Demanda (Pasajeros) Petición {idx+1}:", initialvalue=1, minvalue=1)
-                self.requests_data[idx]['demand'] = d if d else 1
-                
-                tw_s = simpledialog.askinteger("Datos", f"Ventana Tiempo Inicio (Pickup {idx+1}):", initialvalue=0)
-                self.requests_data[idx]['p_tw_start'] = tw_s if tw_s is not None else 0
-                
-                tw_e = simpledialog.askinteger("Datos", f"Ventana Tiempo Fin (Pickup {idx+1}):", initialvalue=1440)
-                self.requests_data[idx]['p_tw_end'] = tw_e if tw_e else 1440
-                
-                st = simpledialog.askinteger("Datos", f"Tiempo de servicio (Pickup {idx+1}):", initialvalue=60)
-                self.requests_data[idx]['p_service_time'] = st if st is not None else 60
+
+                fields = [
+                    {'label': f"Demand (Passengers) Request {idx+1}:", 'key': 'demand', 'default': 1},
+                    {'label': f"Time Window Start (Pickup {idx+1}):", 'key': 'p_tw_start', 'default': 0},
+                    {'label': f"Time Window End (Pickup {idx+1}):", 'key': 'p_tw_end', 'default': 1440},
+                    {'label': f"Service Time (Pickup {idx+1}):", 'key': 'p_service_time', 'default': 60},
+                ]
+                dialog = MultiFieldDialog(self.root, f"Pickup Data {idx+1}", fields)
+                if dialog.result:
+                    self.requests_data[idx].update(dialog.result)
+                else:
+                    # Defaults if dialog cancelled
+                    self.requests_data[idx].update({
+                        'demand': 1,
+                        'p_tw_start': 0,
+                        'p_tw_end': 1440,
+                        'p_service_time': 60
+                    })
                 
             else: # delivery
                 self.requests_data[idx]['delivery_node'] = node_id
                 
-                tw_s = simpledialog.askinteger("Datos", f"Ventana Tiempo Inicio (Delivery {idx+1}):", initialvalue=0)
-                self.requests_data[idx]['d_tw_start'] = tw_s if tw_s is not None else 0
-                
-                tw_e = simpledialog.askinteger("Datos", f"Ventana Tiempo Fin (Delivery {idx+1}):", initialvalue=1440)
-                self.requests_data[idx]['d_tw_end'] = tw_e if tw_e else 1440
-                
-                st = simpledialog.askinteger("Datos", f"Tiempo de servicio (Delivery {idx+1}):", initialvalue=60)
-                self.requests_data[idx]['d_service_time'] = st if st is not None else 60
+                self.requests_data[idx]['delivery_node'] = node_id
+
+                fields = [
+                    {'label': f"Time Window Start (Delivery {idx+1}):", 'key': 'd_tw_start', 'default': 0},
+                    {'label': f"Time Window End (Delivery {idx+1}):", 'key': 'd_tw_end', 'default': 1440},
+                    {'label': f"Service Time (Delivery {idx+1}):", 'key': 'd_service_time', 'default': 60},
+                ]
+                dialog = MultiFieldDialog(self.root, f"Delivery Data {idx+1}", fields)
+                if dialog.result:
+                    self.requests_data[idx].update(dialog.result)
+                else:
+                    self.requests_data[idx].update({
+                        'd_tw_start': 0,
+                        'd_tw_end': 1440,
+                        'd_service_time': 60
+                    })
 
         elif tipo == 'veh':
             if sub == 'start':
                 self.vehicles_data[idx]['start_node'] = node_id
-                
-                cap = simpledialog.askinteger("Datos", f"Capacidad Vehículo {idx+1}:", initialvalue=3)
-                self.vehicles_data[idx]['capacity'] = cap if cap else 3
-                
-                mt = simpledialog.askinteger("Datos", f"Tiempo Máximo Ruta Vehículo {idx+1}:", initialvalue=6000)
-                self.vehicles_data[idx]['max_time'] = mt if mt else 6000
+
+                fields = [
+                    {'label': f"Vehicle Capacity {idx+1}:", 'key': 'capacity', 'default': 3},
+                    {'label': f"Vehicle Max Route Time {idx+1}:", 'key': 'max_time', 'default': 6000},
+                ]
+                dialog = MultiFieldDialog(self.root, f"Vehicle Data {idx+1}", fields)
+                if dialog.result:
+                    self.vehicles_data[idx].update(dialog.result)
+                else:
+                    self.vehicles_data[idx].update({
+                        'capacity': 3,
+                        'max_time': 6000
+                    })
             else:
                 self.vehicles_data[idx]['end_node'] = node_id
 
     def finish_generation(self):
         self.step = "DONE"
-        self.lbl_status.config(text="Procesando grafos y generando JSON...", fg="blue")
+        self.lbl_status.config(text="Processing graphs and generating JSON...")
         self.root.update()
         
-        # Parámetros globales
+        # Global parameters
         l_ride = int(self.entry_lride.get())
         global_params = {"L_ride": l_ride}
         
-        # Llamar al backend
+        # Call backend
         try:
             json_data = self.manager.generate_json_structure(
                 self.requests_data, 
@@ -229,13 +288,13 @@ class DarpApp:
             filename = "generated_instance.json"
             self.manager.save_to_file(json_data, filename)
             
-            messagebox.showinfo("Éxito", f"Archivo generado correctamente:\n{filename}")
-            self.lbl_status.config(text="JSON Generado. Cierra o reinicia para otro.")
+            messagebox.showinfo("Success", f"File generated successfully:\n{filename}")
+            self.lbl_status.config(text="JSON Generated. Close or restart for another.")
             
         except Exception as e:
-            messagebox.showerror("Error Generando JSON", str(e))
-            self.lbl_status.config(text="Error fatal.")
-
+            messagebox.showerror("Error Generating JSON", str(e))
+            self.lbl_status.config(text="Fatal error.")
+            
 if __name__ == "__main__":
     root = tk.Tk()
     app = DarpApp(root)
