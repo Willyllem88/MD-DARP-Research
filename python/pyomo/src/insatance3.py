@@ -9,7 +9,7 @@ def get_example_data():
     D = list(range(n_requests + 1, 2*n_requests + 1))  # 6..10
     K = [1, 2]
 
-    # Depósitos diferenciados
+    # Depots for each vehicle
     Start = { 1: "d1s", 2: "d2s" }
     End =   { 1: "d1e", 2: "d2e" }
 
@@ -18,7 +18,7 @@ def get_example_data():
     # Service time
     d = {i: 1 for i in V}
 
-    # Demand: +1 pickup, -1 delivery, 0 depósitos
+    # Demand: >0 pickup, <0 delivery, 0 depots
     q = {}
     for i in P:
         q[i] = 1
@@ -63,18 +63,17 @@ def get_example_data():
     return data
 
 if __name__ == "__main__":
-    # 1. Obtener datos
+    # 1. Get example data
     data = get_example_data()
     
-    # 2. Instanciar el modelo (Estilo Clase)
+    # 2. Crear instancia DARP
     darp = DARPMultiDepot(data)
     
-    # 3. Resolver
+    # 3. Solver instancia
     try:
-        # Asegúrate de tener cplex instalado o cambia a 'glpk'/'cbc'
         darp.solve(solver_name='cplex', time_limit=60)
         
-        # 4. Imprimir resultados
+        # 4. Imprimir resumen de rutas
         darp.print_route_summary()
         
     except Exception as e:
