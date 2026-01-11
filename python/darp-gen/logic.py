@@ -154,7 +154,6 @@ class DARPGraphManager:
 
         # --- ENSAMBLAR FINAL ---
         data = {
-            "solver_options": { "solver_name": "cplex", "time_limit": 60 },
             "global_params": global_params,
             "requests": {
                 "n_requests": n_requests,
