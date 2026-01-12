@@ -51,6 +51,8 @@ class DarpApp:
         self.setup_config_ui()
         self.setup_map_placeholder()
 
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+
     def setup_config_ui(self):
         # Título
         tk.Label(self.left_panel, text="DARP Configuration", font=("Arial", 14, "bold"), bg="#f0f0f0").pack(pady=10)
@@ -294,6 +296,16 @@ class DarpApp:
         except Exception as e:
             messagebox.showerror("Error Generating JSON", str(e))
             self.lbl_status.config(text="Fatal error.")
+
+    def on_closing(self):
+        """Handle proper closing of the application."""
+        try:
+            plt.close('all') 
+            self.root.quit()             
+            self.root.destroy() 
+        except Exception as e:
+            print(f"Error when loading: {e}")
+            import sys; sys.exit(0)
             
 if __name__ == "__main__":
     root = tk.Tk()
