@@ -49,6 +49,7 @@ int main() {
         // u[i] indica la posición de la ciudad i en el tour.
         // Rango: 1..n para nodos 1..n-1 (el nodo 0 es fijo)
         IloNumVarArray u(env, n, 0, n, ILOFLOAT);
+        model.add(u[0] == 0); // Ciudad 0 como punto de inicio fijo
 
         // ---------------------------------------------------------
         // 4. FUNCIÓN OBJETIVO
