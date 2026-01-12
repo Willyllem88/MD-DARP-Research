@@ -10,8 +10,8 @@ def get_example_data():
     K = [1, 2]
 
     # Depots for each vehicle
-    Start = { 1: "d1s", 2: "d2s" }
-    End =   { 1: "d1e", 2: "d2e" }
+    Start = { 1: 11, 2: 13 }
+    End =   { 1: 12, 2: 14 }
 
     V = P + D + list(Start.values()) + list(End.values())
 

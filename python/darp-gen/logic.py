@@ -95,7 +95,7 @@ class DARPGraphManager:
         
         for k_idx, veh in enumerate(user_vehicles):
             k = k_idx + 1
-            s_id, e_id = f"d{k}s", f"d{k}e"
+            s_id, e_id = n_requests*2 + k*2 - 1, n_requests*2 + k*2
             
             osm_s = veh['start_node']
             osm_e = veh['end_node']
