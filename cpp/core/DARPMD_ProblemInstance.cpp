@@ -2,12 +2,12 @@
 #include <fstream>
 #include <iomanip>
 
-#include "DARPMD_ProblemInstance.hh"
+#include "DARPMD_ProblemInstance.h"
 
-bool DARPMD_ProblemInstance::loadFromJSON(const std::string& filename) {
-    std::ifstream file(filename);
+bool DARPMD_ProblemInstance::loadFromJSON(const std::string& path) {
+    std::ifstream file(path);
     if (!file.is_open()) {
-        std::cerr << "Error: No se pudo abrir el archivo " << filename << std::endl;
+        std::cerr << "Error: No se pudo abrir el archivo " << path << std::endl;
         return false;
     }
 
@@ -33,12 +33,6 @@ bool DARPMD_ProblemInstance::loadFromJSON(const std::string& filename) {
         int id = n["id"];
         if (id > max_node_id) max_node_id = id;
     }
-
-    // Inicializar vectores de nodos con tamaño suficiente + 1
-    service_time.resize(max_node_id + 1, 0.0);
-    demand.resize(max_node_id + 1, 0.0);
-    time_window_start.resize(max_node_id + 1, 0.0);
-    time_window_end.resize(max_node_id + 1, 0.0);
 
     // 2. Cargar Nodos
     for (auto& n : j["nodes"]) {
@@ -97,7 +91,32 @@ double DARPMD_ProblemInstance::getCost(int i, int j, int k) const {
     if (it != c_ijk.end()) {
         return it->second;
     }
+    std::cout << "Warning: Cost not found for (" << i << ", " << j << ", " << k << "). Returning 0.0." << std::endl;
     return 0.0; // O algún valor por defecto
+}
+
+double DARPMD_ProblemInstance::getServiceTime(int i) const {
+    return service_time.at(i);
+}
+
+double DARPMD_ProblemInstance::getDemand(int i) const {
+    return demand.at(i);
+}
+
+double DARPMD_ProblemInstance::getTimeWindowStart(int i) const {
+    return time_window_start.at(i);
+}
+
+double DARPMD_ProblemInstance::getTimeWindowEnd(int i) const {
+    return time_window_end.at(i);
+}
+
+double DARPMD_ProblemInstance::getVehicleCapacity(int k) const {
+    return capacity.at(k);
+}
+
+double DARPMD_ProblemInstance::getVehicleMaxRouteTime(int k) const {
+    return max_route_time.at(k);
 }
 
 #include <iostream>
@@ -184,10 +203,10 @@ void DARPMD_ProblemInstance::displayInfo() const {
         
         std::cout << std::left 
                   << std::setw(10) << i 
-                  << std::setw(15) << service_time[i] 
-                  << std::setw(10) << demand[i] 
-                  << std::setw(15) << time_window_start[i] 
-                  << time_window_end[i] << "\n";
+                  << std::setw(15) << service_time.at(i)
+                  << std::setw(10) << demand.at(i)
+                  << std::setw(15) << time_window_start.at(i)
+                  << time_window_end.at(i) << "\n";
     };
 
     // Print subset to avoid huge lists, or iterate relevant sets
