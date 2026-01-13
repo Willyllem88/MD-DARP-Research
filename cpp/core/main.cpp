@@ -16,6 +16,10 @@ int main() {
     DARPMDSolver solver(instance);
     solver.solve(3600.0);
     solver.displayResults();
+    DARPMD_ResultInstance result = solver.extractResult();
+    result.displaySummary();
+    result.saveToTxt("solution_report.txt");
+    result.saveToJSON("solution_report.json");
 
     return 0;
 }

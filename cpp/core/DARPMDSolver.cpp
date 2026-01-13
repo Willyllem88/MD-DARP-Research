@@ -384,3 +384,90 @@ void DARPMDSolver::displayResults() {
         std::cout << std::endl;
     }
 }
+
+DARPMD_ResultInstance DARPMDSolver::extractResult() {
+    DARPMD_ResultInstance result;
+    
+    // 1. Datos Generales
+    try {
+        result.objectiveValue = cplex.getObjValue();
+        result.solverStatus = "Optimal"; // O usa cplex.getStatus() mapeado a string
+    } catch (...) {
+        result.solverStatus = "No Solution";
+        return result;
+    }
+
+    // 2. Reconstruir rutas (Lógica similar a displayResults pero guardando datos)
+    for (int k : data.K) {
+        VehicleRoute vRoute;
+        vRoute.vehicleId = k;
+
+        // Mapa de siguientes nodos para este vehículo
+        std::map<int, int> next_node_map;
+        for (const auto& arc : A_k) {
+            auto [i, j, veh] = arc;
+            if (veh == k) {
+                // Verificar si la variable es 1 (con tolerancia numérica)
+                if (cplex.isExtracted(x[arc]) && cplex.getValue(x[arc]) > 0.5) {
+                    next_node_map[i] = j;
+                }
+            }
+        }
+
+        int current_node = data.StartNode.at(k);
+        int end_node = data.EndNode.at(k);
+
+        // Si el vehículo no se mueve
+        if (next_node_map.find(current_node) == next_node_map.end()) {
+             // Aún así, podemos añadir el nodo inicial para constancia
+            RouteStep startStep;
+            startStep.nodeId = current_node;
+            startStep.type = "DepotStart";
+            startStep.arrivalTime = 0.0;
+            startStep.loadAfter = 0.0;
+            vRoute.steps.push_back(startStep);
+            
+            result.addRoute(k, vRoute);
+            continue;
+        }
+
+        // Recorrer la ruta
+        while (true) {
+            // Crear el paso actual
+            RouteStep step;
+            step.nodeId = current_node;
+            
+            // Determinar tipo (heurística simple basada en tus sets P y D)
+            if (current_node == data.StartNode.at(k)) step.type = "DepotStart";
+            else if (current_node == data.EndNode.at(k)) step.type = "DepotEnd";
+            else if (std::find(data.P.begin(), data.P.end(), current_node) != data.P.end()) step.type = "Pickup";
+            else if (std::find(data.D.begin(), data.D.end(), current_node) != data.D.end()) step.type = "Delivery";
+            else step.type = "Node";
+
+            // Extraer valores de variables continuas u (tiempo) y w (carga)
+            // Nota: Manejar con try-catch o verificaciones si la variable existe para ese nodo/vehículo
+            if (u.count({current_node, k})) 
+                step.arrivalTime = cplex.getValue(u[{current_node, k}]);
+            else 
+                step.arrivalTime = 0.0;
+
+            if (w.count({current_node, k}))
+                step.loadAfter = cplex.getValue(w[{current_node, k}]);
+            else 
+                step.loadAfter = 0.0;
+
+            vRoute.steps.push_back(step);
+
+            // Condición de parada
+            if (current_node == end_node) break;
+            if (next_node_map.find(current_node) == next_node_map.end()) break; // Ruta rota?
+
+            // Avanzar
+            current_node = next_node_map[current_node];
+        }
+        
+        result.addRoute(k, vRoute);
+    }
+
+    return result;
+}

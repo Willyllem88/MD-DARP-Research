@@ -3,6 +3,7 @@ add_executable(darpmd
     main.cpp
     DARPMDSolver.cpp
     DARPMD_ProblemInstance.cpp
+    DARPMD_ResultInstance.cpp
 )
 
 # Includes del proyecto

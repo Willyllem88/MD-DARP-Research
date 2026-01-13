@@ -1,11 +1,14 @@
 #pragma once
 
-#include "DARPMD_ProblemInstance.h"
 #include <ilcplex/ilocplex.h>
 #include <map>
 #include <tuple>
 #include <vector>
 #include <utility>
+
+
+#include "DARPMD_ProblemInstance.h"
+#include "DARPMD_ResultInstance.h"
 
 class DARPMDSolver {
 public:
@@ -15,6 +18,8 @@ public:
     void solve(double time_limit_sec = 3600.0);
 
     void displayResults();
+
+    DARPMD_ResultInstance extractResult();
 
 private:
     const DARPMD_ProblemInstance& data;
