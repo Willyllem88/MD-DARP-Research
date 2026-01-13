@@ -287,12 +287,14 @@ class DarpApp:
                 global_params
             )
             
-            filename = "generated_instance.json"
-            self.manager.save_to_file(json_data, filename)
-            
-            messagebox.showinfo("Success", f"File generated successfully:\n{filename}")
-            self.lbl_status.config(text="JSON Generated. Close or restart for another.")
-            
+            filename = self.manager.save_to_file(json_data)
+            if filename:
+                messagebox.showinfo("Success", f"File generated successfully:\n{filename}")
+                self.lbl_status.config(text="JSON Generated. Close or restart for another.")
+            else:
+                messagebox.showinfo("Cancelled", "File save cancelled.")
+                self.lbl_status.config(text="JSON Cancelled. Close or restart for another.")
+                 
         except Exception as e:
             messagebox.showerror("Error Generating JSON", str(e))
             self.lbl_status.config(text="Fatal error.")
