@@ -1,8 +1,5 @@
 #include "DARPMD_ResultInstance.h"
 
-DARPMD_ResultInstance::DARPMD_ResultInstance() 
-    : objectiveValue(0.0), solverStatus("Unknown"), solutionTimeSec(0.0) {}
-
 void DARPMD_ResultInstance::addRoute(int vehicleId, const VehicleRoute& route) {
     routes[vehicleId] = route;
 }
@@ -14,8 +11,22 @@ void DARPMD_ResultInstance::displaySummary() const {
     std::cout << "Compute Time: " << solutionTimeSec << " s\n";
     std::cout << "--------------------------------\n\n";
 
+    auto nodeName = [](int i, int numReq, int numVeh) -> std::string {
+        // 123456
+        // 1+
+        // 2+
+        // 1-
+        // 2-
+        // V0Start
+        // V0End
+        if (i <= numReq) return std::to_string(i)+"+";
+        if (i <= 2*numReq) return std::to_string(i - numReq)+"-";
+        if (i < 2*numReq + numVeh) return "V" + std::to_string(i - 2*numReq) + "St";
+        return "V" + std::to_string(i - 2*numReq - numVeh) + "En";
+    };
+
     for (const auto& [k, route] : routes) {
-        // Encabezado del vehículo
+        // Header for each vehicle
         std::cout << "Vehicle " << k << ": ";
         
         if (route.isEmpty()) {
@@ -25,19 +36,21 @@ void DARPMD_ResultInstance::displaySummary() const {
 
         std::cout << "Route (Steps: " << route.steps.size() << ")\n";
         
-        // Encabezados de columna
-        std::cout << "  " // Indentación ligera
-                  << std::left << std::setw(10) << "NodeID" 
+        // Column headers
+        std::cout << "  " // Light indentation
+                  << std::left << std::setw(10) << "NodeID"
+                  << std::setw(15) << "NodeName"
                   << std::setw(15) << "Type" 
                   << std::setw(12) << "ArrTime" 
                   << std::setw(12) << "Load" << "\n";
 
-        std::cout << "  " << std::string(49, '-') << "\n"; // Separador visual
+        std::cout << "  " << std::string(49, '-') << "\n"; // Visual separator
 
-        // Filas de datos
+        // Data rows
         for (const auto& step : route.steps) {
-            std::cout << "  " // Indentación ligera
-                      << std::left << std::setw(10) << step.nodeId 
+            std::cout << "  " // Light indentation
+                      << std::left << std::setw(10) << step.nodeId
+                      << std::setw(15) << nodeName(step.nodeId, problemInstance.N_requests, problemInstance.K_vehicles)
                       << std::setw(15) << step.type 
                       << std::setw(12) << std::fixed << std::setprecision(2) << step.arrivalTime 
                       << std::setw(12) << std::setprecision(1) << step.loadAfter << "\n";
@@ -86,43 +99,47 @@ void DARPMD_ResultInstance::saveToTxt(const std::string& filename) const {
 }
 
 void DARPMD_ResultInstance::saveToJSON(const std::string& filename) const {
-    std::ofstream file(filename);
-    if (!file.is_open()) return;
+    // 1. Crear el objeto JSON raíz
+    json root;
 
-    // Construcción manual de JSON
-    file << "{\n";
-    file << "  \"summary\": {\n";
-    file << "    \"status\": \"" << solverStatus << "\",\n";
-    file << "    \"objective\": " << objectiveValue << ",\n";
-    file << "    \"time_sec\": " << solutionTimeSec << "\n";
-    file << "  },\n";
-    file << "  \"routes\": [\n";
+    // 2. Rellenar Summary
+    root["summary"] = {
+        {"status", solverStatus},
+        {"objective", objectiveValue},
+        {"time_sec", solutionTimeSec}
+    };
 
-    bool firstRoute = true;
+    // 3. Rellenar Routes (Construcción automática de arrays)
+    root["routes"] = json::array();
     for (const auto& [k, route] : routes) {
-        if (!firstRoute) file << ",\n";
-        firstRoute = false;
-
-        file << "    {\n";
-        file << "      \"vehicle_id\": " << k << ",\n";
-        file << "      \"steps\": [\n";
+        json routeJson;
+        routeJson["vehicle_id"] = k;
         
-        for (size_t i = 0; i < route.steps.size(); ++i) {
-            const auto& step = route.steps[i];
-            file << "        { \"node\": " << step.nodeId 
-                 << ", \"type\": \"" << step.type << "\""
-                 << ", \"arrival\": " << step.arrivalTime 
-                 << ", \"load\": " << step.loadAfter << " }";
-            
-            if (i < route.steps.size() - 1) file << ",";
-            file << "\n";
+        // Transformar vector de C++ a array JSON
+        json stepsArr = json::array();
+        for (const auto& step : route.steps) {
+            stepsArr.push_back({
+                {"node", step.nodeId},
+                {"type", step.type},
+                {"arrival", step.arrivalTime},
+                {"load", step.loadAfter}
+            });
         }
-        file << "      ]\n";
-        file << "    }";
+        routeJson["steps"] = stepsArr;
+        root["routes"].push_back(routeJson);
     }
-    file << "\n  ]\n";
-    file << "}\n";
-    
-    file.close();
-    std::cout << "JSON saved to: " << filename << std::endl;
+
+    // 4. Lógica de Metadata (SOLO SI NO ESTÁ VACÍA)
+    // Aquí usamos el método que creamos en el paso 1
+    if (!metadata.isEmpty()) {
+        root["metadata"] = metadata; 
+        // La librería maneja la coma anterior y el formato automáticamente
+    }
+
+    // 5. Guardar en fichero
+    std::ofstream file(filename);
+    if (file.is_open()) {
+        file << std::setw(4) << root << std::endl; // setw(4) lo deja bonito (pretty print)
+        std::cout << "JSON saved to: " << filename << std::endl;
+    }
 }

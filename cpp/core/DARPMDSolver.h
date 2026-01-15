@@ -17,8 +17,6 @@ public:
 
     void solve(double time_limit_sec = 3600.0);
 
-    void displayResults();
-
     DARPMD_ResultInstance extractResult();
 
 private:
@@ -53,3 +51,5 @@ private:
     const double M_time = 10000.0;
     const double M_load = 1000.0;
 };
+
+//TODO: delte the bigMs once the code is checked

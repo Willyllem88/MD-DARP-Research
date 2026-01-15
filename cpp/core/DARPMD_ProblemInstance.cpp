@@ -4,7 +4,29 @@
 
 #include "DARPMD_ProblemInstance.h"
 
+void DARPMD_ProblemInstance::clear() {
+    N_requests = 0;
+    max_node_id = 0;
+    P.clear();
+    D.clear();
+    K.clear();
+    StartNode.clear();
+    EndNode.clear();
+    service_time.clear();
+    demand.clear();
+    time_window_start.clear();
+    time_window_end.clear();
+    capacity.clear();
+    max_route_time.clear();
+    max_ride_time = 0.0;
+    t_ij.clear();
+    c_ijk.clear();
+    metadata = Metadata();
+}
+
 bool DARPMD_ProblemInstance::loadFromJSON(const std::string& path) {
+    clear();
+
     std::ifstream file(path);
     if (!file.is_open()) {
         std::cerr << "Error: No se pudo abrir el archivo " << path << std::endl;
@@ -14,69 +36,77 @@ bool DARPMD_ProblemInstance::loadFromJSON(const std::string& path) {
     json j;
     try {
         file >> j;
-    } catch (const std::exception& e) {
-        std::cerr << "Error parseando JSON: " << e.what() << std::endl;
-        return false;
-    }
 
-    std::cout << "Cargando instancia..." << std::endl;
+        std::cout << "Cargando instancia..." << std::endl;
 
-    // 1. Cargar Requests y Sets básicos
-    auto& req = j["requests"];
-    P = req["pickup_ids"].get<std::vector<int>>();
-    D = req["delivery_ids"].get<std::vector<int>>();
-    N_requests = req["n_requests"];
+        // 1. Load Requests and basic Sets
+        auto& req = j.at("requests");
+        P = req.at("pickup_ids").get<std::vector<int>>();
+        D = req.at("delivery_ids").get<std::vector<int>>();
+        N_requests = req.at("n_requests");
+        K_vehicles = j.at("vehicles").size();
 
-    // Calcular el ID de nodo máximo para redimensionar vectores
-    max_node_id = 0;
-    for (auto& n : j["nodes"]) {
-        int id = n["id"];
-        if (id > max_node_id) max_node_id = id;
-    }
-
-    // 2. Cargar Nodos
-    for (auto& n : j["nodes"]) {
-        int id = n["id"];
-        service_time[id] = n["service_time"];
-        demand[id] = n["demand"];
-        time_window_start[id] = n["tw_start"];
-        time_window_end[id] = n["tw_end"];
-    }
-
-    // 3. Cargar Vehículos
-    for (auto& v : j["vehicles"]) {
-        int k = v["id"];
-        K.push_back(k);
-        StartNode[k] = v["start_node"];
-        EndNode[k] = v["end_node"];
-        capacity[k] = v["capacity"];
-        max_route_time[k] = v["max_time"];
-    }
-
-    // 4. Parámetros Globales
-    // En tu python: data['L'] = json_data['global_params']['L_ride']
-    max_ride_time = j["global_params"]["L_ride"];
-
-    // 5. Matriz de Tiempos (t_ij)
-    // Inicializar matriz NxN con ceros
-    t_ij.resize(max_node_id + 1, std::vector<double>(max_node_id + 1, 0.0));
-
-    for (auto& x : j["matrix_t"]) {
-        int u = x["from"];
-        int v = x["to"];
-        double val = x["value"];
-        if (u <= max_node_id && v <= max_node_id) {
-            t_ij[u][v] = val;
+        // Calculate the maximum node ID for resizing vectors
+        max_node_id = 0;
+        for (auto& n : j.at("nodes")) {
+            int id = n.at("id");
+            if (id > max_node_id) max_node_id = id;
         }
-    }
 
-    // 6. Costos (c_ijk)
-    for (auto& x : j["matrix_c"]) {
-        int u = x["from"];
-        int v = x["to"];
-        int k = x["k"];
-        double val = x["value"];
-        c_ijk[{u, v, k}] = val;
+        // 2. Load Nodes
+        for (auto& n : j.at("nodes")) {
+            int id = n.at("id");
+            service_time[id] = n.at("service_time");
+            demand[id] = n.at("demand");
+            time_window_start[id] = n.at("tw_start");
+            time_window_end[id] = n.at("tw_end");
+        }
+
+        // 3. Load Vehicles
+        for (auto& v : j.at("vehicles")) {
+            int k = v.at("id");
+            K.push_back(k);
+            StartNode[k] = v.at("start_node");
+            EndNode[k] = v.at("end_node");
+            capacity[k] = v.at("capacity");
+            max_route_time[k] = v.at("max_time");
+        }
+
+        // 4. Global Parameters
+        max_ride_time = j.at("global_params").at("L_ride");
+
+        // 5. Time Matrix (t_ij)
+        t_ij.resize(max_node_id + 1, std::vector<double>(max_node_id + 1, 999999.0)); // Initalize with large time
+
+        for (auto& x : j.at("matrix_t")) {
+            int u = x.at("from");
+            int v = x.at("to");
+            double val = x.at("value");
+            if (u <= max_node_id && v <= max_node_id) {
+                t_ij[u][v] = val;
+            }
+        }
+
+        // 6. Costs (c_ijk)
+        for (auto& x : j.at("matrix_c")) {
+            int u = x.at("from");
+            int v = x.at("to");
+            int k = x.at("k");
+            double val = x.at("value");
+            c_ijk[{u, v, k}] = val;
+        }
+
+        // 7. Load city metadata if present
+        if (j.contains("metadata")) {
+            metadata = j.at("metadata").get<Metadata>();
+        }
+
+    } catch (const json::exception& e) {
+        std::cerr << "Error parsing JSON: " << e.what() << std::endl;
+        return false;
+    } catch (const std::exception& e) {
+        std::cerr << "[ERROR] " << e.what() << std::endl;
+        return false;
     }
 
     return true;
@@ -92,7 +122,7 @@ double DARPMD_ProblemInstance::getCost(int i, int j, int k) const {
         return it->second;
     }
     std::cout << "Warning: Cost not found for (" << i << ", " << j << ", " << k << "). Returning 0.0." << std::endl;
-    return 0.0; // O algún valor por defecto
+    return 0.0;
 }
 
 double DARPMD_ProblemInstance::getServiceTime(int i) const {
@@ -119,19 +149,6 @@ double DARPMD_ProblemInstance::getVehicleMaxRouteTime(int k) const {
     return max_route_time.at(k);
 }
 
-#include <iostream>
-#include <iomanip>
-
-/**
- * @brief Displays the complete summary of the loaded problem instance to the console.
- * * This function prints:
- * - Global parameters (Requests, Max Ride Time, etc.).
- * - The contents of the Sets P (Pickups), D (Deliveries), and K (Vehicles).
- * - Detailed attributes for each Vehicle (Start, End, Capacity, Max Time).
- * - Node attributes (Service Time, Demand, Time Windows) for relevant nodes.
- * - The dimensions (size) of the cost and time matrices (to avoid console flooding).
- * * @note Output text is in English.
- */
 void DARPMD_ProblemInstance::displayInfo() const {
     std::cout << "\n============================================\n";
     std::cout << "       DARPMD Problem Instance Info         \n";
@@ -167,8 +184,8 @@ void DARPMD_ProblemInstance::displayInfo() const {
               << "Max_Route_Time" << "\n";
     std::cout << std::string(60, '-') << "\n";
 
+    // --- Print vehicle details ---
     for (int k : K) {
-        // Using 'at' for safety, or find/end if logic implies missing keys
         int start = (StartNode.count(k)) ? StartNode.at(k) : -1;
         int end = (EndNode.count(k)) ? EndNode.at(k) : -1;
         double cap = (capacity.count(k)) ? capacity.at(k) : 0.0;
@@ -184,9 +201,6 @@ void DARPMD_ProblemInstance::displayInfo() const {
     std::cout << "\n";
 
     // --- Node Attributes ---
-    // We iterate up to max_node_id to show loaded data. 
-    // Usually, we filter this to show only relevant nodes (P U D U Depots), 
-    // but here we check if data exists within bounds.
     std::cout << "--- Node Attributes (First 15 or relevant) ---\n";
     std::cout << std::left 
               << std::setw(10) << "Node_ID" 

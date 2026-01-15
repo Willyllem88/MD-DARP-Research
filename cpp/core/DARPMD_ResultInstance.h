@@ -1,5 +1,4 @@
-#ifndef DARPMD_RESULTINSTANCE_H
-#define DARPMD_RESULTINSTANCE_H
+#pragma once
 
 #include <vector>
 #include <string>
@@ -7,6 +6,12 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
+
+#include "DARPMD_ProblemInstance.h"
+#include "Metadata.h"
+
+#include "../includes/json.hpp"
+using json = nlohmann::json;
 
 // Estructura para representar la visita a un nodo específico
 struct RouteStep {
@@ -40,8 +45,19 @@ public:
     // Mapa: ID del Vehículo -> Objeto Ruta
     std::map<int, VehicleRoute> routes;
 
+    Metadata metadata; // Información adicional (ciudad, coordenadas, etc.)
+    DARPMD_ProblemInstance problemInstance;
+
     // --- Constructor ---
-    DARPMD_ResultInstance();
+    DARPMD_ResultInstance() = delete;
+    DARPMD_ResultInstance(const DARPMD_ProblemInstance& problem):
+        objectiveValue(0.0),
+        solverStatus("NotSolved"),
+        solutionTimeSec(0.0),
+        metadata(problem.getMetadata()),
+        problemInstance(problem)
+    {}
+
 
     // --- Métodos de Gestión ---
     void addRoute(int vehicleId, const VehicleRoute& route);
@@ -57,8 +73,6 @@ public:
     // Guarda en un formato de texto legible (tipo reporte)
     void saveToTxt(const std::string& filename) const;
 };
-
-#endif // DARPMD_RESULTINSTANCE_H
 
 // TODO list
 // - agregar metricas de tiempo de servicio, pintar mejor

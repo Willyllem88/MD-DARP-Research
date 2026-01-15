@@ -6,6 +6,8 @@
 #include <tuple>
 #include <utility>
 
+#include "Metadata.h"
+
 // We use the nlohmann/json library for JSON parsing
 // https://github.com/nlohmann/json
 #include "../includes/json.hpp" 
@@ -14,6 +16,8 @@ using json = nlohmann::json;
 class DARPMD_ProblemInstance {
 public:
     DARPMD_ProblemInstance() = default;
+    
+    void clear();
     bool loadFromJSON(const std::string& filename);
     void displayInfo() const;
 
@@ -28,6 +32,7 @@ public:
     double getVehicleMaxRouteTime(int k) const;
 
     int N_requests; // Number of requests
+    int K_vehicles; // Number of vehicles
     int max_node_id; // For sizing vectors
 
     // Sets
@@ -57,4 +62,8 @@ public:
 
     // Costs matrix (c_ijk): map of tuples to double
     std::map<std::tuple<int, int, int>, double> c_ijk;
+
+    // --- City metadata ---
+    Metadata metadata;
+    const Metadata& getMetadata() const { return metadata; }
 };

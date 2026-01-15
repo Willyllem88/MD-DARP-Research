@@ -171,23 +171,17 @@ void DARPMDSolver::buildModel() {
         }
     }
 
-    // TODO: revise from now on
     // c5: Time Consistency
-    // u[j,k] >= u[i,k] + service + travel - M * (1 - x[i,j,k])
-    // Rearranged: u[j,k] - u[i,k] - M * x[i,j,k] >= service + travel - M
     for (const auto& arc : A_k) {
         auto [i, j, k] = arc;
+        const double M = 10000.0;
+
         double serv = data.getServiceTime(i);
-        // Note: The ProblemInstance vectors likely assume node ID as index if sized to max_node_id + 1
         double trav = data.getTravelTime(i, j);
         
-        IloExpr lhs(env);
-        lhs += u[{j, k}];
-        lhs -= u[{i, k}];
-        lhs -= M_time * x[arc];
-        
-        model.add(lhs >= serv + trav - M_time);
-        lhs.end();
+        model.add(
+            u[{j, k}] >= u[{i, k}] + serv + trav - M * (1 - x[arc])
+        );
     }
 
     // c6: Time Windows
@@ -211,15 +205,15 @@ void DARPMDSolver::buildModel() {
         model.add(u[{ek, k}] - u[{sk, k}] <= Tmax);
     }
 
-    // c8: Precedence (Pickup before Delivery)
+    // c8: Precedence
     for (int i : data.P) {
+        const double M = 10000.0;
+
         int delivery_node = i + data.N_requests;
         double serv = data.getServiceTime(i);
         double trav = data.getTravelTime(i, delivery_node);
         
         for (int k : data.K) {
-            // Constraint: u[del, k] >= u[pick, k] + s + t - M*(1 - k_serves_i)
-            // k_serves_i is sum(x[i, j, k])
             IloExpr k_serves_i(env);
             for (const auto& arc : A_k) {
                 if (std::get<0>(arc) == i && std::get<2>(arc) == k) {
@@ -227,18 +221,14 @@ void DARPMDSolver::buildModel() {
                 }
             }
 
-            IloExpr rhs(env);
-            rhs += u[{i, k}];
-            rhs += serv + trav;
-            rhs -= M_time;
-            rhs += M_time * k_serves_i; 
-
-            model.add(u[{delivery_node, k}] >= rhs);
+            model.add(
+                u[{delivery_node, k}] >= u[{i, k}] + serv + trav - M * (1 - k_serves_i)
+            );
             k_serves_i.end();
-            rhs.end();
         }
     }
 
+    //TODO: check from now on
     // c9: Ride Time Limit (L)
     // u[del, k] - (u[pick, k] + serv) <= L + M(1 - k_serves_i)
     for (int i : data.P) {
@@ -321,93 +311,29 @@ void DARPMDSolver::solve(double time_limit_sec) {
     }
 }
 
-void DARPMDSolver::displayResults() {
-    std::cout << "\n--- ROUTES SUMMARY ---" << std::endl;
-
-    for (int k : data.K) {
-        std::cout << "Vehicle " << k << ":" << std::endl;
-
-        // Build a next_node map for this vehicle from solution values
-        std::map<int, int> next_node_map;
-        for (const auto& arc : A_k) {
-            auto [i, j, veh] = arc;
-            if (veh == k) {
-                if (cplex.getValue(x[arc]) > 0.5) {
-                    next_node_map[i] = j;
-                }
-            }
-        }
-
-        int current_node = data.StartNode.at(k);
-        int end_node = data.EndNode.at(k);
-        
-        // If vehicle doesn't leave start
-        if (next_node_map.find(current_node) == next_node_map.end()) {
-            std::cout << "  Unused (stays at depot)" << std::endl;
-            continue;
-        }
-
-        // Traverse the route
-        while (true) {
-            if (next_node_map.find(current_node) == next_node_map.end()) break;
-
-            int next_n = next_node_map[current_node];
-
-            // Get values
-            double start_service = cplex.getValue(u[{current_node, k}]);
-            double service_dur = data.getServiceTime(current_node);
-            double arrival_next = cplex.getValue(u[{next_n, k}]);
-            double load_after = cplex.getValue(w[{current_node, k}]);
-
-            // Formatting node names
-            std::string from_str = std::to_string(current_node);
-            std::string to_str = std::to_string(next_n);
-            
-            // Heuristic to check if Pickup or Delivery for pretty printing
-            bool is_P = std::find(data.P.begin(), data.P.end(), current_node) != data.P.end();
-            bool is_D = std::find(data.D.begin(), data.D.end(), current_node) != data.D.end();
-
-            if (is_P) from_str += "+";
-            if (is_D) from_str = std::to_string(current_node - data.N_requests) + "-";
-
-            bool next_is_P = std::find(data.P.begin(), data.P.end(), next_n) != data.P.end();
-            bool next_is_D = std::find(data.D.begin(), data.D.end(), next_n) != data.D.end();
-            if (next_is_P) to_str += "+";
-            if (next_is_D) to_str = std::to_string(next_n - data.N_requests) + "-";
-
-            printf("  %-4s -> %-4s | Arr: %5.1f | ServStart: %5.1f | Load: %3.1f\n", 
-                   from_str.c_str(), to_str.c_str(), arrival_next, start_service, load_after);
-
-            current_node = next_n;
-            if (current_node == end_node) break;
-        }
-        std::cout << std::endl;
-    }
-}
-
 DARPMD_ResultInstance DARPMDSolver::extractResult() {
-    DARPMD_ResultInstance result;
+    DARPMD_ResultInstance result(data);
     
-    // 1. Datos Generales
+    // 1. General Solution Info
     try {
         result.objectiveValue = cplex.getObjValue();
-        result.solverStatus = "Optimal"; // O usa cplex.getStatus() mapeado a string
+        result.solverStatus = "Optimal";
     } catch (...) {
         result.solverStatus = "No Solution";
         return result;
     }
 
-    // 2. Reconstruir rutas (Lógica similar a displayResults pero guardando datos)
+    // 2. Reconstruct routes (Logic similar to displayResults but storing data)
     for (int k : data.K) {
         VehicleRoute vRoute;
         vRoute.vehicleId = k;
 
-        // Mapa de siguientes nodos para este vehículo
+        // Map of next nodes for this vehicle
         std::map<int, int> next_node_map;
         for (const auto& arc : A_k) {
             auto [i, j, veh] = arc;
             if (veh == k) {
-                // Verificar si la variable es 1 (con tolerancia numérica)
+                // Check if variable is 1 (with numerical tolerance)
                 if (cplex.isExtracted(x[arc]) && cplex.getValue(x[arc]) > 0.5) {
                     next_node_map[i] = j;
                 }
@@ -417,9 +343,9 @@ DARPMD_ResultInstance DARPMDSolver::extractResult() {
         int current_node = data.StartNode.at(k);
         int end_node = data.EndNode.at(k);
 
-        // Si el vehículo no se mueve
+        // If vehicle doesn't move
         if (next_node_map.find(current_node) == next_node_map.end()) {
-             // Aún así, podemos añadir el nodo inicial para constancia
+            // Still, we can add the start node for consistency
             RouteStep startStep;
             startStep.nodeId = current_node;
             startStep.type = "DepotStart";
@@ -431,21 +357,21 @@ DARPMD_ResultInstance DARPMDSolver::extractResult() {
             continue;
         }
 
-        // Recorrer la ruta
+        // Traverse the route
         while (true) {
-            // Crear el paso actual
+            // Create the current step
             RouteStep step;
             step.nodeId = current_node;
             
-            // Determinar tipo (heurística simple basada en tus sets P y D)
+            // Determine type (simple heuristic based on your sets P and D)
             if (current_node == data.StartNode.at(k)) step.type = "DepotStart";
             else if (current_node == data.EndNode.at(k)) step.type = "DepotEnd";
             else if (std::find(data.P.begin(), data.P.end(), current_node) != data.P.end()) step.type = "Pickup";
             else if (std::find(data.D.begin(), data.D.end(), current_node) != data.D.end()) step.type = "Delivery";
             else step.type = "Node";
 
-            // Extraer valores de variables continuas u (tiempo) y w (carga)
-            // Nota: Manejar con try-catch o verificaciones si la variable existe para ese nodo/vehículo
+            // Extract continuous variable values u (time) and w (load)
+            // Note: Handle with try-catch or checks if variable exists for that node/vehicle
             if (u.count({current_node, k})) 
                 step.arrivalTime = cplex.getValue(u[{current_node, k}]);
             else 
@@ -458,11 +384,11 @@ DARPMD_ResultInstance DARPMDSolver::extractResult() {
 
             vRoute.steps.push_back(step);
 
-            // Condición de parada
+            // Stopping condition
             if (current_node == end_node) break;
-            if (next_node_map.find(current_node) == next_node_map.end()) break; // Ruta rota?
+            if (next_node_map.find(current_node) == next_node_map.end()) break; // Broken route?
 
-            // Avanzar
+            // Advance
             current_node = next_node_map[current_node];
         }
         
