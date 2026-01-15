@@ -5,7 +5,7 @@
 #include <tuple>
 #include <vector>
 #include <utility>
-
+#include <optional>
 
 #include "DARPMD_ProblemInstance.h"
 #include "DARPMD_ResultInstance.h"
@@ -15,7 +15,7 @@ public:
     DARPMDSolver(const DARPMD_ProblemInstance& instance);
     ~DARPMDSolver();
 
-    void solve(double time_limit_sec = 3600.0);
+    void solve(std::optional <double> timeLimit = std::nullopt);
 
     DARPMD_ResultInstance extractResult();
 

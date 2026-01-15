@@ -299,12 +299,15 @@ void DARPMDSolver::buildModel() {
     }
 }
 
-void DARPMDSolver::solve(double time_limit_sec) {
-    cplex.setParam(IloCplex::Param::TimeLimit, time_limit_sec);
+void DARPMDSolver::solve(std::optional <double> timeLimit) {
+    // Set time limit if provided
+    if (timeLimit.has_value()) {
+        cplex.setParam(IloCplex::Param::TimeLimit, timeLimit.value());
+    }
     
     std::cout << "Starting CPLEX solve..." << std::endl;
     if (cplex.solve()) {
-        std::cout << "Optimal Solution Found!" << std::endl;
+        std::cout << "CPLEX Status: " << cplex.getStatus() << std::endl;
         std::cout << "Objective Value: " << cplex.getObjValue() << std::endl;
     } else {
         std::cout << "No solution found or infeasible. Status: " << cplex.getStatus() << std::endl;
@@ -313,11 +316,11 @@ void DARPMDSolver::solve(double time_limit_sec) {
 
 DARPMD_ResultInstance DARPMDSolver::extractResult() {
     DARPMD_ResultInstance result(data);
-    
+
     // 1. General Solution Info
     try {
         result.objectiveValue = cplex.getObjValue();
-        result.solverStatus = "Optimal";
+        result.solverStatus = (cplex.getStatus() == IloAlgorithm::Optimal) ? "Optimal" : "Feasible";
     } catch (...) {
         result.solverStatus = "No Solution";
         return result;
