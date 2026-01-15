@@ -215,9 +215,9 @@ void DARPMDSolver::buildModel() {
         
         for (int k : data.K) {
             IloExpr k_serves_i(env);
-            for (const auto& arc : A_k) {
-                if (std::get<0>(arc) == i && std::get<2>(arc) == k) {
-                    k_serves_i += x[arc];
+            for (const auto& [ii, jj, kk] : A_k) {
+                if (ii == i && kk == k) {
+                    k_serves_i += x[{ii, jj, kk}];
                 }
             }
 
@@ -232,49 +232,37 @@ void DARPMDSolver::buildModel() {
     // c9: Ride Time Limit (L)
     // u[del, k] - (u[pick, k] + serv) <= L + M(1 - k_serves_i)
     for (int i : data.P) {
+        const double M = 10000.0;
+
         int delivery_node = i + data.N_requests;
         double serv = data.getServiceTime(i);
         double L = data.max_ride_time;
 
         for (int k : data.K) {
             IloExpr k_serves_i(env);
-            for (const auto& arc : A_k) {
-                if (std::get<0>(arc) == i && std::get<2>(arc) == k) {
-                    k_serves_i += x[arc];
+            for (const auto& [ii, jj, kk] : A_k) {
+                if (ii == i && kk == k) {
+                    k_serves_i += x[{ii, jj, kk}];
                 }
             }
 
-            IloExpr lhs(env);
-            lhs += u[{delivery_node, k}];
-            lhs -= u[{i, k}];
-            lhs -= serv;
-
-            IloExpr rhs(env);
-            rhs += L;
-            rhs += M_time;
-            rhs -= M_time * k_serves_i;
-
-            model.add(lhs <= rhs);
-            
-            lhs.end();
-            rhs.end();
+            model.add(
+                u[{delivery_node, k}] - (u[{i, k}] + serv) <= L + M * (1 - k_serves_i)
+            );
             k_serves_i.end();
         }
     }
 
     // c10: Load Consistency
     // w[j,k] >= w[i,k] + q[j] - M(1 - x)
-    for (const auto& arc : A_k) {
-        auto [i, j, k] = arc;
+    for (const auto& [i, j, k] : A_k) {
+        const double M = 1000.0;
+
         double q_j = data.getDemand(j);
         
-        IloExpr lhs(env);
-        lhs += w[{j, k}];
-        lhs -= w[{i, k}];
-        lhs -= M_load * x[arc];
-        
-        model.add(lhs >= q_j - M_load);
-        lhs.end();
+        model.add(
+            w[{j, k}] >= w[{i, k}] + q_j - M * (1 - x[{i, j, k}])
+        );
     }
 
     // c11: Load Feasible Bounds
