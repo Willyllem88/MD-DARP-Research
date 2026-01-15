@@ -196,8 +196,15 @@ class DarpApp:
             markerfacecolor=color if filled else 'none',
             markeredgewidth=2
         )
-        self.ax.text(x, y, str(idx+1), color='black', fontsize=10, fontweight='bold', ha='center', va='center', 
-                     bbox=dict(facecolor='white', edgecolor='none', alpha=0.7, boxstyle='round,pad=0.2'))
+        self.ax.text(
+            x, y, 
+            str(idx+1), 
+            color='black',
+            fontsize=10,
+            fontweight='bold',
+            ha='center', va='center', 
+            bbox=dict(facecolor='white', edgecolor='none', alpha=0.7, boxstyle='round,pad=0.2')
+        )
         self.canvas.draw()
         
         # 3. Ask for additional data
