@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.lines import Line2D 
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 import matplotlib.pyplot as plt
 import osmnx as ox
 
@@ -102,6 +103,10 @@ class DarpApp:
         
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.right_panel)
         self.canvas.draw()
+
+        toolbar = NavigationToolbar2Tk(self.canvas, self.right_panel)
+        toolbar.update()
+
         self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         
         # Conectar evento click
@@ -121,6 +126,21 @@ class DarpApp:
             self.ax.clear()
             # Use osmnx to plot on our 'ax' axis
             ox.plot_graph(self.manager.G, ax=self.ax, show=False, close=False, node_size=0, edge_linewidth=0.5, bgcolor='white')
+            
+            # We add legend info
+            legend_elements = [
+                Line2D([0], [0], marker='o', color='w', label='Depot Start',
+                       markerfacecolor='green', markeredgecolor='green', markersize=8),
+                Line2D([0], [0], marker='o', color='w', label='Depot End',
+                       markerfacecolor='red', markeredgecolor='red', markersize=8),
+                Line2D([0], [0], marker='o', color='w', label='Pickup',
+                       markerfacecolor='blue', markeredgecolor='blue', markersize=8),
+                Line2D([0], [0], marker='o', color='w', label='Delivery',
+                       markerfacecolor='none', markeredgecolor='blue', markersize=8),
+                Line2D([0], [0], color='gray', lw=2, label='Route Path'),
+            ]
+            self.ax.legend(handles=legend_elements, loc='upper right', fancybox=True, shadow=True)
+            
             self.ax.set_title(f"Map: {place}")
             self.canvas.draw()
             
@@ -192,9 +212,10 @@ class DarpApp:
             x, y,
             marker='o',
             markersize=12,
-            markeredgecolor=color,
+            markeredgecolor='none' if filled else color,
             markerfacecolor=color if filled else 'none',
-            markeredgewidth=2
+            markeredgewidth=2,
+            alpha=0.4,
         )
         self.ax.text(
             x, y, 
@@ -203,7 +224,6 @@ class DarpApp:
             fontsize=10,
             fontweight='bold',
             ha='center', va='center', 
-            bbox=dict(facecolor='white', edgecolor='none', alpha=0.7, boxstyle='round,pad=0.2')
         )
         self.canvas.draw()
         

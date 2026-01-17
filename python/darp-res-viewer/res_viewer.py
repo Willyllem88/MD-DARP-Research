@@ -3,7 +3,10 @@ import tkinter as tk
 from tkinter import filedialog
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+from matplotlib.lines import Line2D
 import osmnx as ox
+
+# TODO: Label the nodes correctly
 
 class RouteVisualizer:
     def __init__(self, json_data):
@@ -11,6 +14,8 @@ class RouteVisualizer:
         self.city = self.data.get('metadata', {}).get('city', None)
         self.coordinates = self.data.get('metadata', {}).get('coordinates', {})
         self.routes = self.data.get('routes', [])
+        self.K_vehicles = self.data.get('summary', {}).get('num_vehicles', len(self.routes))
+        self.N_requests = self.data.get('summary', {}).get('num_requests', 0)
         
         # Colors for the routes of different trucks
         self.route_colors = [
@@ -63,13 +68,21 @@ class RouteVisualizer:
                 
                 # Get base style
                 style = self._get_node_style(n_type, v_idx)
+
+                def nodeAlias(n_id, n_type):
+                    if n_type == 'Pickup':
+                        return f"{n_id}"
+                    elif n_type == 'Delivery':
+                        return f"{n_id - self.N_requests}"
+                    else:
+                        return f"{(n_id - 2*self.N_requests - 1) % self.K_vehicles + 1}"
                 
                 # Save the configuration for later drawing
                 # Note: If a node is visited multiple times, it keeps the last role 
                 # or you can adjust logic if there is overlap.
                 node_styles[node_id] = {
                     'style': style,
-                    'label': node_id # Using the node ID as the label
+                    'label': nodeAlias(int(node_id), n_type)
                 }
         return node_styles
 
@@ -99,7 +112,7 @@ class RouteVisualizer:
             vehicle_id = route.get('vehicle_id', i+1)
             color = self.route_colors[i % len(self.route_colors)]
             
-            legend_patches.append(mpatches.Patch(color=color, label=f'Vehicle {vehicle_id}'))
+            legend_patches.append(Line2D([0], [0], color=color, lw=2, label=f'Vehicle {vehicle_id}'))
             
             for j in range(len(steps) - 1):
                 start_node = str(steps[j]['node'])
@@ -127,10 +140,10 @@ class RouteVisualizer:
                     x, y,
                     marker='o',
                     markersize=12,
-                    markeredgecolor=style['color'],
+                    markeredgecolor='none' if style['filled'] else style['color'],
                     markerfacecolor=style['color'] if style['filled'] else 'none',
                     markeredgewidth=2,
-                    alpha=0.7,
+                    alpha=0.4,
                     zorder=4
                 )
 
@@ -142,12 +155,21 @@ class RouteVisualizer:
                     fontsize=10, 
                     fontweight='bold', 
                     ha='center', va='center', 
-                    bbox=dict(facecolor='white', edgecolor='none', alpha=0.7, boxstyle='round,pad=0.2'),
-                    zorder=5
                 )
 
         # Final configuration
-        plt.legend(handles=legend_patches, loc='upper right')
+        # Create legend for node types
+        node_legend = [
+            Line2D([0], [0], marker='o', color='w', label='Depot Start',
+                markerfacecolor='green', markeredgecolor='green', markersize=8),
+            Line2D([0], [0], marker='o', color='w', label='Depot End',
+                markerfacecolor='red', markeredgecolor='red', markersize=8),
+            Line2D([0], [0], marker='o', color='w', label='Pickup',
+                markerfacecolor='blue', markeredgecolor='blue', markersize=8),
+            Line2D([0], [0], marker='o', color='w', label='Delivery',
+                markerfacecolor='none', markeredgecolor='blue', markersize=8), # markeredgecolor='blue' y facecolor='none' para hueco
+        ]
+        plt.legend(handles=legend_patches + node_legend, loc='upper right')
         plt.title(f"Optimized Routes - {self.city}", fontsize=14)
         plt.tight_layout()
         
