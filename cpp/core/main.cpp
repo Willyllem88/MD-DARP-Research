@@ -10,6 +10,7 @@ const std::string DEFAULT_INSTANCE_PATH = "/home/guillem/TFG-Guillem/data/instan
 
 struct Args {
     std::string instance_path = DEFAULT_INSTANCE_PATH;
+    std::string output_path = "solution_report.json";
     std::optional<double> time_limit;
 };
 
@@ -21,6 +22,14 @@ Args parseArgs(int argc, char** argv) {
             args.instance_path = argv[++i];
         } else if (a == "-t" && i + 1 < argc) {
             args.time_limit = std::stod(argv[++i]);
+        }
+        else if (a == "-o" && i + 1 < argc) {
+            args.output_path = argv[++i];
+        }
+        else if (a == "-h") {
+            std::cout << "DARPMD Solver" << std::endl;
+            std::cout << "Usage: " << argv[0] << " [-l instance_path] [-t time_limit] [-o output_path]" << std::endl;
+            exit(0);
         }
         else {
             std::cerr << "Unknown argument: " << a << std::endl;
@@ -44,8 +53,7 @@ int main(int argc, char** argv) {
 
     DARPMD_ResultInstance result = solver.extractResult();
     result.displaySummary();
-    result.saveToTxt("solution_report.txt");
-    result.saveToJSON("solution_report.json");
+    result.saveToJSON(args.output_path);
 
     return 0;
 }
