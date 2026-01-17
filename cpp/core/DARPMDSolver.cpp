@@ -6,10 +6,8 @@
 
 DARPMDSolver::DARPMDSolver(const DARPMD_ProblemInstance& instance) 
     : data(instance), model(env), cplex(model) {
-    
-    // 1. Initialize Sets
-    
-    // Create Set V: P + D + StartNodes + EndNodes
+        
+    // Create Set V: P u D u StartNodes u EndNodes
     std::set<int> distinct_nodes;
     for (int i : data.P) distinct_nodes.insert(i);
     for (int i : data.D) distinct_nodes.insert(i);
@@ -23,7 +21,7 @@ DARPMDSolver::DARPMDSolver(const DARPMD_ProblemInstance& instance)
         int sk = data.StartNode.at(k);
         int ek = data.EndNode.at(k);
 
-        // nodes_k = P u D + [sk, ek]
+        // nodes_k = P u D u [sk, ek]
         std::vector<int> nodes_k;
         nodes_k.insert(nodes_k.end(), data.P.begin(), data.P.end());
         nodes_k.insert(nodes_k.end(), data.D.begin(), data.D.end());
@@ -64,8 +62,6 @@ void DARPMDSolver::buildModel() {
     }
 
     // u[i, k] - Continuous (Time) and w[i, k] - Continuous (Load)
-    // Defined for all nodes in V and vehicles K, but usually we only need them where valid.
-    // To match Pyomo "m.V, m.K", we iterate all combinations.
     for (int i : V_nodes) {
         for (int k : data.K) {
             std::string u_name = "u_" + std::to_string(i) + "_" + std::to_string(k);
@@ -78,7 +74,7 @@ void DARPMDSolver::buildModel() {
 
     // --- 2. Objective Function ---
 
-    // Minimize sum(c_ijk * x_ijk)
+    // Minimize sum(c_ijk * x_ijk), for all (i,j,k) in A_k
     IloExpr objExpr(env);
     for (const auto& arc : A_k) {
         auto [i, j, k] = arc;

@@ -83,6 +83,8 @@ void DARPMD_ResultInstance::saveToJSON(const std::string& filename) const {
 
     // 2. Fill Summary
     root["summary"] = {
+        {"num_vehicles", problemInstance.K_vehicles},
+        {"num_requests", problemInstance.N_requests},
         {"status", solverStatus},
         {"objective", objectiveValue},
         {"time_sec", solveTime},

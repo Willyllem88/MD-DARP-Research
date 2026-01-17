@@ -15,7 +15,7 @@ using json = nlohmann::json;
 
 // Structure for representing the visit to a specific node
 struct RouteStep {
-    int nodeId;             // ID of the node 
+    int nodeId;             // ID of the node
     std::string type;       // "DepotStart", "DepotEnd", "Pickup", "Delivery"
     double arrivalTime;     // Value of the variable u
     double startServiceTime;// When the service actually starts
