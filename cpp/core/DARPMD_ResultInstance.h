@@ -13,40 +13,39 @@
 #include "../includes/json.hpp"
 using json = nlohmann::json;
 
-// Estructura para representar la visita a un nodo específico
+// Structure for representing the visit to a specific node
 struct RouteStep {
-    int nodeId;             // ID del nodo (0, 1, ..., N)
+    int nodeId;             // ID of the node 
     std::string type;       // "DepotStart", "DepotEnd", "Pickup", "Delivery"
-    double arrivalTime;     // Valor de la variable u
-    double startServiceTime;// Cuándo empieza realmente el servicio
-    double loadAfter;       // Carga del vehículo tras visitar el nodo (variable w)
-    double distanceTraveled;// Distancia acumulada hasta este punto (opcional)
+    double arrivalTime;     // Value of the variable u
+    double startServiceTime;// When the service actually starts
+    double loadAfter;       // Load of the vehicle after visiting the node (variable w)
+    double distanceTraveled;// Accumulated distance up to this point (optional)
 };
 
-// Estructura para representar la ruta completa de un vehículo
+// Structure for representing the complete route of a vehicle
 struct VehicleRoute {
-    int vehicleId;
-    double routeCost;       // Coste específico de esta ruta (si se calcula)
-    double routeDuration;   // Tiempo total usado
-    std::vector<RouteStep> steps; // Secuencia ordenada de visitas
+    int vehicleId;                // ID of the vehicle (1, 2, ..., K)
+    double routeCost;             // Specific cost of this route (if calculated)
+    double routeDuration;         // Total time used
+    std::vector<RouteStep> steps; // Ordered sequence of visits
 
-    bool isEmpty() const { return steps.size() <= 2; } // Si solo tiene Start y End
+    bool isEmpty() const { return steps.size() <= 2; } // If it only has Start and End
 };
 
-// Clase principal para almacenar el resultado global
+// Main class to store the global result
 class DARPMD_ResultInstance {
 public:
-    // --- Metadatos de la Solución ---
+    // --- Solution Metadata ---
     double objectiveValue;
     std::string solverStatus; // "Optimal", "Feasible", "Infeasible"
-    double solveTime;   // Tiempo de cómputo
-    double mipGap;      // Brecha MIP final
-
-    // --- Datos de las Rutas ---
-    // Mapa: ID del Vehículo -> Objeto Ruta
+    double solveTime;         // Computation time
+    double mipGap;            // Final MIP gap
+    // --- Route Data ---
+    // Map: Vehicle ID -> Route Object
     std::map<int, VehicleRoute> routes;
 
-    Metadata metadata; // Información adicional (ciudad, coordenadas, etc.)
+    Metadata metadata; // Additional information (city, coordinates, etc.)
     DARPMD_ProblemInstance problemInstance;
 
     // --- Constructor ---
@@ -60,25 +59,20 @@ public:
         problemInstance(problem)
     {}
 
-
-    // --- Métodos de Gestión ---
+    // --- Management Methods ---
     void addRoute(int vehicleId, const VehicleRoute& route);
 
-    // --- Métodos de Visualización ---
+    // --- Visualization Methods ---
     void displaySummary() const;
     
-    // --- Métodos de Exportación ---
+    // --- Export Methods ---
     
-    // Guarda en un formato JSON simple (ideal para parsers externos)
+    // Saves in a simple JSON format (ideal for external parsers)
     void saveToJSON(const std::string& filename) const;
 
-    // Guarda en un formato de texto legible (tipo reporte)
+    // Saves in a readable text format (report-like)
     void saveToTxt(const std::string& filename) const;
 
 private:
     std::string generateSummaryString() const;
 };
-
-// TODO list
-// - agregar metricas de tiempo de servicio, pintar mejor
-// - traducir la doc al ingles
