@@ -39,7 +39,8 @@ public:
     // --- Metadatos de la Solución ---
     double objectiveValue;
     std::string solverStatus; // "Optimal", "Feasible", "Infeasible"
-    double solutionTimeSec;   // Tiempo de cómputo
+    double solveTime;   // Tiempo de cómputo
+    double mipGap;      // Brecha MIP final
 
     // --- Datos de las Rutas ---
     // Mapa: ID del Vehículo -> Objeto Ruta
@@ -53,7 +54,8 @@ public:
     DARPMD_ResultInstance(const DARPMD_ProblemInstance& problem):
         objectiveValue(0.0),
         solverStatus("NotSolved"),
-        solutionTimeSec(0.0),
+        solveTime(0.0),
+        mipGap(0.0),
         metadata(problem.getMetadata()),
         problemInstance(problem)
     {}
@@ -72,6 +74,9 @@ public:
 
     // Guarda en un formato de texto legible (tipo reporte)
     void saveToTxt(const std::string& filename) const;
+
+private:
+    std::string generateSummaryString() const;
 };
 
 // TODO list

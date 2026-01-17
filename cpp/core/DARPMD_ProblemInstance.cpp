@@ -6,6 +6,7 @@
 
 void DARPMD_ProblemInstance::clear() {
     N_requests = 0;
+    K_vehicles = 0;
     max_node_id = 0;
     P.clear();
     D.clear();
@@ -37,7 +38,7 @@ bool DARPMD_ProblemInstance::loadFromJSON(const std::string& path) {
     try {
         file >> j;
 
-        std::cout << "Cargando instancia..." << std::endl;
+        std::cout << "Loading instance..." << std::endl;
 
         // 1. Load Requests and basic Sets
         auto& req = j.at("requests");

@@ -2,6 +2,7 @@
 #include <iostream>
 #include <algorithm>
 #include <set>
+#include <chrono>
 
 DARPMDSolver::DARPMDSolver(const DARPMD_ProblemInstance& instance) 
     : data(instance), model(env), cplex(model) {
@@ -294,12 +295,31 @@ void DARPMDSolver::solve(std::optional <double> timeLimit) {
     }
     
     std::cout << "Starting CPLEX solve..." << std::endl;
-    if (cplex.solve()) {
+
+    auto start = std::chrono::high_resolution_clock::now();
+
+    bool solved = cplex.solve();
+
+    auto end =  std::chrono::high_resolution_clock::now();
+
+    std::chrono::duration<double> elapsed = end - start;
+    this->solveTime = elapsed.count();
+
+    std::cout << "CPLEX Status: " << cplex.getStatus() << std::endl;
+    std::cout << "Objective Value: " << cplex.getObjValue() << std::endl;
+
+
+    if (solved) {
         std::cout << "CPLEX Status: " << cplex.getStatus() << std::endl;
         std::cout << "Objective Value: " << cplex.getObjValue() << std::endl;
+        this->mipGap = cplex.getMIPRelativeGap();
+        this->objectiveValue = cplex.getObjValue();
     } else {
         std::cout << "No solution found or infeasible. Status: " << cplex.getStatus() << std::endl;
     }
+
+    // Opcional: Imprimir el tiempo calculado
+    std::cout << "Total Solve Time: " << this->solveTime << " s" << std::endl;
 }
 
 DARPMD_ResultInstance DARPMDSolver::extractResult() {
@@ -307,7 +327,9 @@ DARPMD_ResultInstance DARPMDSolver::extractResult() {
 
     // 1. General Solution Info
     try {
-        result.objectiveValue = cplex.getObjValue();
+        result.objectiveValue = this->objectiveValue;
+        result.solveTime = this->solveTime;
+        result.mipGap = this->mipGap;
         result.solverStatus = (cplex.getStatus() == IloAlgorithm::Optimal) ? "Optimal" : "Feasible";
     } catch (...) {
         result.solverStatus = "No Solution";

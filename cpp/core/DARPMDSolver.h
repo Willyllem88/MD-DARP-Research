@@ -47,9 +47,8 @@ private:
     // Helper to check if a tuple exists in the map (like "if (i,j,k) in m.A_k")
     bool varExists(int i, int j, int k) const;
 
-    // Helper for Big-M
-    const double M_time = 10000.0;
-    const double M_load = 1000.0;
+    // Solver statistics
+    double objectiveValue;
+    double solveTime;
+    double mipGap;
 };
-
-//TODO: delte the bigMs once the code is checked
