@@ -229,7 +229,6 @@ void DARPMDSolver::buildModel() {
         }
     }
 
-    //TODO: check from now on
     // c9: Ride Time Limit (L)
     // u[del, k] - (u[pick, k] + serv) <= L + M(1 - k_serves_i)
     for (int i : data.P) {
@@ -384,7 +383,6 @@ DARPMD_ResultInstance DARPMDSolver::extractResult() {
             else step.type = "Node";
 
             // Extract continuous variable values u (time) and w (load)
-            // Note: Handle with try-catch or checks if variable exists for that node/vehicle
             if (u.count({current_node, k})) 
                 step.arrivalTime = cplex.getValue(u[{current_node, k}]);
             else 
