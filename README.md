@@ -5,3 +5,13 @@ The aim is to develop different methods to solve the RSP, such as mathematical m
 - Author: GUILLEM CABRÉ FARRÉ
 - Director: PEDRO JESÚS COPADO MÉNDEZ
 - Codirector: CAROLINE KÖNIG
+
+## Usage
+
+```bash
+mkdir build
+cd build
+cmake ..
+cmake --build .
+./cpp/core/darpmd
+```
