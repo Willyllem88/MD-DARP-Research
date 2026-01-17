@@ -335,8 +335,3 @@ class DarpApp:
         except Exception as e:
             print(f"Error when loading: {e}")
             import sys; sys.exit(0)
-            
-if __name__ == "__main__":
-    root = tk.Tk()
-    app = DarpApp(root)
-    root.mainloop()
