@@ -38,6 +38,17 @@ class DARPGraphManager:
         if self.G is None:
             return None
         return ox.nearest_nodes(self.G, lon, lat) # osmnx uses (X, Y) -> (lon, lat)
+    
+    def get_travel_time(self, u, v):
+        if self.G is None:
+            return None
+        try:
+            length = nx.dijkstra_path_length(self.G, u, v, weight='travel_time')
+            return length
+        except nx.NetworkXNoPath:
+            # Should not happen in SCC
+            print(f"⚠️ No path between {u} and {v}")
+            return float('inf')
 
     def generate_json_structure(self, user_requests, user_vehicles, global_params):
         """

@@ -1,4 +1,5 @@
 import tkinter as tk
+import networkx as nx
 from tkinter import ttk, messagebox, simpledialog
 from matplotlib.lines import Line2D 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
@@ -235,9 +236,10 @@ class DarpApp:
 
     def ask_node_params(self, tipo, idx, sub, node_id):
         """Launch simple popups to ask for data"""
-        if tipo == 'req':
-            if sub == 'pickup':
-                # Pickup questions
+        while True:
+
+            # Pickup questions
+            if tipo == 'req' and sub == 'pickup':
                 self.requests_data[idx]['pickup_node'] = node_id
 
                 fields = [
@@ -247,18 +249,24 @@ class DarpApp:
                     {'label': f"Service Time (Pickup {idx+1}):", 'key': 'p_service_time', 'default': 60},
                 ]
                 dialog = MultiFieldDialog(self.root, f"Pickup Data {idx+1}", fields)
-                if dialog.result:
-                    self.requests_data[idx].update(dialog.result)
-                else:
-                    # Defaults if dialog cancelled
-                    self.requests_data[idx].update({
-                        'demand': 1,
-                        'p_tw_start': 0,
-                        'p_tw_end': 1440,
-                        'p_service_time': 60
-                    })
+
+                # Validate input
+                if not dialog.result:
+                    messagebox.showerror("Input Error", "You must provide data for the pickup. Please re-enter.")
+                    continue
                 
-            else: # delivery
+                data = dialog.result if dialog.result else {'demand': 1, 'p_tw_start': 0, 'p_tw_end': 1440, 'p_service_time': 60}
+
+                # Validate time window
+                if data['p_tw_end'] <= data['p_tw_start']:
+                    messagebox.showerror("Input Error", "Pickup Time Window End cannot be less than Start. Please re-enter.")
+                    continue
+                else:
+                    self.requests_data[idx].update(data)
+                    break
+
+            # Delivery questions
+            elif tipo == 'req' and sub == 'delivery':
                 self.requests_data[idx]['delivery_node'] = node_id
                 
                 self.requests_data[idx]['delivery_node'] = node_id
@@ -269,17 +277,42 @@ class DarpApp:
                     {'label': f"Service Time (Delivery {idx+1}):", 'key': 'd_service_time', 'default': 60},
                 ]
                 dialog = MultiFieldDialog(self.root, f"Delivery Data {idx+1}", fields)
-                if dialog.result:
-                    self.requests_data[idx].update(dialog.result)
-                else:
-                    self.requests_data[idx].update({
-                        'd_tw_start': 0,
-                        'd_tw_end': 1440,
-                        'd_service_time': 60
-                    })
+                
+                # Validate input
+                if not dialog.result:
+                    messagebox.showerror("Input Error", "You must provide data for the delivery. Please re-enter.")
+                    continue
+                
+                data = dialog.result
 
-        elif tipo == 'veh':
-            if sub == 'start':
+                # Validate time window
+                if data['d_tw_end'] <= data['d_tw_start']:
+                    messagebox.showerror("Input Error", "Delivery Time Window End cannot be less than Start. Please re-enter.")
+                    continue
+                
+                # Validate travel time to delivery if delivery already set, pickup_latest + t_ij + s_i <= delivery_latest
+                u = self.requests_data[idx]['pickup_node']
+                v = node_id
+                p_vals = self.requests_data[idx]
+                t_ij = self.manager.get_travel_time(u, v)
+
+                earliest_arrival = p_vals['p_tw_start'] + p_vals['p_service_time'] + t_ij
+
+                if earliest_arrival > data['d_tw_end']:
+                    messagebox.showerror(
+                        "Infeasible Time Window", 
+                        f"Impossible to arrive on time at the Delivery.\n"
+                        f"Travel time (t_ij) + Service: {int(t_ij + p_vals['p_service_time'])}\n"
+                        f"Minimum possible arrival to delivery: {int(earliest_arrival)}\n"
+                        f"Please adjust the time windows."
+                    )
+                    continue
+
+                self.requests_data[idx].update(data)
+                break
+
+            # Vehicle start node
+            elif tipo == 'veh' and sub == 'start':
                 self.vehicles_data[idx]['start_node'] = node_id
 
                 fields = [
@@ -294,8 +327,12 @@ class DarpApp:
                         'capacity': 3,
                         'max_time': 6000
                     })
+                break
+
+            # Vehicle end node
             else:
                 self.vehicles_data[idx]['end_node'] = node_id
+                break
 
     def finish_generation(self):
         self.step = "DONE"
