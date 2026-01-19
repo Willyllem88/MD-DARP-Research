@@ -202,7 +202,7 @@ void DARPMD_ProblemInstance::displayInfo() const {
     std::cout << "\n";
 
     // --- Node Attributes ---
-    std::cout << "--- Node Attributes (First 15 or relevant) ---\n";
+    std::cout << "--- Node Attributes ---\n";
     std::cout << std::left 
               << std::setw(10) << "Node_ID" 
               << std::setw(15) << "Service_T" 
@@ -213,9 +213,9 @@ void DARPMD_ProblemInstance::displayInfo() const {
 
     // Helper to print a node row
     auto printNodeRow = [&](int i) {
-        // Bounds check
-        if (i < 0 || i >= service_time.size()) return;
-        
+        // Skip if node not defined
+        if (i < 0 || i > max_node_id) return;
+
         std::cout << std::left 
                   << std::setw(10) << i 
                   << std::setw(15) << service_time.at(i)
@@ -225,19 +225,19 @@ void DARPMD_ProblemInstance::displayInfo() const {
     };
 
     // Print subset to avoid huge lists, or iterate relevant sets
-    std::vector<int> nodes_to_show;
+    std::vector<int> all_nodes;
     // Add depots
-    for(auto const& [k, node] : StartNode) nodes_to_show.push_back(node);
-    for(auto const& [k, node] : EndNode) nodes_to_show.push_back(node);
-    // Add first few Pickups and Deliveries as sample
-    for(size_t i=0; i < P.size() && i < 5; ++i) nodes_to_show.push_back(P[i]);
-    for(size_t i=0; i < D.size() && i < 5; ++i) nodes_to_show.push_back(D[i]);
+    for(auto const& [k, node] : StartNode) all_nodes.push_back(node);
+    for(auto const& [k, node] : EndNode) all_nodes.push_back(node);
+    // Add pickup and deliveries
+    for(size_t i=0; i < P.size(); ++i) {
+        all_nodes.push_back(P[i]);
+        all_nodes.push_back(D[i]);
+    }
 
-    // Simple display of relevant nodes (or loop 0..max_node_id if prefered)
-    for(int n : nodes_to_show) {
+    for(int n : all_nodes) {
         printNodeRow(n);
     }
-    if (P.size() > 5) std::cout << "... (and " << (P.size() + D.size() - 10) << " more P/D nodes)\n";
     std::cout << "\n";
 
     // --- Matrices Dimensions ---
