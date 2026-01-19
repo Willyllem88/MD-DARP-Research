@@ -137,8 +137,7 @@ class DarpApp:
                 Line2D([0], [0], marker='o', color='w', label='Pickup',
                        markerfacecolor='blue', markeredgecolor='blue', markersize=8),
                 Line2D([0], [0], marker='o', color='w', label='Delivery',
-                       markerfacecolor='none', markeredgecolor='blue', markersize=8),
-                Line2D([0], [0], color='gray', lw=2, label='Route Path'),
+                       markerfacecolor='none', markeredgecolor='blue', markersize=8)
             ]
             self.ax.legend(handles=legend_elements, loc='upper right', fancybox=True, shadow=True)
             
@@ -317,21 +316,57 @@ class DarpApp:
 
                 fields = [
                     {'label': f"Vehicle Capacity {idx+1}:", 'key': 'capacity', 'default': 3},
+                    {'label': f"Time Window Start (Vehicle {idx+1}):", 'key': 'vstart_tw_start', 'default': 0},
+                    {'label': f"Time Window End (Vehicle {idx+1}):", 'key': 'vstart_tw_end', 'default': 10000},
                     {'label': f"Vehicle Max Route Time {idx+1}:", 'key': 'max_time', 'default': 6000},
                 ]
                 dialog = MultiFieldDialog(self.root, f"Vehicle Data {idx+1}", fields)
-                if dialog.result:
-                    self.vehicles_data[idx].update(dialog.result)
-                else:
-                    self.vehicles_data[idx].update({
-                        'capacity': 3,
-                        'max_time': 6000
-                    })
+
+                if not dialog.result:
+                    messagebox.showerror("Input Error", "You must provide data for the vehicle start. Please re-enter.")
+                    continue
+
+                if dialog.result['vstart_tw_end'] <= dialog.result['vstart_tw_start']:
+                    messagebox.showerror("Input Error", "Vehicle Start Time Window End cannot be less than Start. Please re-enter.")
+                    continue
+
+                self.vehicles_data[idx].update(dialog.result)
                 break
 
             # Vehicle end node
             else:
                 self.vehicles_data[idx]['end_node'] = node_id
+
+                fields = [
+                    {'label': f"Time Window Start (Vehicle {idx+1} End):", 'key': 'vend_tw_start', 'default': 0},
+                    {'label': f"Time Window End (Vehicle {idx+1} End):", 'key': 'vend_tw_end', 'default': 10000},
+                ]
+                dialog = MultiFieldDialog(self.root, f"Vehicle End Data {idx+1}", fields)
+                
+                if not dialog.result:
+                    messagebox.showerror("Input Error", "You must provide data for the vehicle end. Please re-enter.")
+                    continue
+
+                if dialog.result['vend_tw_end'] <= dialog.result['vend_tw_start']:
+                    messagebox.showerror("Input Error", "Vehicle End Time Window End cannot be less than Start. Please re-enter.")
+                    continue
+
+                u = self.vehicles_data[idx]['start_node']
+                v = node_id
+                t_uv = self.manager.get_travel_time(u, v)
+                earliest_arrival = self.vehicles_data[idx]['vstart_tw_start'] + t_uv
+
+                if earliest_arrival > dialog.result['vend_tw_end']:
+                    messagebox.showerror(
+                        "Infeasible Time Window", 
+                        f"Impossible to arrive on time at the Vehicle End.\n"
+                        f"Travel time (t_uv): {int(t_uv)}\n"
+                        f"Minimum possible arrival to end: {int(earliest_arrival)}\n"
+                        f"Please adjust the time windows."
+                    )
+                    continue
+
+                self.vehicles_data[idx].update(dialog.result)
                 break
 
     def finish_generation(self):

@@ -128,10 +128,10 @@ class DARPGraphManager:
             
             # Add depot nodes to JSON nodes
             # Start
-            json_nodes.append({"id": s_id, "service_time": 0, "demand": 0, "tw_start": 0, "tw_end": 100000})
+            json_nodes.append({"id": s_id, "service_time": 0, "demand": 0, "tw_start": veh['vstart_tw_start'], "tw_end": veh['vstart_tw_end']})
             coordinates[s_id] = (self.nodes_data[osm_s]['y'], self.nodes_data[osm_s]['x'])
             # End
-            json_nodes.append({"id": e_id, "service_time": 0, "demand": 0, "tw_start": 0, "tw_end": 100000})
+            json_nodes.append({"id": e_id, "service_time": 0, "demand": 0, "tw_start": veh['vend_tw_start'], "tw_end": veh['vend_tw_end']})
             coordinates[e_id] = (self.nodes_data[osm_e]['y'], self.nodes_data[osm_e]['x'])
 
         # --- CALCULATE MATRICES ---
