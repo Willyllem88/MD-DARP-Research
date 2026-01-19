@@ -7,20 +7,31 @@
 #include <utility>
 #include <optional>
 
+#include "Solver.h"
 #include "DARPMD_ProblemInstance.h"
 #include "DARPMD_ResultInstance.h"
 
-class DARPMDSolver {
+class DARPMDSolver: public Solver {
 public:
-    DARPMDSolver(const DARPMD_ProblemInstance& instance);
+    DARPMDSolver(
+        const DARPMD_ProblemInstance& instance,
+        std::optional <double> timeLimit = std::nullopt
+    );
+
     ~DARPMDSolver();
 
-    void solve(std::optional <double> timeLimit = std::nullopt);
+    void solve() override;
 
-    DARPMD_ResultInstance extractResult();
+    DARPMD_ResultInstance getResult() const override;
+
+    std::string name() const override {
+        return "ILP (CPLEX)";
+    }
 
 private:
     const DARPMD_ProblemInstance& data;
+
+    std::optional<double> timeLimit;
     
     // CPLEX Environment and Model
     IloEnv env;
@@ -28,7 +39,7 @@ private:
     IloCplex cplex;
 
     // --- Auxiliary Sets ---
-    // List of valid arcs (i,j,k) calculated exactly like the Python valid_arcs
+    // List of valid arcs (i,j,k)
     std::vector<std::tuple<int, int, int>> A_k;
     // All involved nodes (P u D u Starts u Ends)
     std::vector<int> V_nodes;

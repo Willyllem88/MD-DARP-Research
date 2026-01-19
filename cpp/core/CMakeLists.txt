@@ -1,6 +1,7 @@
 # Ejecutable principal
 add_executable(darpmd
     main.cpp
+    DARPMDTabuSolver.cpp
     DARPMDSolver.cpp
     DARPMD_ProblemInstance.cpp
     DARPMD_ResultInstance.cpp

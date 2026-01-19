@@ -4,8 +4,8 @@
 #include <set>
 #include <chrono>
 
-DARPMDSolver::DARPMDSolver(const DARPMD_ProblemInstance& instance) 
-    : data(instance), model(env), cplex(model) {
+DARPMDSolver::DARPMDSolver(const DARPMD_ProblemInstance& instance, std::optional<double> timeLimit) 
+    : data(instance), timeLimit(timeLimit), model(env), cplex(model) {
         
     // Create Set V: P u D u StartNodes u EndNodes
     std::set<int> distinct_nodes;
@@ -283,7 +283,7 @@ void DARPMDSolver::buildModel() {
     }
 }
 
-void DARPMDSolver::solve(std::optional <double> timeLimit) {
+void DARPMDSolver::solve() {
     // Set time limit if provided
     if (timeLimit.has_value()) {
         cplex.setParam(IloCplex::Param::TimeLimit, timeLimit.value());
@@ -317,7 +317,7 @@ void DARPMDSolver::solve(std::optional <double> timeLimit) {
     std::cout << "Total Solve Time: " << this->solveTime << " s" << std::endl;
 }
 
-DARPMD_ResultInstance DARPMDSolver::extractResult() {
+DARPMD_ResultInstance DARPMDSolver::getResult() const {
     DARPMD_ResultInstance result(data);
 
     // 1. General Solution Info
@@ -342,7 +342,7 @@ DARPMD_ResultInstance DARPMDSolver::extractResult() {
             auto [i, j, veh] = arc;
             if (veh == k) {
                 // Check if variable is 1 (with numerical tolerance)
-                if (cplex.isExtracted(x[arc]) && cplex.getValue(x[arc]) > 0.5) {
+                if (cplex.isExtracted(x.at(arc)) && cplex.getValue(x.at(arc)) > 0.5) {
                     next_node_map[i] = j;
                 }
             }
@@ -380,12 +380,12 @@ DARPMD_ResultInstance DARPMDSolver::extractResult() {
 
             // Extract continuous variable values u (time) and w (load)
             if (u.count({current_node, k})) 
-                step.arrivalTime = cplex.getValue(u[{current_node, k}]);
+                step.arrivalTime = cplex.getValue(u.at({current_node, k}));
             else 
                 step.arrivalTime = 0.0;
 
             if (w.count({current_node, k}))
-                step.loadAfter = cplex.getValue(w[{current_node, k}]);
+                step.loadAfter = cplex.getValue(w.at({current_node, k}));
             else 
                 step.loadAfter = 0.0;
 
