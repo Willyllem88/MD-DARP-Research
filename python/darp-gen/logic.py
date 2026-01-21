@@ -38,6 +38,17 @@ class DARPGraphManager:
         if self.G is None:
             return None
         return ox.nearest_nodes(self.G, lon, lat) # osmnx uses (X, Y) -> (lon, lat)
+    
+    def get_travel_time(self, u, v):
+        if self.G is None:
+            return None
+        try:
+            length = nx.dijkstra_path_length(self.G, u, v, weight='travel_time')
+            return length
+        except nx.NetworkXNoPath:
+            # Should not happen in SCC
+            print(f"⚠️ No path between {u} and {v}")
+            return float('inf')
 
     def generate_json_structure(self, user_requests, user_vehicles, global_params):
         """
@@ -117,10 +128,10 @@ class DARPGraphManager:
             
             # Add depot nodes to JSON nodes
             # Start
-            json_nodes.append({"id": s_id, "service_time": 0, "demand": 0, "tw_start": 0, "tw_end": 100000})
+            json_nodes.append({"id": s_id, "service_time": 0, "demand": 0, "tw_start": veh['vstart_tw_start'], "tw_end": veh['vstart_tw_end']})
             coordinates[s_id] = (self.nodes_data[osm_s]['y'], self.nodes_data[osm_s]['x'])
             # End
-            json_nodes.append({"id": e_id, "service_time": 0, "demand": 0, "tw_start": 0, "tw_end": 100000})
+            json_nodes.append({"id": e_id, "service_time": 0, "demand": 0, "tw_start": veh['vend_tw_start'], "tw_end": veh['vend_tw_end']})
             coordinates[e_id] = (self.nodes_data[osm_e]['y'], self.nodes_data[osm_e]['x'])
 
         # --- CALCULATE MATRICES ---
