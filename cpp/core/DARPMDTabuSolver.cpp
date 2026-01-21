@@ -35,17 +35,27 @@ void DARPMDTabuSolver::solve() {
     TabuSolution currentSol = generateInitialSolution();
     evaluateSolution(currentSol);
     
-    TabuSolution bestSol = currentSol; // Best visited (even if infeasible)
+    bestSol = currentSol; // Best visited (even if infeasible)
     
     if (currentSol.isFeasible()) {
         bestFeasibleSolution = currentSol;
         feasibleFound = true;
     }
 
+    const double MIN_PENALTY = 0.1;
+    const double MAX_PENALTY = 10000.0;
+    const double delta = 0.5;
+
     int iter = 0;
-    const double delta = 0.5; // Update factor [Section 4.5]
+     // Update factor [Section 4.5]
 
     while (iter < maxIterations) {
+        std::cout << "Iteration " << iter 
+                  << " | Current Cost: " << calculatePenalizedCost(currentSol)
+                  << " | Best Cost: " << calculatePenalizedCost(bestSol)
+                  << " | Best Feasible Cost: " 
+                  << (feasibleFound ? std::to_string(bestFeasibleSolution.rawObjectiveValue) : "N/A")
+                  << std::endl;
         // Check Time Limit
         auto now = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> elapsed = now - start;
@@ -77,10 +87,17 @@ void DARPMDTabuSolver::solve() {
         }
 
         // 4. Update Penalty Parameters [Section 4.5]
+        /*
         if (currentSol.totalLoadV == 0) alpha /= (1 + delta); else alpha *= (1 + delta);
         if (currentSol.totalDurationV == 0) beta /= (1 + delta); else beta *= (1 + delta);
         if (currentSol.totalTWV == 0) gamma /= (1 + delta); else gamma *= (1 + delta);
         if (currentSol.totalRideV == 0) tau /= (1 + delta); else tau *= (1 + delta);
+        */
+
+        alpha = std::clamp(alpha, MIN_PENALTY, MAX_PENALTY);
+        beta  = std::clamp(beta,  MIN_PENALTY, MAX_PENALTY);
+        gamma = std::clamp(gamma, MIN_PENALTY, MAX_PENALTY);
+        tau   = std::clamp(tau,   MIN_PENALTY, MAX_PENALTY);
 
         iter++;
     }
@@ -544,13 +561,33 @@ DARPMD_ResultInstance DARPMDTabuSolver::getResult() const {
     result.solveTime = finalSolveTime;
     
     // Determine which solution to report
-    const TabuSolution* solToReport = &bestFeasibleSolution;
-    if (!feasibleFound) {
-        solToReport = &bestFeasibleSolution; // Fallback (might be empty/infeasible)
-        result.solverStatus = "Infeasible";
-    } else {
+    const TabuSolution* solToReport = nullptr;
+    if (feasibleFound) {
         result.solverStatus = "Feasible";
+        solToReport = &bestFeasibleSolution;
+        std::cout << "\n=== FACTIBLE SOLUTION FOUND ===" << std::endl;
+    } else {
+        result.solverStatus = "Infeasible";
+        solToReport = &bestSol; // Report best found even if infeasible
+        std::cout << "\n=== NO FACTIBLE SOLUTION ENCONTRADA ===" << std::endl;
     }
+
+    auto calculatePenalizedCost = [&](const TabuSolution& sol) {
+        return sol.rawObjectiveValue + 
+               alpha * sol.totalLoadV + 
+               beta * sol.totalDurationV + 
+               gamma * sol.totalTWV + 
+               tau * sol.totalRideV;
+    };
+
+    std::cout << "Costo de Rutas (Distancia/Tiempo): " << solToReport->rawObjectiveValue << std::endl;
+    std::cout << "------------------------------------------------" << std::endl;
+    std::cout << "Violación Carga (Load):       " << solToReport->totalLoadV << std::endl;
+    std::cout << "Violación Duración Ruta:      " << solToReport->totalDurationV << std::endl;
+    std::cout << "Violación Ventanas de Tiempo: " << solToReport->totalTWV << std::endl;
+    std::cout << "Violación Tiempo de Viaje:    " << solToReport->totalRideV << std::endl;
+    std::cout << "------------------------------------------------" << std::endl;
+    std::cout << "Costo Penalizado Total:       " << calculatePenalizedCost(*solToReport) << std::endl;
     
     result.objectiveValue = solToReport->rawObjectiveValue;
 
@@ -567,7 +604,8 @@ DARPMD_ResultInstance DARPMDTabuSolver::getResult() const {
             else if (isPickup(node)) step.type = "Pickup";
             else step.type = "Delivery";
             
-            if (r.arrivalTimes.count(node)) step.arrivalTime = r.beginServiceTimes.at(node); // Using B_i as service time
+            if (r.arrivalTimes.count(node)) 
+                step.arrivalTime = r.beginServiceTimes.at(node); // Using B_i as service time
             else step.arrivalTime = 0.0;
             
             // Load logic could be re-simulated here if needed for the ResultInstance
