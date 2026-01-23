@@ -2,7 +2,8 @@
 add_executable(darpmd
     main.cpp
     DARPMDTabuSolver.cpp
-    DARPMDSolver.cpp
+    CPLEXSolver.cpp
+    ALNSSolver.cpp
     DARPMD_ProblemInstance.cpp
     DARPMD_ResultInstance.cpp
 )

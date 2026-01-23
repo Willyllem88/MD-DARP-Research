@@ -11,14 +11,14 @@
 #include "DARPMD_ProblemInstance.h"
 #include "DARPMD_ResultInstance.h"
 
-class DARPMDSolver: public Solver {
+class CPLEXSolver: public Solver {
 public:
-    DARPMDSolver(
+    CPLEXSolver(
         const DARPMD_ProblemInstance& instance,
         std::optional <double> timeLimit = std::nullopt
     );
 
-    ~DARPMDSolver();
+    ~CPLEXSolver();
 
     void solve() override;
 

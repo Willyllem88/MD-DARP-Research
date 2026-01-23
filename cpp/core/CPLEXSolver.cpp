@@ -1,10 +1,10 @@
-#include "DARPMDSolver.h"
+#include "CPLEXSolver.h"
 #include <iostream>
 #include <algorithm>
 #include <set>
 #include <chrono>
 
-DARPMDSolver::DARPMDSolver(const DARPMD_ProblemInstance& instance, std::optional<double> timeLimit) 
+CPLEXSolver::CPLEXSolver(const DARPMD_ProblemInstance& instance, std::optional<double> timeLimit) 
     : data(instance), timeLimit(timeLimit), model(env), cplex(model) {
         
     // Create Set V: P u D u StartNodes u EndNodes
@@ -41,15 +41,15 @@ DARPMDSolver::DARPMDSolver(const DARPMD_ProblemInstance& instance, std::optional
     buildModel();
 }
 
-DARPMDSolver::~DARPMDSolver() {
+CPLEXSolver::~CPLEXSolver() {
     env.end();
 }
 
-bool DARPMDSolver::varExists(int i, int j, int k) const {
+bool CPLEXSolver::varExists(int i, int j, int k) const {
     return x.find({i, j, k}) != x.end();
 }
 
-void DARPMDSolver::buildModel() {
+void CPLEXSolver::buildModel() {
     std::cout << "Building CPLEX Model..." << std::endl;
 
     // --- 1. Create Variables ---
@@ -283,7 +283,7 @@ void DARPMDSolver::buildModel() {
     }
 }
 
-void DARPMDSolver::solve() {
+void CPLEXSolver::solve() {
     // Set time limit if provided
     if (timeLimit.has_value()) {
         cplex.setParam(IloCplex::Param::TimeLimit, timeLimit.value());
@@ -317,7 +317,7 @@ void DARPMDSolver::solve() {
     std::cout << "Total Solve Time: " << this->solveTime << " s" << std::endl;
 }
 
-DARPMD_ResultInstance DARPMDSolver::getResult() const {
+DARPMD_ResultInstance CPLEXSolver::getResult() const {
     DARPMD_ResultInstance result(data);
 
     // 1. General Solution Info
