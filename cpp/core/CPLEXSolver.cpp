@@ -74,7 +74,6 @@ void CPLEXSolver::buildModel() {
 
     // --- 2. Objective Function ---
 
-    // Minimize sum(c_ijk * x_ijk), for all (i,j,k) in A_k
     IloExpr objExpr(env);
     for (const auto& arc : A_k) {
         auto [i, j, k] = arc;
@@ -86,7 +85,7 @@ void CPLEXSolver::buildModel() {
 
     // --- 3. Constraints ---
 
-    // Each request served once (c1)
+    // c1: Each request served once
     for (int i : data.P) {
         IloExpr expr(env);
         for (int k : data.K) {
@@ -101,7 +100,7 @@ void CPLEXSolver::buildModel() {
         expr.end();
     }
 
-    // Flow conservation (c2)
+    // c2: Flow conservation
     std::vector<int> PuD = data.P;
     PuD.insert(PuD.end(), data.D.begin(), data.D.end());
 
@@ -124,7 +123,7 @@ void CPLEXSolver::buildModel() {
         }
     }
 
-    // Flow at Depots (c3)
+    // c3: Flow at Depots
     for (int k : data.K) {
         // Start Depot Rule
         int sk = data.StartNode.at(k);
@@ -149,7 +148,7 @@ void CPLEXSolver::buildModel() {
         endExpr.end();
     }
 
-    // Pairing (c4)
+    // c4: Pairing 
     for (int i : data.P) {
         int delivery_node = i + data.N_requests;
         for (int k : data.K) {
@@ -171,13 +170,16 @@ void CPLEXSolver::buildModel() {
     // c5: Time Consistency
     for (const auto& arc : A_k) {
         auto [i, j, k] = arc;
-        const double M = 10000.0;
 
         double serv = data.getServiceTime(i);
         double trav = data.getTravelTime(i, j);
+        double l_i = data.getTimeWindowEnd(i);
+        double e_j = data.getTimeWindowStart(j);
+
+        double M_ij = std::max(0.0, l_i + serv + trav - e_j);
         
         model.add(
-            u[{j, k}] >= u[{i, k}] + serv + trav - M * (1 - x[arc])
+            u[{j, k}] >= u[{i, k}] + serv + trav - M_ij * (1 - x[arc])
         );
     }
 
@@ -193,7 +195,7 @@ void CPLEXSolver::buildModel() {
         }
     }
 
-    // c7: Max Ride Time (Actually Max Route Duration T_max)
+    // c7: Max Route Duration
     for (int k : data.K) {
         int sk = data.StartNode.at(k);
         int ek = data.EndNode.at(k);
@@ -204,11 +206,13 @@ void CPLEXSolver::buildModel() {
 
     // c8: Precedence
     for (int i : data.P) {
-        const double M = 10000.0;
-
         int delivery_node = i + data.N_requests;
         double serv = data.getServiceTime(i);
         double trav = data.getTravelTime(i, delivery_node);
+        double l_pick = data.getTimeWindowEnd(i);
+        double e_del = data.getTimeWindowStart(delivery_node);
+        
+        const double M_ik = std::max(0.0, l_pick + serv + trav - e_del);
         
         for (int k : data.K) {
             IloExpr k_serves_i(env);
@@ -219,20 +223,23 @@ void CPLEXSolver::buildModel() {
             }
 
             model.add(
-                u[{delivery_node, k}] >= u[{i, k}] + serv + trav - M * (1 - k_serves_i)
+                u[{delivery_node, k}] >= u[{i, k}] + serv + trav - M_ik * (1 - k_serves_i)
             );
             k_serves_i.end();
         }
     }
 
-    // c9: Ride Time Limit (L)
+    // c9: Ride Time Limit
     // u[del, k] - (u[pick, k] + serv) <= L + M(1 - k_serves_i)
     for (int i : data.P) {
-        const double M = 10000.0;
-
         int delivery_node = i + data.N_requests;
         double serv = data.getServiceTime(i);
         double L = data.max_ride_time;
+        double l_del = data.getTimeWindowEnd(delivery_node);
+        double e_pick = data.getTimeWindowStart(i);
+
+        double max_possible_ride = l_del - (e_pick + serv);
+        double M_ik = std::max(0.0, max_possible_ride - L);
 
         for (int k : data.K) {
             IloExpr k_serves_i(env);
@@ -243,7 +250,7 @@ void CPLEXSolver::buildModel() {
             }
 
             model.add(
-                u[{delivery_node, k}] - (u[{i, k}] + serv) <= L + M * (1 - k_serves_i)
+                u[{delivery_node, k}] - (u[{i, k}] + serv) <= L + M_ik * (1 - k_serves_i)
             );
             k_serves_i.end();
         }
@@ -252,12 +259,13 @@ void CPLEXSolver::buildModel() {
     // c10: Load Consistency
     // w[j,k] >= w[i,k] + q[j] - M(1 - x)
     for (const auto& [i, j, k] : A_k) {
-        const double M = 1000.0;
-
         double q_j = data.getDemand(j);
+        double Q_k = data.capacity.at(k);
+
+        double M_ijk = Q_k;
         
         model.add(
-            w[{j, k}] >= w[{i, k}] + q_j - M * (1 - x[{i, j, k}])
+            w[{j, k}] >= w[{i, k}] + q_j - M_ijk * (1 - x[{i, j, k}])
         );
     }
 
@@ -300,10 +308,7 @@ void CPLEXSolver::solve() {
     std::chrono::duration<double> elapsed = end - start;
     this->solveTime = elapsed.count();
 
-    std::cout << "CPLEX Status: " << cplex.getStatus() << std::endl;
-    std::cout << "Objective Value: " << cplex.getObjValue() << std::endl;
-
-
+    // Print solve
     if (solved) {
         std::cout << "CPLEX Status: " << cplex.getStatus() << std::endl;
         std::cout << "Objective Value: " << cplex.getObjValue() << std::endl;
@@ -312,8 +317,6 @@ void CPLEXSolver::solve() {
     } else {
         std::cout << "No solution found or infeasible. Status: " << cplex.getStatus() << std::endl;
     }
-
-    // Opcional: Imprimir el tiempo calculado
     std::cout << "Total Solve Time: " << this->solveTime << " s" << std::endl;
 }
 
