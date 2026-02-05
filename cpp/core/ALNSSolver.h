@@ -20,6 +20,7 @@ struct ALNSParams {
     int setPartitioningInterval = 500; // Run CPLEX SP every X iterations
     double initialTemperature = 100.0;
     double coolingRate = 0.9995;
+    double worstRemovalPower = 3.0; // For destroyWorst
     
     // Penalties (Dynamic weights could be added here)
     double timeWindowPenalty = 100.0; // per minute
@@ -45,8 +46,6 @@ struct ALNSRoute {
     // Timestamps and loads for reconstruction
     std::map<int, double> arrivalTimes;
     std::map<int, double> loads;
-
-    //
 };
 
 struct RouteSequenceHash {
@@ -104,15 +103,21 @@ private:
     void evaluateSolution(ALNSSolution& sol);
     ALNSSolution createInitialSolution();
     
-    // ALNS Operators (Simplified set for demonstration)
-    // Destroy: Removes q requests
+    // ALNS Operators
     void destroyRandom(ALNSSolution& sol, int q);
-    // Repair: Re-inserts unassigned requests
-    void repairGreedy(ALNSSolution& sol); 
+    void destroyWorst(ALNSSolution& sol, int q);
+    void destroyShaw(ALNSSolution& sol, int q);
+    
+    void repairGreedy(ALNSSolution& sol);
+    void repairRegret2(ALNSSolution& sol);
+
 
     // Helper: Check if a request (pickup p, delivery d) can be inserted into route at pos i, j
     // Returns incremental cost (or infinity if impossible/too expensive)
     double calculateInsertionCost(const ALNSRoute& route, int requestIdx, int pIdx, int dIdx);
+    
+    // Helper: Calculate relatedness between two requests for adaptive selection in destroy
+    double calculateRelatedness(int i, int j);
 
     // --- CPLEX Integration (Set Partitioning) ---
     // Solves a Set Partitioning problem using the accumulated routePool
