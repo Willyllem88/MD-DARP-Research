@@ -11,14 +11,14 @@
 #include "DARPMD_ProblemInstance.h"
 #include "DARPMD_ResultInstance.h"
 
-class DARPMDSolver: public Solver {
+class CPLEXSoftSolver: public Solver {
 public:
-    DARPMDSolver(
+    CPLEXSoftSolver(
         const DARPMD_ProblemInstance& instance,
         std::optional <double> timeLimit = std::nullopt
     );
 
-    ~DARPMDSolver();
+    ~CPLEXSoftSolver();
 
     void solve() override;
 
@@ -38,6 +38,12 @@ private:
     IloModel model;
     IloCplex cplex;
 
+    // Violaton multipliers
+    const double alpha = 10000.0; // For load violations
+    const double beta  = 10000.0; // For duration violations
+    const double gamma = 10000.0; // For ride time window violations
+    const double tau   = 10000.0; // For time ride time violations
+
     // --- Auxiliary Sets ---
     // List of valid arcs (i,j,k)
     std::vector<std::tuple<int, int, int>> A_k;
@@ -51,6 +57,11 @@ private:
     std::map<std::pair<int, int>, IloNumVar> u;
     // Key: <node_id, vehicle_id>: load of vehicle k upon arrival at node i
     std::map<std::pair<int, int>, IloNumVar> w;
+    // Soft constraint violation variables
+    std::map<std::pair<int,int>, IloNumVar> viol_load;
+    std::map<int, IloNumVar> viol_duration;
+    std::map<std::pair<int,int>, IloNumVar> viol_tw;
+    std::map<std::pair<int,int>, IloNumVar> viol_ridetime;
 
     // Build the model (Variables, Objective, Constraints)
     void buildModel();

@@ -57,7 +57,7 @@ private:
     double gamma = 1.0; // Weight for Time Windows
     double tau = 1.0;   // Weight for Ride Time
     
-    int maxIterations = 10000;
+    int maxIterations = 500;
     int tabuTenure = 10; 
     
     // Tabu Memory: tabuList[requestId][vehicleId] = iteration until forbidden
@@ -67,6 +67,7 @@ private:
     std::vector<std::vector<int>> freqMatrix;
     
     // Best solution found
+    TabuSolution bestSol;
     TabuSolution bestFeasibleSolution;
     bool feasibleFound = false;
     double finalSolveTime = 0.0;
