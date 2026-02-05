@@ -5,6 +5,7 @@
 #include "DARPMD_ProblemInstance.h"
 #include "Solver.h"
 #include "CPLEXSolver.h"
+#include "CPLEXSoftSolver.h"
 #include "ALNSSolver.h"
 #include "DARPMDTabuSolver.h"
 
@@ -14,7 +15,7 @@ const std::string DEFAULT_INSTANCE_PATH = "/home/guillem/TFG-Guillem/data/instan
 struct Args {
     std::string instance_path = DEFAULT_INSTANCE_PATH;
     std::string output_path = "solution_report.json";
-    std::string method = "ILP"; // or "Tabu" or "ALNS"
+    std::string method = "ILP"; // or "Tabu" or "ALNS" or "ILPSoft"
     std::optional<double> time_limit;
 };
 
@@ -32,8 +33,8 @@ Args parseArgs(int argc, char** argv) {
         }
         else if ((a == "-m" || a == "--method") && i + 1 < argc) {
             std::string method = argv[++i];
-            if (method != "ILP" && method != "Tabu" && method != "ALNS") {
-                std::cerr << "Unknown method: " << method << ". Use 'ILP', 'Tabu', or 'ALNS'." << std::endl;
+            if (method != "ILP" && method != "Tabu" && method != "ALNS" && method != "ILPSoft") {
+                std::cerr << "Unknown method: " << method << ". Use 'ILP', 'Tabu', 'ALNS', or 'ILPSoft'." << std::endl;
                 exit(1);
             }
             args.method = method;
@@ -44,7 +45,7 @@ Args parseArgs(int argc, char** argv) {
             std::cout << "  -i, --instance   Path to problem instance JSON file" << std::endl;
             std::cout << "  -t, --time       Time limit in seconds (optional)" << std::endl;
             std::cout << "  -o, --output     Path to output solution file" << std::endl;
-            std::cout << "  -m, --method     Solver method: 'ILP', 'Tabu', or 'ALNS'" << std::endl;
+            std::cout << "  -m, --method     Solver method: 'ILP', 'Tabu', 'ALNS' or 'ILPSoft'" << std::endl;
             std::cout << "  -h              Show this help message" << std::endl;
             exit(0);
         }
@@ -72,6 +73,8 @@ int main(int argc, char** argv) {
         solver = new DARPMDTabuSolver(instance, args.time_limit);
     } else if (args.method == "ALNS") {
         solver = new ALNSSolver(instance, args.time_limit);
+    } else if (args.method == "ILPSoft") {
+        solver = new CPLEXSoftSolver(instance, args.time_limit);
     } else {
         solver = new CPLEXSolver(instance, args.time_limit);
     }

@@ -9,8 +9,7 @@ ALNSSolver::ALNSSolver(const DARPMD_ProblemInstance& instance, std::optional<dou
     : data(instance), timeLimit(timeLimit) {
     
     // Seed random number generator
-    std::random_device rd;
-    rng = std::mt19937(rd());
+    rng = std::mt19937(42); // Fixed seed for reproducibility
 }
 
 ALNSSolver::~ALNSSolver() {
@@ -142,8 +141,16 @@ void ALNSSolver::evaluateSolution(ALNSSolution& sol) {
 // Set Partitioning using CPLEX
 // ------------------------------------------------------------------
 void ALNSSolver::addRouteToPool(const ALNSRoute& route) {
-    // Simple deduplication check could be added here
-    routePool[route.vehicleId].push_back(route);
+    if (route.sequence.empty()) return;
+    auto &seen = seenRoutes[route.vehicleId];
+
+    // Try to insert the route sequence into the seen set for this vehicle,
+    // returns true if it was not already present
+    auto result = seen.insert(route.sequence);
+
+    if (result.second) // If this sequence was not seen before
+        routePool[route.vehicleId].push_back(route);
+
 }
 
 void ALNSSolver::solveSetPartitioning() {
@@ -345,13 +352,10 @@ void ALNSSolver::repairGreedy(ALNSSolution& sol) {
     
     std::vector<int> todo(sol.unassignedRequests.begin(), sol.unassignedRequests.end());
     sol.unassignedRequests.clear(); // Will re-add failures later
-
-    // Shuffle to vary the greedy order
     std::shuffle(todo.begin(), todo.end(), rng);
 
     for (int reqId : todo) {
         int deliveryId = reqId + data.N_requests;
-        
         double bestCostIncrease = std::numeric_limits<double>::max();
         int bestVehicle = -1;
         int bestPIdx = -1;
@@ -480,6 +484,28 @@ void ALNSSolver::solve() {
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> totalElapsed = end - start;
     this->solveTime = totalElapsed.count();
+
+    //Print the violations in the best solution
+    std::cout << "ALNS Finished. Best Objective: " << bestObjective << std::endl;
+    // Print the objective value of the arcs used (distance cost only, without penalties)
+    double totalDistanceCost = 0.0;
+    for (const auto& r : bestSolution.routes) {
+        totalDistanceCost += r.distanceCost;
+    }
+    std::cout << "Objective (without penalties): " << totalDistanceCost << std::endl;
+    std::cout << "Total Solve Time: " << this->solveTime << " seconds." << std::endl;
+
+    //Print each violation
+    for (const auto& r : bestSolution.routes) {
+        std::cout << " Vehicle " << r.vehicleId << " Violations: Time: " << r.timeViolation
+                  << ", Load: " << r.loadViolation << ", RideTime: " << r.rideTimeViolation << std::endl;
+    }
+    // Print unassigned requests
+    std::cout << "Unassigned Requests: ";
+    for (int req : bestSolution.unassignedRequests) {
+        std::cout << req << " ";
+    }
+    std::cout << std::endl;
 }
 
 

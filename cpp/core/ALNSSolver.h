@@ -6,9 +6,12 @@
 
 #include <ilcplex/ilocplex.h>
 #include <vector>
-#include <set>
-#include <random>
 #include <map>
+#include <unordered_map>
+#include <set>
+#include <unordered_set>
+#include <string>
+#include <random>
 #include <optional>
 
 // Configuration for the ALNS
@@ -39,9 +42,21 @@ struct ALNSRoute {
     
     bool isFeasible = false;
 
-    // Timestamps for reconstruction
+    // Timestamps and loads for reconstruction
     std::map<int, double> arrivalTimes;
     std::map<int, double> loads;
+
+    //
+};
+
+struct RouteSequenceHash {
+    std::size_t operator()(const std::vector<int>& seq) const {
+        std::size_t hash = 0;
+        for (int nodeId : seq) {
+            hash ^= std::hash<int>{}(nodeId) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+        }
+        return hash;
+    }
 };
 
 // Internal representation of a full solution
@@ -80,6 +95,7 @@ private:
     // Stores unique feasible routes found during search
     // Key: VehicleID (since depots differ), Value: List of routes
     std::map<int, std::vector<ALNSRoute>> routePool;
+    std::unordered_map<int, std::unordered_set<std::vector<int>, RouteSequenceHash>> seenRoutes;
 
     // --- Core Logic Methods ---
     
