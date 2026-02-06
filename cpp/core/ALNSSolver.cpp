@@ -647,6 +647,37 @@ void ALNSSolver::repairRegret2(ALNSSolution& sol) {
     }
 }
 
+int ALNSSolver::selectOperator(const std::vector<double>& weights) {
+    double totalWeight = 0.0;
+    for (double w : weights) totalWeight += w;
+
+    std::uniform_real_distribution<> dis(0.0, totalWeight);
+    double r = dis(rng);
+    
+    double cumulative = 0.0;
+    for (size_t i = 0; i < weights.size(); ++i) {
+        cumulative += weights[i];
+        if (r <= cumulative) {
+            return (int)i;
+        }
+    }
+    return (int)weights.size() - 1; // Fallback
+}
+
+void ALNSSolver::updateWeights(OperatorStats& stats) {
+    for (size_t i = 0; i < stats.weights.size(); ++i) {
+        if (stats.timesUsed[i] > 0) {
+            double avgScore = stats.scores[i] / stats.timesUsed[i];
+            // Fórmula: w_new = (1-p) * w_old + p * score
+            stats.weights[i] = (1.0 - params.reactionFactor) * stats.weights[i] 
+                             + params.reactionFactor * avgScore;
+        }
+        // Resetear scores para el siguiente segmento
+        stats.scores[i] = 0.0;
+        stats.timesUsed[i] = 0;
+    }
+}
+
 double ALNSSolver::calculateRelatedness(int i, int j) {
     // Pesos heurísticos
     double w_dist = 9.0;
@@ -678,10 +709,13 @@ void ALNSSolver::solve() {
     bestSolution = currentSol;
     bestObjective = currentSol.objectiveValue;
 
-    std::cout << "Initial Objective: " << bestObjective << std::endl;
+    destroyStats.init((int)DestroyMethod::COUNT);
+    repairStats.init((int)RepairMethod::COUNT);
 
     double temperature = params.initialTemperature;
-    
+
+    std::cout << "Initial Objective: " << bestObjective << std::endl;
+
     // 2. Main Loop
     for (int iter = 0; iter < params.maxIterations; ++iter) {
         
@@ -693,44 +727,80 @@ void ALNSSolver::solve() {
             break;
         }
 
+        // Adaptive Operator Selection
+        int destroyOpIdx = selectOperator(destroyStats.weights);
+        int repairOpIdx = selectOperator(repairStats.weights);
+
         // Copy current
         ALNSSolution neighbor = currentSol;
 
         // --- Destroy ---
-        // Adaptive logic would go here. For now, random.
-        // Remove ~20% of requests or min 2
-        int q = std::max(2, (int)(data.P.size() * 0.2));
-        destroyRandom(neighbor, q);
+        switch ((DestroyMethod)destroyOpIdx) {
+            case DestroyMethod::RANDOM:
+                destroyRandom(neighbor, params.destroyFraction);
+                break;
+            case DestroyMethod::WORST:
+                destroyWorst(neighbor, params.destroyFraction);
+                break;
+            case DestroyMethod::SHAW:
+                destroyShaw(neighbor, params.destroyFraction);
+                break;
+        }
 
         // --- Repair ---
-        repairGreedy(neighbor);
+        switch ((RepairMethod)repairOpIdx) {
+            case RepairMethod::GREEDY:
+                repairGreedy(neighbor);
+                break;
+            case RepairMethod::REGRET2:
+                repairRegret2(neighbor);
+                break;
+        }
+
         evaluateSolution(neighbor);
 
-        // --- Acceptance (Simulated Annealing) ---
+        // --- Acceptance Criterion ---
+        double score = 0.0;
         double delta = neighbor.objectiveValue - currentSol.objectiveValue;
-        
         bool accept = false;
+        
         if (delta < 0) {
             accept = true;
+            if (neighbor.objectiveValue < bestObjective) {
+                bestSolution = neighbor;
+                bestObjective = neighbor.objectiveValue;
+                score = params.sigma1;
+                std::cout << "Iter " << iter << ": New Best = " << bestObjective 
+                          << " (Violations: " << (bestSolution.objectiveValue > 10000 ? "Yes" : "No") << ")" << std::endl;
+            } else {
+                score = params.sigma2;
+            }
         } else {
+            // Simulated Annealing acceptance
             double prob = std::exp(-delta / temperature);
             std::uniform_real_distribution<> dis(0.0, 1.0);
             if (dis(rng) < prob) {
                 accept = true;
+                score = params.sigma3;
             }
         }
 
         if (accept) {
             currentSol = neighbor;
-            if (currentSol.objectiveValue < bestObjective) {
-                bestSolution = currentSol;
-                bestObjective = currentSol.objectiveValue;
-                std::cout << "Iter " << iter << ": New Best = " << bestObjective 
-                          << " (Violations: " << (bestSolution.objectiveValue > 10000 ? "Yes" : "No") << ")" << std::endl;
-            }
         }
 
-        // Cooling
+        // -- Update Operator Stats ---
+        destroyStats.scores[destroyOpIdx] += score;
+        destroyStats.timesUsed[destroyOpIdx] += 1;
+        repairStats.scores[repairOpIdx] += score;
+        repairStats.timesUsed[repairOpIdx] += 1;
+
+        if (iter > 0 && iter % 100 == 0) {
+            updateWeights(destroyStats);
+            updateWeights(repairStats);
+        }
+
+        // --- Cooling ---
         temperature *= params.coolingRate;
 
         // --- Matheuristic Integration ---
@@ -751,7 +821,7 @@ void ALNSSolver::solve() {
     this->solveTime = totalElapsed.count();
 
     //Print the violations in the best solution
-    std::cout << "ALNS Finished. Best Objective: " << bestObjective << std::endl;
+    std::cout << std::endl << "ALNS Finished. Best Objective: " << bestObjective << std::endl;
     // Print the objective value of the arcs used (distance cost only, without penalties)
     double totalDistanceCost = 0.0;
     for (const auto& r : bestSolution.routes) {
@@ -760,13 +830,33 @@ void ALNSSolver::solve() {
     std::cout << "Objective (without penalties): " << totalDistanceCost << std::endl;
     std::cout << "Total Solve Time: " << this->solveTime << " seconds." << std::endl;
 
-    //Print each violation
+    // Print operator stats
+    std::cout << std::endl << "Operator Usage Stats:" << std::endl;
+    std::cout << "Destroy Operator Stats:" << std::endl;
+    for (size_t i = 0; i < destroyStats.weights.size(); ++i) {
+        double avgScore = (destroyStats.timesUsed[i] > 0) ? destroyStats.scores[i] / destroyStats.timesUsed[i] : 0.0;
+        std::cout << "  Destroy " << i << ": Weight=" << destroyStats.weights[i] 
+                  << ", Times Used=" << destroyStats.timesUsed[i] 
+                  << ", Avg Score=" << avgScore << std::endl;
+    }
+
+    std::cout << "Repair Operator Stats:" << std::endl;
+    for (size_t i = 0; i < repairStats.weights.size(); ++i) {
+        double avgScore = (repairStats.timesUsed[i] > 0) ? repairStats.scores[i] / repairStats.timesUsed[i] : 0.0;
+        std::cout << "  Repair " << i << ": Weight=" << repairStats.weights[i] 
+                  << ", Times Used=" << repairStats.timesUsed[i] 
+                  << ", Avg Score=" << avgScore << std::endl;
+    }
+
+    //Print violation
+    std::cout << std::endl << "Violations in Best Solution:" << std::endl;
     for (const auto& r : bestSolution.routes) {
         std::cout << " Vehicle " << r.vehicleId << " Violations: Time: " << r.timeViolation
                   << ", Load: " << r.loadViolation << ", RideTime: " << r.rideTimeViolation << std::endl;
     }
     // Print unassigned requests
     std::cout << "Unassigned Requests: ";
+    if (bestSolution.unassignedRequests.empty()) std::cout << "NONE";
     for (int req : bestSolution.unassignedRequests) {
         std::cout << req << " ";
     }
