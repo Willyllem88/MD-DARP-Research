@@ -51,7 +51,7 @@
       "id": 2,
       "start_node": 32,
       "end_node": 35,
-      "capacity": 5,
+      "capacity": 3,
       "max_time": 6000
     },
     {
@@ -68,77 +68,77 @@
       "service_time": 60,
       "demand": 1,
       "tw_start": 0,
-      "tw_end": 3500
+      "tw_end": 250
     },
     {
       "id": 16,
       "service_time": 60,
       "demand": -1,
-      "tw_start": 0,
-      "tw_end": 3500
+      "tw_start": 400,
+      "tw_end": 600
     },
     {
       "id": 2,
       "service_time": 60,
       "demand": 1,
       "tw_start": 0,
-      "tw_end": 3500
+      "tw_end": 250
     },
     {
       "id": 17,
       "service_time": 60,
       "demand": -1,
       "tw_start": 0,
-      "tw_end": 3500
+      "tw_end": 1000
     },
     {
       "id": 3,
       "service_time": 60,
       "demand": 1,
-      "tw_start": 0,
-      "tw_end": 3500
+      "tw_start": 500,
+      "tw_end": 700
     },
     {
       "id": 18,
       "service_time": 60,
       "demand": -1,
       "tw_start": 0,
-      "tw_end": 3500
+      "tw_end": 2000
     },
     {
       "id": 4,
       "service_time": 60,
       "demand": 1,
       "tw_start": 0,
-      "tw_end": 3500
+      "tw_end": 250
     },
     {
       "id": 19,
       "service_time": 60,
       "demand": -1,
       "tw_start": 0,
-      "tw_end": 3500
+      "tw_end": 1000
     },
     {
       "id": 5,
       "service_time": 60,
       "demand": 1,
       "tw_start": 0,
-      "tw_end": 3500
+      "tw_end": 250
     },
     {
       "id": 20,
       "service_time": 60,
       "demand": -1,
       "tw_start": 0,
-      "tw_end": 3500
+      "tw_end": 1000
     },
     {
       "id": 6,
       "service_time": 60,
       "demand": 1,
       "tw_start": 0,
-      "tw_end": 3500
+      "tw_end": 250
     },
     {
       "id": 21,

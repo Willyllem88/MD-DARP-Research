@@ -157,8 +157,6 @@ void ALNSSolver::solveSetPartitioning() {
     // This method takes all routes in routePool and solves an SP model
     if (routePool.empty()) return;
 
-    std::cout << "  [Matheuristic] Running Set Partitioning on Pool..." << std::endl;
-
     IloEnv env;
     try {
         IloModel model(env);
@@ -262,9 +260,14 @@ void ALNSSolver::solveSetPartitioning() {
             
             // If CPLEX found something better, update global best
             if (newSol.objectiveValue < bestObjective) {
-                std::cout << "  [Matheuristic] CPLEX found new best: " << newSol.objectiveValue << std::endl;
+                std::cout << "  [Matheuristic] CPLEX found new best: " << newSol.objectiveValue 
+                          << "  (Improvement)" << std::endl;
                 bestSolution = newSol;
                 bestObjective = newSol.objectiveValue;
+            }
+            else {
+                std::cout << "  [Matheuristic] CPLEX found solution with objective: " << newSol.objectiveValue 
+                          << "  (No improvement)" << std::endl;
             }
         }
 
@@ -472,6 +475,7 @@ void ALNSSolver::solve() {
 
         // --- Matheuristic Integration ---
         if (iter > 0 && iter % params.setPartitioningInterval == 0) {
+            std::cout << "Iter " << iter << " [Matheuristic] Running Set Partitioning on Pool..." << std::endl;
             solveSetPartitioning();
             // Optional: Re-inject the CPLEX solution as the current solution for ALNS
             // currentSol = bestSolution; 
@@ -479,6 +483,7 @@ void ALNSSolver::solve() {
     }
 
     // Final clean run of SP
+    std::cout << "Final Set Partitioning to polish solution..." << std::endl;
     solveSetPartitioning();
 
     auto end = std::chrono::high_resolution_clock::now();
