@@ -16,7 +16,7 @@
 
 // Configuration for the ALNS
 struct ALNSParams {
-    int maxIterations = 5000;
+    int maxIterations = 2000;
     int setPartitioningInterval = 500; // Run CPLEX SP every X iterations
     double initialTemperature = 100.0;
     double coolingRate = 0.9995;
