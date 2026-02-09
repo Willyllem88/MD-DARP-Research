@@ -17,10 +17,10 @@
 // Configuration for the ALNS
 struct ALNSParams {
     int maxIterations = 2000;
-    int setPartitioningInterval = 500; // Run CPLEX SP every X iterations
+    int setPartitioningInterval = 250; // Run CPLEX SP every X iterations
     double initialTemperature = 100.0;
     double coolingRate = 0.9995;
-    double destroyFraction = 0.2; // Fraction of requests to remove in destroy phase
+    double destroyFraction = 0.4; // Fraction of requests to remove in destroy phase
     double worstRemovalPower = 3.0; // For destroyWorst
     
     // Penalties (Dynamic weights could be added here)

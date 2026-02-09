@@ -17,6 +17,7 @@ ALNSSolver::~ALNSSolver() {
 
 void ALNSSolver::evaluateRoute(ALNSRoute& route) {
     route.distanceCost = 0.0;
+    //TODO: timeWindowViolation and vehicleMaxRouteTimeViolation should be calculated separately
     route.timeViolation = 0.0;
     route.loadViolation = 0.0;
     route.rideTimeViolation = 0.0;
@@ -263,6 +264,16 @@ void ALNSSolver::solveSetPartitioning() {
                 std::cout << "  [Matheuristic] CPLEX found solution with objective: " << newSol.objectiveValue 
                           << "  (No improvement)" << std::endl;
             }
+
+            // Paint relevant info about the SP solution
+            size_t totalRoutes = 0;
+            for (auto const& [k, routes] : routePool) {
+                totalRoutes += routes.size();
+            }
+            std::cout << "    Total Unique Routes in Pool: " << totalRoutes << std::endl;
+            std::cout << "    CPLEX Status: " << (spCplex.getStatus() == IloAlgorithm::Infeasible ? "Infeasible" : 
+                                  spCplex.getStatus() == IloAlgorithm::Optimal ? "Optimal" :
+                                  spCplex.getStatus() == IloAlgorithm::Feasible ? "Feasible (Time Limit)" : "Unknown") << std::endl;
         }
 
     } catch (IloException& e) {
