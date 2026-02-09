@@ -23,10 +23,11 @@ struct ALNSParams {
     double destroyFraction = 0.4; // Fraction of requests to remove in destroy phase
     double worstRemovalPower = 3.0; // For destroyWorst
     
-    // Penalties (Dynamic weights could be added here)
-    double timeWindowPenalty = 100.0; // per minute
-    double capacityPenalty = 100.0;   // per unit
-    double rideTimePenalty = 100.0;   // per minute
+    // Penalties
+    double timeWindowPenalty = 100.0;           // per minute
+    double vehicleMaxRouteTimePenalty = 100.0;  // per minute
+    double capacityPenalty = 100.0;             // per unit
+    double rideTimePenalty = 100.0;             // per minute
     double unassignedPenalty = 100000.0; // per request
 
     // Punction for adaptive operator selection constants
@@ -43,7 +44,8 @@ struct ALNSRoute {
     
     // Evaluation metrics
     double distanceCost = 0.0;
-    double timeViolation = 0.0;
+    double timeWindowViolation = 0.0;
+    double vehicleMaxRouteTimeViolation = 0.0;
     double loadViolation = 0.0;
     double rideTimeViolation = 0.0;
     double totalCost = 0.0; // penalized cost

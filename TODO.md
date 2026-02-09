@@ -1,9 +1,8 @@
 # TODO
 
+Search for public instances to test on, and compare with literature results.
+
 Metaheuristics:
 ILS - iterative local search
-LNS - large neighborhood search
+ALNS - adaptive large neighborhood search (IN PROGRESS)
 CMSA - construct, merge, solve & adapt
-
-See if it is possible to save intermediate solutions with CPLEX
-
