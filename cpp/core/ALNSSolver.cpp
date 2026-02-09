@@ -18,7 +18,8 @@ ALNSSolver::~ALNSSolver() {
 void ALNSSolver::evaluateRoute(ALNSRoute& route) {
     route.distanceCost = 0.0;
     //TODO: timeWindowViolation and vehicleMaxRouteTimeViolation should be calculated separately
-    route.timeViolation = 0.0;
+    route.timeWindowViolation = 0.0;
+    route.vehicleMaxRouteTimeViolation = 0.0;
     route.loadViolation = 0.0;
     route.rideTimeViolation = 0.0;
     route.arrivalTimes.clear();
@@ -63,7 +64,7 @@ void ALNSSolver::evaluateRoute(ALNSRoute& route) {
         
         // If late, penalty
         if (arrivalAtV > lateTW) {
-            route.timeViolation += (arrivalAtV - lateTW);
+            route.timeWindowViolation += (arrivalAtV - lateTW);
             // In a soft TW context, we assume we arrive 'late' but continue
             // To prevent massive propagation, sometimes we clamp, but here we let it flow
         }
@@ -103,16 +104,18 @@ void ALNSSolver::evaluateRoute(ALNSRoute& route) {
     int endNode = route.sequence.back();
     double duration = route.arrivalTimes[endNode] - route.arrivalTimes[startNode];
     if (duration > data.max_route_time.at(route.vehicleId)) {
-        route.timeViolation += (duration - data.max_route_time.at(route.vehicleId));
+        route.vehicleMaxRouteTimeViolation += (duration - data.max_route_time.at(route.vehicleId));
     }
 
     // Final Cost Aggregation
     route.totalCost = route.distanceCost 
-                    + params.timeWindowPenalty * route.timeViolation
+                    + params.timeWindowPenalty * route.timeWindowViolation
+                    + params.vehicleMaxRouteTimePenalty * route.vehicleMaxRouteTimeViolation
                     + params.capacityPenalty * route.loadViolation
                     + params.rideTimePenalty * route.rideTimeViolation;
 
-    route.isFeasible = (route.timeViolation == 0 && 
+    route.isFeasible = (route.timeWindowViolation == 0 && 
+                        route.vehicleMaxRouteTimeViolation == 0 &&
                         route.loadViolation == 0 && 
                         route.rideTimeViolation == 0);
 }
@@ -883,8 +886,9 @@ void ALNSSolver::solve() {
     //Print violation
     std::cout << std::endl << "Violations in Best Solution:" << std::endl;
     for (const auto& r : bestSolution.routes) {
-        std::cout << " Vehicle " << r.vehicleId << " Violations: Time: " << r.timeViolation
-                  << ", Load: " << r.loadViolation << ", RideTime: " << r.rideTimeViolation << std::endl;
+        std::cout << " Vehicle " << r.vehicleId << " Violations: TimeWindows: " << r.timeWindowViolation
+                  << ", MaxRouteTime: " << r.vehicleMaxRouteTimeViolation << ", Load: " << r.loadViolation 
+                  << ", RideTime: " << r.rideTimeViolation << std::endl;
     }
     // Print unassigned requests
     std::cout << "Unassigned Requests: ";
