@@ -17,15 +17,23 @@
 // Configuration for the ALNS
 struct ALNSParams {
     int maxIterations = 2000;
-    int setPartitioningInterval = 500; // Run CPLEX SP every X iterations
+    int setPartitioningInterval = 250; // Run CPLEX SP every X iterations
     double initialTemperature = 100.0;
     double coolingRate = 0.9995;
+    double destroyFraction = 0.4; // Fraction of requests to remove in destroy phase
+    double worstRemovalPower = 3.0; // For destroyWorst
     
     // Penalties (Dynamic weights could be added here)
     double timeWindowPenalty = 100.0; // per minute
     double capacityPenalty = 100.0;   // per unit
     double rideTimePenalty = 100.0;   // per minute
     double unassignedPenalty = 100000.0; // per request
+
+    // Punction for adaptive operator selection constants
+    const double sigma1 = 33.0; // For new best global
+    const double sigma2 = 9.0;  // For better than current
+    const double sigma3 = 13.0;  // For accepted (but not better)
+    const double reactionFactor = 0.1; // How much to adjust weights based on performance
 };
 
 // Internal representation of a single vehicle route
@@ -45,8 +53,6 @@ struct ALNSRoute {
     // Timestamps and loads for reconstruction
     std::map<int, double> arrivalTimes;
     std::map<int, double> loads;
-
-    //
 };
 
 struct RouteSequenceHash {
@@ -104,15 +110,40 @@ private:
     void evaluateSolution(ALNSSolution& sol);
     ALNSSolution createInitialSolution();
     
-    // ALNS Operators (Simplified set for demonstration)
-    // Destroy: Removes q requests
+    // ALNS Operators
     void destroyRandom(ALNSSolution& sol, int q);
-    // Repair: Re-inserts unassigned requests
-    void repairGreedy(ALNSSolution& sol); 
+    void destroyWorst(ALNSSolution& sol, int q);
+    void destroyShaw(ALNSSolution& sol, int q);
+    
+    void repairGreedy(ALNSSolution& sol);
+    void repairRegret2(ALNSSolution& sol);
+
+    enum class DestroyMethod {RANDOM, WORST, SHAW, COUNT}; // COUNT the number of methods for stats
+    enum class RepairMethod {GREEDY, REGRET2, COUNT};
+
+    struct OperatorStats {
+        std::vector<double> weights;
+        std::vector<int> scores;
+        std::vector<int> timesUsed;
+
+        void init(int size) {
+            weights.assign(size, 1.0); // Todos empiezan con igual probabilidad
+            scores.assign(size, 0.0);
+            timesUsed.assign(size, 0);
+        }
+    };
+    OperatorStats destroyStats;
+    OperatorStats repairStats;
+
+    int selectOperator(const std::vector<double>& weights);
+    void updateWeights(OperatorStats& stats);
 
     // Helper: Check if a request (pickup p, delivery d) can be inserted into route at pos i, j
     // Returns incremental cost (or infinity if impossible/too expensive)
     double calculateInsertionCost(const ALNSRoute& route, int requestIdx, int pIdx, int dIdx);
+    
+    // Helper: Calculate relatedness between two requests for adaptive selection in destroy
+    double calculateRelatedness(int i, int j);
 
     // --- CPLEX Integration (Set Partitioning) ---
     // Solves a Set Partitioning problem using the accumulated routePool

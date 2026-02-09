@@ -9,18 +9,15 @@ ALNSSolver::ALNSSolver(const DARPMD_ProblemInstance& instance, std::optional<dou
     : data(instance), timeLimit(timeLimit) {
     
     // Seed random number generator
-    rng = std::mt19937(42); // Fixed seed for reproducibility
+    rng = std::mt19937(123); // Fixed seed for reproducibility
 }
 
 ALNSSolver::~ALNSSolver() {
-    // Nothing special to clean up unless we keep persistent CPLEX envs
 }
 
-// ------------------------------------------------------------------
-// Core Logic: Route Evaluation (Handles Time Windows & Penalties)
-// ------------------------------------------------------------------
 void ALNSSolver::evaluateRoute(ALNSRoute& route) {
     route.distanceCost = 0.0;
+    //TODO: timeWindowViolation and vehicleMaxRouteTimeViolation should be calculated separately
     route.timeViolation = 0.0;
     route.loadViolation = 0.0;
     route.rideTimeViolation = 0.0;
@@ -29,7 +26,7 @@ void ALNSSolver::evaluateRoute(ALNSRoute& route) {
 
     if (route.sequence.empty()) return;
 
-    double currentTime = 0.0; // Start time is usually 0 or earliest window
+    double currentTime = 0.0;
     double currentLoad = 0.0;
     
     // 1. Initialize at Start Depot
@@ -40,7 +37,6 @@ void ALNSSolver::evaluateRoute(ALNSRoute& route) {
     route.arrivalTimes[startNode] = currentTime;
     route.loads[startNode] = 0.0;
 
-    // Tracking for Ride Time constraints: key = request_id (pickup node), val = pickup_time
     std::map<int, double> pickupTimes;
 
     for (size_t i = 0; i < route.sequence.size() - 1; ++i) {
@@ -48,7 +44,6 @@ void ALNSSolver::evaluateRoute(ALNSRoute& route) {
         int v = route.sequence[i+1];
 
         // --- Distance ---
-        // Note: Assuming vehicleId matches index in capacity/time vectors
         route.distanceCost += data.getCost(u, v, route.vehicleId);
 
         // --- Time ---
@@ -269,6 +264,16 @@ void ALNSSolver::solveSetPartitioning() {
                 std::cout << "  [Matheuristic] CPLEX found solution with objective: " << newSol.objectiveValue 
                           << "  (No improvement)" << std::endl;
             }
+
+            // Paint relevant info about the SP solution
+            size_t totalRoutes = 0;
+            for (auto const& [k, routes] : routePool) {
+                totalRoutes += routes.size();
+            }
+            std::cout << "    Total Unique Routes in Pool: " << totalRoutes << std::endl;
+            std::cout << "    CPLEX Status: " << (spCplex.getStatus() == IloAlgorithm::Infeasible ? "Infeasible" : 
+                                  spCplex.getStatus() == IloAlgorithm::Optimal ? "Optimal" :
+                                  spCplex.getStatus() == IloAlgorithm::Feasible ? "Feasible (Time Limit)" : "Unknown") << std::endl;
         }
 
     } catch (IloException& e) {
@@ -305,6 +310,10 @@ ALNSSolution ALNSSolver::createInitialSolution() {
     
     return sol;
 }
+
+// ------------------------------------------------------------------------------------
+//                                 DESTROY OPERATORS
+// ------------------------------------------------------------------------------------
 
 void ALNSSolver::destroyRandom(ALNSSolution& sol, int q) {
     // Randomly remove q requests
@@ -348,6 +357,143 @@ void ALNSSolver::destroyRandom(ALNSSolution& sol, int q) {
         removed++;
     }
 }
+
+// TODO: refactor, once it removes one request, already calculated saving are not valid.
+//  We could recalculate savings after each removal, but that would be costly. A middle 
+//  ground is to recalculate savings every X removals or to accept some noise in the selection.
+void ALNSSolver::destroyWorst(ALNSSolution& sol, int q) {
+    std::vector<std::pair<double, int>> savingsMap; // <Saving, RequestID>
+
+    // 1. Calculate the cost of each request in the current solution
+    for (size_t v = 0; v < sol.routes.size(); ++v) {
+        ALNSRoute& route = sol.routes[v];
+        if (route.sequence.size() <= 2) continue; // Only depot
+
+        double currentCost = route.totalCost;
+
+        // Identify requests in this route
+        std::vector<int> requestsInRoute;
+        for (int node : route.sequence) {
+            if (std::find(data.P.begin(), data.P.end(), node) != data.P.end()) {
+                requestsInRoute.push_back(node);
+            }
+        }
+
+        // Try removing each one to see how much we save
+        for (int reqId : requestsInRoute) {
+            ALNSRoute tempRoute = route;
+            std::vector<int> newSeq;
+            int deliveryId = reqId + data.N_requests;
+
+            for (int node : tempRoute.sequence) {
+                if (node != reqId && node != deliveryId) newSeq.push_back(node);
+            }
+            tempRoute.sequence = newSeq;
+            evaluateRoute(tempRoute);
+
+            double saving = currentCost - tempRoute.totalCost;
+            savingsMap.push_back({saving, reqId});
+        }
+    }
+
+    // 2. Sort by greatest saving (Descending)
+    std::sort(savingsMap.rbegin(), savingsMap.rend()); 
+
+    // 3. Remove the top 'q' (with a random factor to avoid pure determinism)
+    // The parameter 'p' controls randomness (e.g., p=3)
+    int removedCount = 0;
+    while (removedCount < q && !savingsMap.empty()) {
+        // Select based on biased index (to not always choose the strict #1)
+        // index = floor(|L| * rand^p)
+        double r = std::generate_canonical<double, 10>(rng);
+        int idx = std::floor(savingsMap.size() * std::pow(r, params.worstRemovalPower)); // Assumes power ~ 3-6
+        
+        if (idx >= savingsMap.size()) idx = savingsMap.size() - 1;
+
+        int reqToRemove = savingsMap[idx].second;
+        
+        // Physically remove from the solution
+        for (auto& route : sol.routes) {
+            auto& seq = route.sequence;
+            auto itP = std::find(seq.begin(), seq.end(), reqToRemove);
+            if (itP != seq.end()) {
+                // Rebuild vector without P and D
+                int deliveryId = reqToRemove + data.N_requests;
+                std::vector<int> cleanSeq;
+                for(int node : seq) {
+                    if (node != reqToRemove && node != deliveryId) cleanSeq.push_back(node);
+                }
+                route.sequence = cleanSeq;
+                break; // We found it in this route
+            }
+        }
+        
+        sol.unassignedRequests.insert(reqToRemove);
+        savingsMap.erase(savingsMap.begin() + idx);
+        removedCount++;
+    }
+}
+
+void ALNSSolver::destroyShaw(ALNSSolution& sol, int q) {
+    // 1. Choose a random seed request that is currently assigned
+    std::vector<int> assigned;
+    for (const auto& r : sol.routes) {
+        for (int node : r.sequence) {
+            if (std::find(data.P.begin(), data.P.end(), node) != data.P.end()) 
+                assigned.push_back(node);
+        }
+    }
+    
+    if (assigned.empty()) return;
+    std::uniform_int_distribution<> dis(0, assigned.size() - 1);
+    int seedRequest = assigned[dis(rng)];
+
+    std::vector<int> toRemove;
+    toRemove.push_back(seedRequest);
+
+    // 2. Sort the rest of the requests by similarity to the seed
+    std::vector<std::pair<double, int>> relatedList;
+    for (int other : assigned) {
+        if (other == seedRequest) continue;
+        double R = calculateRelatedness(seedRequest, other);
+        relatedList.push_back({R, other});
+    }
+    std::sort(relatedList.begin(), relatedList.end()); // Lower R is better
+
+    // 3. Select q-1 closest neighbors (with some randomness)
+    while (toRemove.size() < q && !relatedList.empty()) {
+        double r = std::generate_canonical<double, 10>(rng);
+        int idx = std::floor(relatedList.size() * std::pow(r, 6.0)); // Strong bias towards the beginning
+        if (idx >= relatedList.size()) idx = relatedList.size() - 1;
+
+        toRemove.push_back(relatedList[idx].second);
+        relatedList.erase(relatedList.begin() + idx);
+    }
+
+    // 4. Execute removal
+    for (int req : toRemove) {
+        for (auto& route : sol.routes) {
+            // ... Same physical removal code as in destroyRandom/Worst ...
+            // (You can refactor the physical removal to an auxiliary function 'removeRequestFromRoute')
+            std::vector<int> newSeq;
+            int devId = req + data.N_requests;
+            bool found = false;
+            for (int n : route.sequence) {
+                if (n == req || n == devId) found = true;
+                else newSeq.push_back(n);
+            }
+            if (found) {
+                route.sequence = newSeq;
+                break;
+            }
+        }
+        sol.unassignedRequests.insert(req);
+    }
+}
+
+// -----------------------------------------------------------------------------
+//                                 REPAIR OPERATORS
+// -----------------------------------------------------------------------------
 
 void ALNSSolver::repairGreedy(ALNSSolution& sol) {
     // Try to insert unassigned requests into best positions
@@ -406,6 +552,160 @@ void ALNSSolver::repairGreedy(ALNSSolution& sol) {
     }
 }
 
+void ALNSSolver::repairRegret2(ALNSSolution& sol) {
+    while (!sol.unassignedRequests.empty()) {
+        
+        int bestReqId = -1;
+        double maxRegretValue = -1.0;
+        
+        // Estructura para guardar el mejor movimiento de la petición ganadora
+        int winVehicle = -1; 
+        int winPIdx = -1; 
+        int winDIdx = -1;
+
+        // Iterar sobre todas las peticiones pendientes
+        std::vector<int> pending(sol.unassignedRequests.begin(), sol.unassignedRequests.end());
+        
+        for (int reqId : pending) {
+            int deliveryId = reqId + data.N_requests;
+            
+            // Guardar los costes de inserción de esta petición en cada ruta
+            std::vector<double> insertionCosts; 
+            
+            // Estructuras temporales para guardar la posición exacta en cada ruta
+            struct Move { int v; int pIdx; int dIdx; double cost; };
+            std::vector<Move> moves;
+
+            // Evaluar inserción en CADA vehículo
+            for (size_t v = 0; v < sol.routes.size(); ++v) {
+                double bestCostForVehicle = std::numeric_limits<double>::max();
+                int bestP = -1, bestD = -1;
+                
+                // Lógica de búsqueda de posición (igual que en Greedy)
+                const auto& seq = sol.routes[v].sequence;
+                double currentRouteCost = sol.routes[v].totalCost;
+
+                for (size_t i = 1; i < seq.size(); ++i) {
+                    for (size_t j = i; j < seq.size(); ++j) {
+                        // Delta Evaluation rápida o clonación completa (Usamos clonación por simplicidad actual)
+                        ALNSRoute temp = sol.routes[v];
+                        temp.sequence.insert(temp.sequence.begin() + i, reqId);
+                        temp.sequence.insert(temp.sequence.begin() + j + 1, deliveryId);
+                        evaluateRoute(temp);
+                        
+                        if (!temp.isFeasible) continue; // Si viola Hard Constraints, ignorar
+                        
+                        double increase = temp.totalCost - currentRouteCost;
+                        if (increase < bestCostForVehicle) {
+                            bestCostForVehicle = increase;
+                            bestP = i;
+                            bestD = j + 1;
+                        }
+                    }
+                }
+                
+                // Guardamos el mejor coste encontrado para este vehículo
+                if (bestP != -1) {
+                    moves.push_back({(int)v, bestP, bestD, bestCostForVehicle});
+                }
+            }
+
+            // CALCULAR REGRET
+            // Si no cabe en ningún sitio
+            if (moves.empty()) continue; 
+            
+            // Ordenar movimientos por coste (ascendente)
+            std::sort(moves.begin(), moves.end(), [](const Move& a, const Move& b){
+                return a.cost < b.cost;
+            });
+
+            double regret = 0;
+            if (moves.size() == 1) {
+                // Si solo cabe en un sitio, el arrepentimiento es infinito (o muy alto)
+                // porque si no lo metemos ahí, lo perdemos.
+                regret = 100000.0; // Valor alto arbitrario
+            } else {
+                // Regret-2: Diferencia entre mejor y segundo mejor
+                regret = moves[1].cost - moves[0].cost;
+            }
+
+            // ¿Es este el "peor" caso que hemos visto?
+            if (regret > maxRegretValue) {
+                maxRegretValue = regret;
+                bestReqId = reqId;
+                winVehicle = moves[0].v;
+                winPIdx = moves[0].pIdx;
+                winDIdx = moves[0].dIdx;
+            }
+        }
+
+        // Si no encontramos candidato factible para ninguna petición, paramos
+        if (bestReqId == -1) break;
+
+        // APLICAR EL MOVIMIENTO
+        auto& r = sol.routes[winVehicle];
+        r.sequence.insert(r.sequence.begin() + winPIdx, bestReqId);
+        int deliveryId = bestReqId + data.N_requests;
+        r.sequence.insert(r.sequence.begin() + winDIdx, deliveryId);
+        evaluateRoute(r);
+        
+        sol.unassignedRequests.erase(bestReqId);
+    }
+}
+
+int ALNSSolver::selectOperator(const std::vector<double>& weights) {
+    double totalWeight = 0.0;
+    for (double w : weights) totalWeight += w;
+
+    std::uniform_real_distribution<> dis(0.0, totalWeight);
+    double r = dis(rng);
+    
+    double cumulative = 0.0;
+    for (size_t i = 0; i < weights.size(); ++i) {
+        cumulative += weights[i];
+        if (r <= cumulative) {
+            return (int)i;
+        }
+    }
+    return (int)weights.size() - 1; // Fallback
+}
+
+void ALNSSolver::updateWeights(OperatorStats& stats) {
+    for (size_t i = 0; i < stats.weights.size(); ++i) {
+        if (stats.timesUsed[i] > 0) {
+            double avgScore = stats.scores[i] / stats.timesUsed[i];
+            // Fórmula: w_new = (1-p) * w_old + p * score
+            stats.weights[i] = (1.0 - params.reactionFactor) * stats.weights[i] 
+                             + params.reactionFactor * avgScore;
+        }
+        // Resetear scores para el siguiente segmento
+        stats.scores[i] = 0.0;
+        stats.timesUsed[i] = 0;
+    }
+}
+
+double ALNSSolver::calculateRelatedness(int i, int j) {
+    // Pesos heurísticos
+    double w_dist = 9.0;
+    double w_time = 3.0;
+    double w_demand = 1.0;
+
+    // Distancia normalizada (aprox) entre orígenes
+    double dist = data.getTravelTime(i, j); 
+    
+    // Diferencia temporal (Start Time Window)
+    double timeDiff = std::abs(data.getTimeWindowStart(i) - data.getTimeWindowStart(j));
+    
+    // Diferencia de demanda
+    double demandDiff = std::abs(data.getDemand(i) - data.getDemand(j));
+
+    // Valor de relación (Shaw Distance)
+    return w_dist * dist + w_time * timeDiff + w_demand * demandDiff;
+}
+
+// TODO: refactor, a fuction that returns true if the stopping criterion is 
+// met (time, iterations, etc)
+
 // ------------------------------------------------------------------
 // Main Solve Loop
 // ------------------------------------------------------------------
@@ -418,10 +718,13 @@ void ALNSSolver::solve() {
     bestSolution = currentSol;
     bestObjective = currentSol.objectiveValue;
 
-    std::cout << "Initial Objective: " << bestObjective << std::endl;
+    destroyStats.init((int)DestroyMethod::COUNT);
+    repairStats.init((int)RepairMethod::COUNT);
 
     double temperature = params.initialTemperature;
-    
+
+    std::cout << "Initial Objective: " << bestObjective << std::endl;
+
     // 2. Main Loop
     for (int iter = 0; iter < params.maxIterations; ++iter) {
         
@@ -433,44 +736,103 @@ void ALNSSolver::solve() {
             break;
         }
 
+        // Adaptive Operator Selection
+        int destroyOpIdx = selectOperator(destroyStats.weights);
+        int repairOpIdx = selectOperator(repairStats.weights);
+
         // Copy current
         ALNSSolution neighbor = currentSol;
 
         // --- Destroy ---
-        // Adaptive logic would go here. For now, random.
-        // Remove ~20% of requests or min 2
-        int q = std::max(2, (int)(data.P.size() * 0.2));
-        destroyRandom(neighbor, q);
+        // Destroy q requests, where q is a fraction of total requests (at least 1, at most n-1)
+        int q = std::clamp((int)(params.destroyFraction * data.P.size()), 1, (int)data.P.size() - 1);
+        switch ((DestroyMethod)destroyOpIdx) {
+            case DestroyMethod::RANDOM:
+                destroyRandom(neighbor, q);
+                break;
+            case DestroyMethod::WORST:
+                destroyWorst(neighbor, q);
+                break;
+            case DestroyMethod::SHAW:
+                destroyShaw(neighbor, q);
+                break;
+        }
 
         // --- Repair ---
-        repairGreedy(neighbor);
+        switch ((RepairMethod)repairOpIdx) {
+            case RepairMethod::GREEDY:
+                repairGreedy(neighbor);
+                break;
+            case RepairMethod::REGRET2:
+                repairRegret2(neighbor);
+                break;
+        }
+
         evaluateSolution(neighbor);
 
-        // --- Acceptance (Simulated Annealing) ---
+        // --- Acceptance Criterion ---
+        double score = 0.0;
         double delta = neighbor.objectiveValue - currentSol.objectiveValue;
-        
         bool accept = false;
+        
         if (delta < 0) {
             accept = true;
+            if (neighbor.objectiveValue < bestObjective) {
+                bestSolution = neighbor;
+                bestObjective = neighbor.objectiveValue;
+                score = params.sigma1;
+                std::cout << "Iter " << iter << ": New Best = " << bestObjective 
+                          << " (Violations: " << (bestSolution.objectiveValue > 10000 ? "Yes" : "No") << ")" << std::endl;
+            } else {
+                score = params.sigma2;
+            }
         } else {
+            // Simulated Annealing acceptance
             double prob = std::exp(-delta / temperature);
             std::uniform_real_distribution<> dis(0.0, 1.0);
             if (dis(rng) < prob) {
                 accept = true;
+                score = params.sigma3;
             }
         }
 
         if (accept) {
             currentSol = neighbor;
-            if (currentSol.objectiveValue < bestObjective) {
-                bestSolution = currentSol;
-                bestObjective = currentSol.objectiveValue;
-                std::cout << "Iter " << iter << ": New Best = " << bestObjective 
-                          << " (Violations: " << (bestSolution.objectiveValue > 10000 ? "Yes" : "No") << ")" << std::endl;
+            // Check for delivery before pickup violations
+            for (const auto& route : currentSol.routes) {
+                std::map<int, int> pickupPositions; // request ID -> position
+                for (size_t pos = 0; pos < route.sequence.size(); ++pos) {
+                    int node = route.sequence[pos];
+                    if (std::find(data.P.begin(), data.P.end(), node) != data.P.end()) {
+                        pickupPositions[node] = pos;
+                    }
+                }
+                
+                for (size_t pos = 0; pos < route.sequence.size(); ++pos) {
+                    int node = route.sequence[pos];
+                    if (std::find(data.D.begin(), data.D.end(), node) != data.D.end()) {
+                        int pickupId = node - data.N_requests;
+                        if (pickupPositions.count(pickupId) && pickupPositions[pickupId] > pos) {
+                            std::cout << "WARNING: Delivery " << node << " appears before Pickup " 
+                                      << pickupId << " in Vehicle " << route.vehicleId << std::endl;
+                        }
+                    }
+                }
             }
         }
 
-        // Cooling
+        // -- Update Operator Stats ---
+        destroyStats.scores[destroyOpIdx] += score;
+        destroyStats.timesUsed[destroyOpIdx] += 1;
+        repairStats.scores[repairOpIdx] += score;
+        repairStats.timesUsed[repairOpIdx] += 1;
+
+        if (iter > 0 && iter % 100 == 0) {
+            updateWeights(destroyStats);
+            updateWeights(repairStats);
+        }
+
+        // --- Cooling ---
         temperature *= params.coolingRate;
 
         // --- Matheuristic Integration ---
@@ -491,7 +853,7 @@ void ALNSSolver::solve() {
     this->solveTime = totalElapsed.count();
 
     //Print the violations in the best solution
-    std::cout << "ALNS Finished. Best Objective: " << bestObjective << std::endl;
+    std::cout << std::endl << "ALNS Finished. Best Objective: " << bestObjective << std::endl;
     // Print the objective value of the arcs used (distance cost only, without penalties)
     double totalDistanceCost = 0.0;
     for (const auto& r : bestSolution.routes) {
@@ -500,13 +862,33 @@ void ALNSSolver::solve() {
     std::cout << "Objective (without penalties): " << totalDistanceCost << std::endl;
     std::cout << "Total Solve Time: " << this->solveTime << " seconds." << std::endl;
 
-    //Print each violation
+    // Print operator stats
+    std::cout << std::endl << "Operator Usage Stats:" << std::endl;
+    std::cout << "Destroy Operator Stats:" << std::endl;
+    for (size_t i = 0; i < destroyStats.weights.size(); ++i) {
+        double avgScore = (destroyStats.timesUsed[i] > 0) ? destroyStats.scores[i] / destroyStats.timesUsed[i] : 0.0;
+        std::cout << "  Destroy " << i << ": Weight=" << destroyStats.weights[i] 
+                  << ", Times Used=" << destroyStats.timesUsed[i] 
+                  << ", Avg Score=" << avgScore << std::endl;
+    }
+
+    std::cout << "Repair Operator Stats:" << std::endl;
+    for (size_t i = 0; i < repairStats.weights.size(); ++i) {
+        double avgScore = (repairStats.timesUsed[i] > 0) ? repairStats.scores[i] / repairStats.timesUsed[i] : 0.0;
+        std::cout << "  Repair " << i << ": Weight=" << repairStats.weights[i] 
+                  << ", Times Used=" << repairStats.timesUsed[i] 
+                  << ", Avg Score=" << avgScore << std::endl;
+    }
+
+    //Print violation
+    std::cout << std::endl << "Violations in Best Solution:" << std::endl;
     for (const auto& r : bestSolution.routes) {
         std::cout << " Vehicle " << r.vehicleId << " Violations: Time: " << r.timeViolation
                   << ", Load: " << r.loadViolation << ", RideTime: " << r.rideTimeViolation << std::endl;
     }
     // Print unassigned requests
     std::cout << "Unassigned Requests: ";
+    if (bestSolution.unassignedRequests.empty()) std::cout << "NONE";
     for (int req : bestSolution.unassignedRequests) {
         std::cout << req << " ";
     }
@@ -555,4 +937,4 @@ DARPMD_ResultInstance ALNSSolver::getResult() const {
     return result;
 }
 
-//TODO: more opeators
+//TODO: Vehicle time violations

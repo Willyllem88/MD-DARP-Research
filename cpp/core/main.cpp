@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <optional>
+#include <memory>
 
 #include "DARPMD_ProblemInstance.h"
 #include "Solver.h"
@@ -19,7 +20,24 @@ struct Args {
     std::optional<double> time_limit;
 };
 
+void printUsage(const char* program_name) {
+    std::cout << "Usage: " << program_name << " [-i instance_path] [-t time_limit] [-o output_path] [-m method]" << std::endl;
+    std::cout << "  -i, --instance   Path to problem instance JSON file" << std::endl;
+    std::cout << "  -t, --time       Time limit in seconds (optional)" << std::endl;
+    std::cout << "  -o, --output     Path to output solution file" << std::endl;
+    std::cout << "  -m, --method     Solver method: 'ILP', 'ILPSoft', 'Tabu', 'ALNS'" << std::endl;
+    std::cout << "  -h               Show this help message" << std::endl;
+    std::cout << "Example: " << program_name << " -i ./gracia-4R2V.json -t 300 -o ./solution.json -m ILP" << std::endl;
+}
+
 Args parseArgs(int argc, char** argv) {
+    if (argc == 1) {
+        std::cout << "No arguments provided. Using default instance: " << DEFAULT_INSTANCE_PATH << std::endl;
+        printUsage(argv[0]);
+        std::cout << std::endl << "Waiting for 10 seconds before proceeding..." << std::endl;
+        sleep(10); // Give user time to read the message    
+    }
+
     Args args;
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
@@ -33,24 +51,19 @@ Args parseArgs(int argc, char** argv) {
         }
         else if ((a == "-m" || a == "--method") && i + 1 < argc) {
             std::string method = argv[++i];
-            if (method != "ILP" && method != "Tabu" && method != "ALNS" && method != "ILPSoft") {
-                std::cerr << "Unknown method: " << method << ". Use 'ILP', 'Tabu', 'ALNS', or 'ILPSoft'." << std::endl;
+            if (method != "ILP" && method != "ILPSoft" && method != "Tabu" && method != "ALNS") {
+                std::cerr << "Unknown method: " << method << ". Use 'ILP', 'ILPSoft', 'Tabu', or 'ALNS'." << std::endl;
                 exit(1);
             }
             args.method = method;
         }
         else if (a == "-h") {
-            std::cout << "DARPMD Solver" << std::endl;
-            std::cout << "Usage: " << argv[0] << " [-i instance_path] [-t time_limit] [-o output_path] [-m method]" << std::endl;
-            std::cout << "  -i, --instance   Path to problem instance JSON file" << std::endl;
-            std::cout << "  -t, --time       Time limit in seconds (optional)" << std::endl;
-            std::cout << "  -o, --output     Path to output solution file" << std::endl;
-            std::cout << "  -m, --method     Solver method: 'ILP', 'Tabu', 'ALNS' or 'ILPSoft'" << std::endl;
-            std::cout << "  -h              Show this help message" << std::endl;
+            printUsage(argv[0]);
             exit(0);
         }
         else {
             std::cerr << "Unknown argument: " << a << std::endl;
+            exit(1);
         }
     }
     return args;
@@ -68,15 +81,18 @@ int main(int argc, char** argv) {
     instance.displayInfo();
 
     // Select Solver
-    Solver* solver = nullptr;
-    if (args.method == "Tabu") {
-        solver = new DARPMDTabuSolver(instance, args.time_limit);
-    } else if (args.method == "ALNS") {
-        solver = new ALNSSolver(instance, args.time_limit);
+    std::unique_ptr<Solver> solver;
+    if (args.method == "ILP") {
+        solver = std::make_unique<CPLEXSolver>(instance, args.time_limit);
     } else if (args.method == "ILPSoft") {
-        solver = new CPLEXSoftSolver(instance, args.time_limit);
+        solver = std::make_unique<CPLEXSoftSolver>(instance, args.time_limit);
+    } else if (args.method == "Tabu") {
+        solver = std::make_unique<DARPMDTabuSolver>(instance, args.time_limit);
+    } else if (args.method == "ALNS") {
+        solver = std::make_unique<ALNSSolver>(instance, args.time_limit);
     } else {
-        solver = new CPLEXSolver(instance, args.time_limit);
+        std::cerr << "Invalid method selected." << std::endl;
+        return 1;
     }
 
     // Solve and Get Results
@@ -85,6 +101,5 @@ int main(int argc, char** argv) {
     result.displaySummary();
     result.saveToJSON(args.output_path);
 
-    delete solver;
     return 0;
 }
