@@ -8,7 +8,6 @@
 #include "CPLEXSolver.h"
 #include "CPLEXSoftSolver.h"
 #include "ALNSSolver.h"
-#include "DARPMDTabuSolver.h"
 
 const std::string DEFAULT_INSTANCE_PATH = "/home/guillem/TFG-Guillem/data/instances_static/gracia-4R2V.json";
 
@@ -25,7 +24,7 @@ void printUsage(const char* program_name) {
     std::cout << "  -i, --instance   Path to problem instance JSON file" << std::endl;
     std::cout << "  -t, --time       Time limit in seconds (optional)" << std::endl;
     std::cout << "  -o, --output     Path to output solution file" << std::endl;
-    std::cout << "  -m, --method     Solver method: 'ILP', 'ILPSoft', 'Tabu', 'ALNS'" << std::endl;
+    std::cout << "  -m, --method     Solver method: 'ILP', 'ILPSoft', 'ALNS'" << std::endl;
     std::cout << "  -h               Show this help message" << std::endl;
     std::cout << "Example: " << program_name << " -i ./gracia-4R2V.json -t 300 -o ./solution.json -m ILP" << std::endl;
 }
@@ -51,8 +50,8 @@ Args parseArgs(int argc, char** argv) {
         }
         else if ((a == "-m" || a == "--method") && i + 1 < argc) {
             std::string method = argv[++i];
-            if (method != "ILP" && method != "ILPSoft" && method != "Tabu" && method != "ALNS") {
-                std::cerr << "Unknown method: " << method << ". Use 'ILP', 'ILPSoft', 'Tabu', or 'ALNS'." << std::endl;
+            if (method != "ILP" && method != "ILPSoft" && method != "ALNS") {
+                std::cerr << "Unknown method: " << method << ". Use 'ILP', 'ILPSoft', or 'ALNS'." << std::endl;
                 exit(1);
             }
             args.method = method;
@@ -86,8 +85,6 @@ int main(int argc, char** argv) {
         solver = std::make_unique<CPLEXSolver>(instance, args.time_limit);
     } else if (args.method == "ILPSoft") {
         solver = std::make_unique<CPLEXSoftSolver>(instance, args.time_limit);
-    } else if (args.method == "Tabu") {
-        solver = std::make_unique<DARPMDTabuSolver>(instance, args.time_limit);
     } else if (args.method == "ALNS") {
         solver = std::make_unique<ALNSSolver>(instance, args.time_limit);
     } else {

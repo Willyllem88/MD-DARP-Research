@@ -1,7 +1,6 @@
 # Ejecutable principal
 add_executable(darpmd
     main.cpp
-    DARPMDTabuSolver.cpp
     CPLEXSolver.cpp
     CPLEXSoftSolver.cpp
     ALNSSolver.cpp
