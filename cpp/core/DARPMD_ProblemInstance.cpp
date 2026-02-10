@@ -30,7 +30,7 @@ bool DARPMD_ProblemInstance::loadFromJSON(const std::string& path) {
 
     std::ifstream file(path);
     if (!file.is_open()) {
-        std::cerr << "Error: No se pudo abrir el archivo " << path << std::endl;
+        std::cerr << "Error: Could not open file: " << path << std::endl;
         return false;
     }
 
