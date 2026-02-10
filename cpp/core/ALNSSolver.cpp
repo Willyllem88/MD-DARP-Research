@@ -784,8 +784,10 @@ void ALNSSolver::solve() {
                 bestSolution = neighbor;
                 bestObjective = neighbor.objectiveValue;
                 score = params.sigma1;
+                bool violations = solutionHasViolations(neighbor);
                 std::cout << "Iter " << iter << ": New Best = " << bestObjective 
-                          << " (Violations: " << (bestSolution.objectiveValue > 10000 ? "Yes" : "No") << ")" << std::endl;
+                          << " (Violations: " << (violations ? "Yes" : "No") << ")" << std::endl;
+                //solutionDetails(bestSolution);
             } else {
                 score = params.sigma2;
             }
@@ -897,6 +899,33 @@ void ALNSSolver::solve() {
         std::cout << req << " ";
     }
     std::cout << std::endl;
+}
+
+void ALNSSolver::printSolutionDetails(const ALNSSolution& sol) const {
+    std::cout << "  Routes:" << std::endl;
+    for (const auto& r : sol.routes) {
+        std::cout << "    Vehicle " << r.vehicleId << ": ";
+        for (int node : r.sequence) {
+            std::cout << node << " ";
+        }
+        std::cout << "| Cost: " << r.totalCost 
+                  << " | TW Violation: " << r.timeWindowViolation 
+                  << " | Load Violation: " << r.loadViolation 
+                  << " | Ride Time Violation: " << r.rideTimeViolation
+                  << std::endl;
+    }
+    std::cout << "  Unassigned Requests: ";
+    for (int req : sol.unassignedRequests) {
+        std::cout << req << " ";
+    }
+    std::cout << std::endl;
+}
+
+bool ALNSSolver::solutionHasViolations(const ALNSSolution& sol) const {
+    for (const auto& r : sol.routes) {
+        if (!r.isFeasible) return true;
+    }
+    return false;
 }
 
 

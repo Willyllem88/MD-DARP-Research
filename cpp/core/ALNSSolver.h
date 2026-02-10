@@ -147,6 +147,12 @@ private:
     // Helper: Calculate relatedness between two requests for adaptive selection in destroy
     double calculateRelatedness(int i, int j);
 
+    // Helper: Check if solution has any violations (time windows, capacity, ride time)
+    bool solutionHasViolations(const ALNSSolution& sol) const;
+
+    // Helper: Check if solution has any violations (time windows, capacity, ride time) for debugging/logging
+    void printSolutionDetails(const ALNSSolution& sol) const;
+
     // --- CPLEX Integration (Set Partitioning) ---
     // Solves a Set Partitioning problem using the accumulated routePool
     void solveSetPartitioning(); 
