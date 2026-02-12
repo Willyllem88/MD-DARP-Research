@@ -1,0 +1,39 @@
+place: "Gràcia, Barcelona, Spain"
+global:
+  L_ride: 1800
+requests:
+  # REQUEST 1: From Cine Verdi to Plaça Virreina (Short and central route)
+  - id: 1
+    pickup_address: "Carrer de Verdi 32, 08012, Spain"
+    delivery_address: "Plaça de la Virreina 1, 08012, Spain"
+    demand: 2
+    p_tw_start: 0
+    p_tw_end: 3600
+    p_service_time: 60
+    d_tw_start: 300
+    d_tw_end: 5000
+    d_service_time: 60
+
+  # REQUEST 2: From Torrent de l'Olla to Metro Joanic (Crossing the neighborhood)
+  - id: 2
+    pickup_address: "Carrer del Torrent de l'Olla 10, 08012, Spain"
+    delivery_address: "Plaza de Joanic, 08024, Spain"
+    demand: 1
+    p_tw_start: 100
+    p_tw_end: 3000
+    p_service_time: 60
+    d_tw_start: 600
+    d_tw_end: 4500
+    d_service_time: 60
+
+vehicles:
+  # VEHICLE 1: Starts at Lesseps and ends down towards Passeig Sant Joan
+  - id: 1
+    start_address: "Plaça de Lesseps 1, 08023, Spain"
+    end_address: "Passeig de Sant Joan 180, 08037, Spain"
+    capacity: 4
+    vstart_tw_start: 0
+    vstart_tw_end: 600
+    vend_tw_start: 0
+    vend_tw_end: 7200
+    max_time: 7200
