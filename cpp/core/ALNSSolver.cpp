@@ -77,18 +77,18 @@ void ALNSSolver::evaluateRoute(ALNSRoute& route) {
         currentLoad += demand;
         route.loads[v] = currentLoad;
 
-        double capacity = data.capacity.at(route.vehicleId);
+        double capacity = data.getVehicleCapacity(route.vehicleId);
         if (currentLoad > capacity) {
             route.loadViolation += (currentLoad - capacity);
         }
 
         // --- Ride Time Logic ---
         // If v is a pickup node (in P)
-        if (std::find(data.P.begin(), data.P.end(), v) != data.P.end()) {
+        if (data.isPickup(v)) {
             pickupTimes[v] = currentTime;
         }
         // If v is a delivery node (in D)
-        else if (std::find(data.D.begin(), data.D.end(), v) != data.D.end()) {
+        else if (data.isDelivery(v)) {
             // Find corresponding pickup ID. Assuming D_id = P_id + N_requests
             int pickupId = v - data.N_requests; 
             if (pickupTimes.count(pickupId)) {
@@ -126,8 +126,8 @@ void ALNSSolver::evaluateSolution(ALNSSolution& sol) {
         evaluateRoute(r);
         sol.objectiveValue += r.totalCost;
         
-        // Add valid routes to pool for later Set Partitioning
-        if (r.isFeasible && r.sequence.size() > 2) {
+        // Add valid routes to pool for later Set Partitioning (TODO: maybe only those that are feasible or below a certain cost threshold)
+        if (r.isFeasible) {
             addRouteToPool(r);
         }
     }
@@ -135,9 +135,7 @@ void ALNSSolver::evaluateSolution(ALNSSolution& sol) {
     sol.objectiveValue += sol.unassignedRequests.size() * params.unassignedPenalty;
 }
 
-// ------------------------------------------------------------------
 // Set Partitioning using CPLEX
-// ------------------------------------------------------------------
 void ALNSSolver::addRouteToPool(const ALNSRoute& route) {
     if (route.sequence.empty()) return;
     auto &seen = seenRoutes[route.vehicleId];
@@ -273,10 +271,11 @@ void ALNSSolver::solveSetPartitioning() {
             for (auto const& [k, routes] : routePool) {
                 totalRoutes += routes.size();
             }
-            std::cout << "    Total Unique Routes in Pool: " << totalRoutes << std::endl;
-            std::cout << "    CPLEX Status: " << (spCplex.getStatus() == IloAlgorithm::Infeasible ? "Infeasible" : 
+            std::cout << "  Total Unique Routes in Pool: " << totalRoutes << std::endl;
+            std::cout << "  CPLEX Status: " << (spCplex.getStatus() == IloAlgorithm::Infeasible ? "Infeasible" : 
                                   spCplex.getStatus() == IloAlgorithm::Optimal ? "Optimal" :
                                   spCplex.getStatus() == IloAlgorithm::Feasible ? "Feasible (Time Limit)" : "Unknown") << std::endl;
+            std::cout << "  CPLEX time: " << spCplex.getTime() << " seconds" << std::endl;
         }
 
     } catch (IloException& e) {
@@ -329,7 +328,7 @@ void ALNSSolver::destroyRandom(ALNSSolution& sol, int q) {
         const auto& seq = sol.routes[v].sequence;
         for (size_t i = 1; i < seq.size() - 1; ++i) {
             // If it's a pickup node
-            if (std::find(data.P.begin(), data.P.end(), seq[i]) != data.P.end()) {
+            if (data.isPickup(seq[i])) {
                 locations.push_back({(int)v, (int)i, seq[i]});
             }
         }
@@ -377,7 +376,7 @@ void ALNSSolver::destroyWorst(ALNSSolution& sol, int q) {
         // Identify requests in this route
         std::vector<int> requestsInRoute;
         for (int node : route.sequence) {
-            if (std::find(data.P.begin(), data.P.end(), node) != data.P.end()) {
+            if (data.isPickup(node)) {
                 requestsInRoute.push_back(node);
             }
         }
@@ -442,7 +441,7 @@ void ALNSSolver::destroyShaw(ALNSSolution& sol, int q) {
     std::vector<int> assigned;
     for (const auto& r : sol.routes) {
         for (int node : r.sequence) {
-            if (std::find(data.P.begin(), data.P.end(), node) != data.P.end()) 
+            if (data.isPickup(node)) 
                 assigned.push_back(node);
         }
     }
@@ -804,26 +803,7 @@ void ALNSSolver::solve() {
         if (accept) {
             currentSol = neighbor;
             // Check for delivery before pickup violations
-            for (const auto& route : currentSol.routes) {
-                std::map<int, int> pickupPositions; // request ID -> position
-                for (size_t pos = 0; pos < route.sequence.size(); ++pos) {
-                    int node = route.sequence[pos];
-                    if (std::find(data.P.begin(), data.P.end(), node) != data.P.end()) {
-                        pickupPositions[node] = pos;
-                    }
-                }
-                
-                for (size_t pos = 0; pos < route.sequence.size(); ++pos) {
-                    int node = route.sequence[pos];
-                    if (std::find(data.D.begin(), data.D.end(), node) != data.D.end()) {
-                        int pickupId = node - data.N_requests;
-                        if (pickupPositions.count(pickupId) && pickupPositions[pickupId] > pos) {
-                            std::cout << "WARNING: Delivery " << node << " appears before Pickup " 
-                                      << pickupId << " in Vehicle " << route.vehicleId << std::endl;
-                        }
-                    }
-                }
-            }
+            checkPickupAfterDelivery(currentSol, data);
         }
 
         // -- Update Operator Stats ---
@@ -901,6 +881,29 @@ void ALNSSolver::solve() {
     std::cout << std::endl;
 }
 
+void ALNSSolver::checkPickupAfterDelivery(const ALNSSolution& sol, const DARPMD_ProblemInstance& data) const {
+    for (const auto& route : sol.routes) {
+        std::map<int, int> pickupPositions; // request ID -> position
+        for (size_t pos = 0; pos < route.sequence.size(); ++pos) {
+            int node = route.sequence[pos];
+            if (data.isPickup(node)) {
+                pickupPositions[node] = pos;
+            }
+        }
+        
+        for (size_t pos = 0; pos < route.sequence.size(); ++pos) {
+            int node = route.sequence[pos];
+            if (data.isDelivery(node)) {
+                int pickupId = node - data.N_requests;
+                if (pickupPositions.count(pickupId) && pickupPositions[pickupId] > pos) {
+                    std::cout << "WARNING: Delivery " << node << " appears before Pickup " 
+                                << pickupId << " in Vehicle " << route.vehicleId << std::endl;
+                }
+            }
+        }
+    }
+}
+
 void ALNSSolver::printSolutionDetails(const ALNSSolution& sol) const {
     std::cout << "  Routes:" << std::endl;
     for (const auto& r : sol.routes) {
@@ -950,9 +953,9 @@ DARPMD_ResultInstance ALNSSolver::getResult() const {
             step.nodeId = nodeId;
             
             // Types
-            if (nodeId == data.StartNode.at(r.vehicleId)) step.type = "DepotStart";
-            else if (nodeId == data.EndNode.at(r.vehicleId)) step.type = "DepotEnd";
-            else if (std::find(data.P.begin(), data.P.end(), nodeId) != data.P.end()) step.type = "Pickup";
+            if (data.isVehicleStart(nodeId)) step.type = "DepotStart";
+            else if (data.isVehicleEnd(nodeId)) step.type = "DepotEnd";
+            else if (data.isPickup(nodeId)) step.type = "Pickup";
             else step.type = "Delivery";
 
             // Timing info from evaluation
