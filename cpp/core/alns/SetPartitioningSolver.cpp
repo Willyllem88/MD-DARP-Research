@@ -2,8 +2,10 @@
 #include "ALNSEvaluator.h"
 #include <ilcplex/ilocplex.h>
 
-SetPartitioningSolver::SetPartitioningSolver(const DARPMD_ProblemInstance& data, const ALNSParams& params, ALNSEvaluator& evaluator) : 
-    evaluator(evaluator), params(params), data(data) {}
+SetPartitioningSolver::SetPartitioningSolver(const DARPMD_ProblemInstance& data, 
+                                             const ALNSParams& params, 
+                                             ALNSEvaluator& evaluator) 
+    : data(data), params(params), evaluator(evaluator) {} 
 
 ALNSSolution SetPartitioningSolver::solve(const std::map<int, std::vector<ALNSRoute>>& routePool) const {
     ALNSSolution newSol;

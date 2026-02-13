@@ -3,6 +3,12 @@
 #include "Solver.h"
 #include "DARPMD_ProblemInstance.h"
 #include "DARPMD_ResultInstance.h"
+#include "alns/ALNSRoute.h"
+#include "alns/ALNSSolution.h"
+#include "alns/ALNSParams.h"
+#include "alns/ALNSEvaluator.h"
+#include "alns/SetPartitioningSolver.h"
+#include "alns/ALNSOperators.h"
 
 #include <ilcplex/ilocplex.h>
 #include <vector>
@@ -13,12 +19,6 @@
 #include <string>
 #include <random>
 #include <optional>
-
-#include "alns/ALNSRoute.h"
-#include "alns/ALNSSolution.h"
-#include "alns/ALNSParams.h"
-#include "alns/ALNSEvaluator.h"
-#include "alns/SetPartitioningSolver.h"
 
 class ALNSEvaluator; // Forward declaration to avoid circular dependency
 
@@ -41,10 +41,11 @@ public:
 private:
     const DARPMD_ProblemInstance& data;
     std::optional<double> timeLimit;
-    ALNSParams params;
-
-    ALNSEvaluator evaluator;
-    SetPartitioningSolver spSolver;
+    
+    std::unique_ptr<ALNSParams> params;
+    std::unique_ptr<ALNSEvaluator> evaluator;
+    std::unique_ptr<SetPartitioningSolver> spSolver;
+    std::unique_ptr<ALNSOperators> operators;
 
     // Random engine
     std::mt19937 rng;
@@ -61,17 +62,15 @@ private:
     std::unordered_map<int, std::unordered_set<std::vector<int>, RouteSequenceHash>> seenRoutes;
 
     // --- Core Logic Methods ---
+
+    bool stoppingCriteria(int iter, double elapsedSeconds);
+    bool acceptanceCriteria(double candidateObj, double currentObj, double temperature, double& score);
+
+    void applyDestroy(ALNSSolution& sol, int destroyOpIdx);
+    void applyRepair(ALNSSolution& sol, int repairOpIdx);
     
     // Solution Management
     ALNSSolution createInitialSolution();
-    
-    // ALNS Operators
-    void destroyRandom(ALNSSolution& sol, int q);
-    void destroyWorst(ALNSSolution& sol, int q);
-    void destroyShaw(ALNSSolution& sol, int q);
-    
-    void repairGreedy(ALNSSolution& sol);
-    void repairRegret2(ALNSSolution& sol);
 
     enum class DestroyMethod {RANDOM, WORST, SHAW, COUNT}; // COUNT the number of methods for stats
     enum class RepairMethod {GREEDY, REGRET2, COUNT};

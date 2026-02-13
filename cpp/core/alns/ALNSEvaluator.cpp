@@ -2,8 +2,10 @@
 
 #include "../ALNSSolver.h"
 
-ALNSEvaluator::ALNSEvaluator(ALNSSolver& solver, const DARPMD_ProblemInstance& data, const ALNSParams& params) : 
-    solver(solver), data(data), params(params) { };
+ALNSEvaluator::ALNSEvaluator(ALNSSolver& solver, 
+                             const DARPMD_ProblemInstance& data, 
+                             const ALNSParams& params)
+    : data(data), params(params), solver(solver) { };
 
 void ALNSEvaluator::evaluateRoute(ALNSRoute& route) {
     route.distanceCost = 0.0;
