@@ -6,6 +6,8 @@ add_executable(darpmd
     ALNSSolver.cpp
     DARPMD_ProblemInstance.cpp
     DARPMD_ResultInstance.cpp
+    alns/ALNSEvaluator.cpp
+    alns/SetPartitioningSolver.cpp
 )
 
 # Includes del proyecto

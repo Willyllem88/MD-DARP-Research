@@ -5,134 +5,18 @@
 #include <chrono>
 #include <limits>
 
-ALNSSolver::ALNSSolver(const DARPMD_ProblemInstance& instance, std::optional<double> timeLimit)
-    : data(instance), timeLimit(timeLimit) {
-    
-    // Seed random number generator
-    rng = std::mt19937(123); // Fixed seed for reproducibility
+ALNSSolver::ALNSSolver(const DARPMD_ProblemInstance& instance,
+                       std::optional<double> timeLimit)
+    : data(instance),
+      timeLimit(timeLimit),
+      evaluator(*this, data, params),
+      spSolver(data, params, evaluator),
+      bestObjective(std::numeric_limits<double>::infinity())
+{
+    rng = std::mt19937(123);
 }
 
 ALNSSolver::~ALNSSolver() {
-}
-
-void ALNSSolver::evaluateRoute(ALNSRoute& route) {
-    route.distanceCost = 0.0;
-    //TODO: timeWindowViolation and vehicleMaxRouteTimeViolation should be calculated separately
-    route.timeWindowViolation = 0.0;
-    route.vehicleMaxRouteTimeViolation = 0.0;
-    route.loadViolation = 0.0;
-    route.rideTimeViolation = 0.0;
-    route.arrivalTimes.clear();
-    route.loads.clear();
-
-    if (route.sequence.empty()) return;
-
-    double currentTime = 0.0;
-    double currentLoad = 0.0;
-    
-    // 1. Initialize at Start Depot
-    int startNode = route.sequence.front();
-    double startWindow = data.getTimeWindowStart(startNode);
-    currentTime = std::max(0.0, startWindow); 
-    
-    route.arrivalTimes[startNode] = currentTime;
-    route.loads[startNode] = 0.0;
-
-    std::map<int, double> pickupTimes;
-
-    for (size_t i = 0; i < route.sequence.size() - 1; ++i) {
-        int u = route.sequence[i];
-        int v = route.sequence[i+1];
-
-        // --- Distance ---
-        route.distanceCost += data.getCost(u, v, route.vehicleId);
-
-        // --- Time ---
-        double serviceTime = data.getServiceTime(u);
-        double travelTime = data.getTravelTime(u, v);
-        
-        double arrivalAtV = currentTime + serviceTime + travelTime;
-        
-        // Time Window Check at V
-        double earlyTW = data.getTimeWindowStart(v);
-        double lateTW = data.getTimeWindowEnd(v);
-
-        // If early, we wait (Time warp is not a violation usually, but waiting)
-        if (arrivalAtV < earlyTW) {
-            arrivalAtV = earlyTW;
-        }
-        
-        // If late, penalty
-        if (arrivalAtV > lateTW) {
-            route.timeWindowViolation += (arrivalAtV - lateTW);
-            // In a soft TW context, we assume we arrive 'late' but continue
-            // To prevent massive propagation, sometimes we clamp, but here we let it flow
-        }
-
-        currentTime = arrivalAtV;
-        route.arrivalTimes[v] = currentTime;
-
-        // --- Capacity ---
-        double demand = data.getDemand(v);
-        currentLoad += demand;
-        route.loads[v] = currentLoad;
-
-        double capacity = data.getVehicleCapacity(route.vehicleId);
-        if (currentLoad > capacity) {
-            route.loadViolation += (currentLoad - capacity);
-        }
-
-        // --- Ride Time Logic ---
-        // If v is a pickup node (in P)
-        if (data.isPickup(v)) {
-            pickupTimes[v] = currentTime;
-        }
-        // If v is a delivery node (in D)
-        else if (data.isDelivery(v)) {
-            // Find corresponding pickup ID. Assuming D_id = P_id + N_requests
-            int pickupId = v - data.N_requests; 
-            if (pickupTimes.count(pickupId)) {
-                double rideTime = currentTime - (pickupTimes[pickupId] + data.getServiceTime(pickupId));
-                if (rideTime > data.max_ride_time) {
-                    route.rideTimeViolation += (rideTime - data.max_ride_time);
-                }
-            }
-        }
-    }
-
-    // Check Max Route Duration
-    int endNode = route.sequence.back();
-    double duration = route.arrivalTimes[endNode] - route.arrivalTimes[startNode];
-    if (duration > data.max_route_time.at(route.vehicleId)) {
-        route.vehicleMaxRouteTimeViolation += (duration - data.max_route_time.at(route.vehicleId));
-    }
-
-    // Final Cost Aggregation
-    route.totalCost = route.distanceCost 
-                    + params.timeWindowPenalty * route.timeWindowViolation
-                    + params.vehicleMaxRouteTimePenalty * route.vehicleMaxRouteTimeViolation
-                    + params.capacityPenalty * route.loadViolation
-                    + params.rideTimePenalty * route.rideTimeViolation;
-
-    route.isFeasible = (route.timeWindowViolation == 0 && 
-                        route.vehicleMaxRouteTimeViolation == 0 &&
-                        route.loadViolation == 0 && 
-                        route.rideTimeViolation == 0);
-}
-
-void ALNSSolver::evaluateSolution(ALNSSolution& sol) {
-    sol.objectiveValue = 0.0;
-    for (auto& r : sol.routes) {
-        evaluateRoute(r);
-        sol.objectiveValue += r.totalCost;
-        
-        // Add valid routes to pool for later Set Partitioning (TODO: maybe only those that are feasible or below a certain cost threshold)
-        if (r.isFeasible) {
-            addRouteToPool(r);
-        }
-    }
-    // Penalize unassigned
-    sol.objectiveValue += sol.unassignedRequests.size() * params.unassignedPenalty;
 }
 
 // Set Partitioning using CPLEX
@@ -150,138 +34,24 @@ void ALNSSolver::addRouteToPool(const ALNSRoute& route) {
 }
 
 void ALNSSolver::solveSetPartitioning() {
-    // This method takes all routes in routePool and solves an SP model
-    if (routePool.empty()) return;
+    ALNSSolution spSol = spSolver.solve(routePool);
 
-    IloEnv env;
-    try {
-        IloModel model(env);
-        IloCplex spCplex(model);
-        spCplex.setOut(env.getNullStream()); // Silence output
-
-        // 1. Variables: y_rk = 1 if route r of vehicle k is selected
-        std::map<std::pair<int, int>, IloNumVar> y; // <vehicle, route_idx>
-        
-        // z_i = 1 if request i is unassigned (Slack variable)
-        std::map<int, IloNumVar> z; 
-
-        IloExpr objExpr(env);
-
-        // Add Route Variables
-        for (auto const& [k, routes] : routePool) {
-            for (size_t rIdx = 0; rIdx < routes.size(); ++rIdx) {
-                // Name helps debugging
-                std::string name = "y_" + std::to_string(k) + "_" + std::to_string(rIdx);
-                y[{k, rIdx}] = IloNumVar(env, 0, 1, ILOBOOL, name.c_str());
-                
-                // Objective: minimize route cost
-                objExpr += routes[rIdx].distanceCost * y[{k, rIdx}];
-            }
-        }
-
-        // Add Slack Variables (Unassigned)
-        for (int i : data.P) {
-            z[i] = IloNumVar(env, 0, 1, ILOBOOL);
-            objExpr += params.unassignedPenalty * z[i];
-        }
-
-        model.add(IloMinimize(env, objExpr));
-
-        // 2. Constraints
-        
-        // (a) Each request covered exactly once (or dropped via slack)
-        for (int i : data.P) {
-            IloExpr coverExpr(env);
-            for (auto const& [k, routes] : routePool) {
-                for (size_t rIdx = 0; rIdx < routes.size(); ++rIdx) {
-                    // Check if request i is in this route
-                    const auto& seq = routes[rIdx].sequence;
-                    if (std::find(seq.begin(), seq.end(), i) != seq.end()) {
-                        coverExpr += y[{k, rIdx}];
-                    }
-                }
-            }
-            coverExpr += z[i];
-            model.add(coverExpr == 1);
-            coverExpr.end();
-        }
-
-        // (b) Each vehicle used at most once
-        for (int k : data.K) {
-            if (routePool.find(k) == routePool.end()) continue;
-            IloExpr vehicleUsage(env);
-            for (size_t rIdx = 0; rIdx < routePool[k].size(); ++rIdx) {
-                vehicleUsage += y[{k, rIdx}];
-            }
-            model.add(vehicleUsage <= 1);
-            vehicleUsage.end();
-        }
-
-        // 3. Solve
-        spCplex.setParam(IloCplex::Param::TimeLimit, 10.0); // Strict limit for SP
-        if (spCplex.solve()) {
-            // Reconstruct Solution
-            ALNSSolution newSol;
-            newSol.unassignedRequests.clear();
-
-            // Active Routes
-            for (auto const& [key, var] : y) {
-                if (spCplex.getValue(var) > 0.5) {
-                    int k = key.first;
-                    int rIdx = key.second;
-                    newSol.routes.push_back(routePool[k][rIdx]);
-                }
-            }
-            // Fill empty routes for unused vehicles
-            std::set<int> usedVehicles;
-            for(auto& r : newSol.routes) usedVehicles.insert(r.vehicleId);
-            for(int k : data.K) {
-                if(usedVehicles.find(k) == usedVehicles.end()) {
-                    ALNSRoute emptyR;
-                    emptyR.vehicleId = k;
-                    emptyR.sequence = {data.StartNode.at(k), data.EndNode.at(k)};
-                    evaluateRoute(emptyR);
-                    newSol.routes.push_back(emptyR);
-                }
-            }
-
-            // Unassigned
-            for (int i : data.P) {
-                if (spCplex.getValue(z[i]) > 0.5) {
-                    newSol.unassignedRequests.insert(i);
-                }
-            }
-
-            evaluateSolution(newSol);
-            
-            // If CPLEX found something better, update global best
-            if (newSol.objectiveValue < bestObjective) {
-                std::cout << "  [Matheuristic] CPLEX found new best: " << newSol.objectiveValue 
-                          << "  (Improvement)" << std::endl;
-                bestSolution = newSol;
-                bestObjective = newSol.objectiveValue;
-            }
-            else {
-                std::cout << "  [Matheuristic] CPLEX found solution with objective: " << newSol.objectiveValue 
-                          << "  (No improvement)" << std::endl;
-            }
-
-            // Paint relevant info about the SP solution
-            size_t totalRoutes = 0;
-            for (auto const& [k, routes] : routePool) {
-                totalRoutes += routes.size();
-            }
-            std::cout << "  Total Unique Routes in Pool: " << totalRoutes << std::endl;
-            std::cout << "  CPLEX Status: " << (spCplex.getStatus() == IloAlgorithm::Infeasible ? "Infeasible" : 
-                                  spCplex.getStatus() == IloAlgorithm::Optimal ? "Optimal" :
-                                  spCplex.getStatus() == IloAlgorithm::Feasible ? "Feasible (Time Limit)" : "Unknown") << std::endl;
-            std::cout << "  CPLEX time: " << spCplex.getTime() << " seconds" << std::endl;
-        }
-
-    } catch (IloException& e) {
-        std::cerr << "CPLEX Exception in SP: " << e << std::endl;
+    if (spSol.routes.empty() && spSol.unassignedRequests.empty() && spSol.objectiveValue == 0) {
+        return;
     }
-    env.end();
+
+    // Handle the new solution from CPLEX
+    if (spSol.objectiveValue < bestObjective) {
+        std::cout << "  [Matheuristic] CPLEX found new best: " << spSol.objectiveValue 
+                  << "  (Improvement)" << std::endl;
+        
+        bestSolution = spSol;
+        bestObjective = spSol.objectiveValue;
+    }
+    else {
+        std::cout << "  [Matheuristic] CPLEX found solution with objective: " << spSol.objectiveValue 
+                  << "  (No improvement)" << std::endl;
+    }
 }
 
 // ------------------------------------------------------------------
@@ -297,7 +67,7 @@ ALNSSolution ALNSSolver::createInitialSolution() {
         r.vehicleId = k;
         r.sequence.push_back(data.StartNode.at(k));
         r.sequence.push_back(data.EndNode.at(k));
-        evaluateRoute(r); // Zero cost initially
+        evaluator.evaluateRoute(r); // Zero cost initially
         sol.routes.push_back(r);
     }
 
@@ -308,7 +78,7 @@ ALNSSolution ALNSSolver::createInitialSolution() {
     
     // Apply greedy repair to insert as many as possible
     repairGreedy(sol);
-    evaluateSolution(sol);
+    evaluator.evaluateSolution(sol);
     
     return sol;
 }
@@ -391,7 +161,7 @@ void ALNSSolver::destroyWorst(ALNSSolution& sol, int q) {
                 if (node != reqId && node != deliveryId) newSeq.push_back(node);
             }
             tempRoute.sequence = newSeq;
-            evaluateRoute(tempRoute);
+            evaluator.evaluateRoute(tempRoute);
 
             double saving = currentCost - tempRoute.totalCost;
             savingsMap.push_back({saving, reqId});
@@ -526,7 +296,7 @@ void ALNSSolver::repairGreedy(ALNSSolution& sol) {
                     temp.sequence.insert(temp.sequence.begin() + i, reqId);
                     temp.sequence.insert(temp.sequence.begin() + j + 1, deliveryId);
                     
-                    evaluateRoute(temp);
+                    evaluator.evaluateRoute(temp);
                     
                     double increase = temp.totalCost - sol.routes[v].totalCost;
                     
@@ -547,7 +317,7 @@ void ALNSSolver::repairGreedy(ALNSSolution& sol) {
             r.sequence.insert(r.sequence.begin() + bestDIdx, deliveryId);
             // Don't need to eval full solution yet, loop handles local delta
             // But we should update the route cost locally for next comparison
-            evaluateRoute(r);
+            evaluator.evaluateRoute(r);
         } else {
             sol.unassignedRequests.insert(reqId);
         }
@@ -593,7 +363,7 @@ void ALNSSolver::repairRegret2(ALNSSolution& sol) {
                         ALNSRoute temp = sol.routes[v];
                         temp.sequence.insert(temp.sequence.begin() + i, reqId);
                         temp.sequence.insert(temp.sequence.begin() + j + 1, deliveryId);
-                        evaluateRoute(temp);
+                        evaluator.evaluateRoute(temp);
                         
                         if (!temp.isFeasible) continue; // Si viola Hard Constraints, ignorar
                         
@@ -649,7 +419,7 @@ void ALNSSolver::repairRegret2(ALNSSolution& sol) {
         r.sequence.insert(r.sequence.begin() + winPIdx, bestReqId);
         int deliveryId = bestReqId + data.N_requests;
         r.sequence.insert(r.sequence.begin() + winDIdx, deliveryId);
-        evaluateRoute(r);
+        evaluator.evaluateRoute(r);
         
         sol.unassignedRequests.erase(bestReqId);
     }
@@ -770,7 +540,7 @@ void ALNSSolver::solve() {
                 break;
         }
 
-        evaluateSolution(neighbor);
+        evaluator.evaluateSolution(neighbor);
 
         // --- Acceptance Criterion ---
         double score = 0.0;
@@ -783,7 +553,7 @@ void ALNSSolver::solve() {
                 bestSolution = neighbor;
                 bestObjective = neighbor.objectiveValue;
                 score = params.sigma1;
-                bool violations = solutionHasViolations(neighbor);
+                bool violations = evaluator.solutionHasViolations(neighbor);
                 std::cout << "Iter " << iter << ": New Best = " << bestObjective 
                           << " (Violations: " << (violations ? "Yes" : "No") << ")" << std::endl;
                 //solutionDetails(bestSolution);
@@ -922,13 +692,6 @@ void ALNSSolver::printSolutionDetails(const ALNSSolution& sol) const {
         std::cout << req << " ";
     }
     std::cout << std::endl;
-}
-
-bool ALNSSolver::solutionHasViolations(const ALNSSolution& sol) const {
-    for (const auto& r : sol.routes) {
-        if (!r.isFeasible) return true;
-    }
-    return false;
 }
 
 
