@@ -5,6 +5,8 @@
 #include "ALNSParams.h"
 #include "ALNSEvaluator.h"
 
+#include <ilcplex/ilocplex.h>
+
 #include <map>
 
 class SetPartitioningSolver {
@@ -14,11 +16,17 @@ public:
         const ALNSParams& params, 
         ALNSEvaluator& evaluator
     );
+    ~SetPartitioningSolver();
 
-    ALNSSolution solve(const std::map<int, std::vector<ALNSRoute>>& routePool) const;
+    ALNSSolution solve(const std::map<int, std::vector<ALNSRoute>>& routePool);
 
 private:
     const DARPMD_ProblemInstance& data;
     const ALNSParams& params;
     ALNSEvaluator& evaluator;
+
+    IloEnv env;
+
+    // Map to quickly find which routes cover each request (built from routePool)
+    std::map<int, int> requestToIndex;
 };

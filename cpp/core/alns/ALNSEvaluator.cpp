@@ -2,10 +2,9 @@
 
 #include "../ALNSSolver.h"
 
-ALNSEvaluator::ALNSEvaluator(ALNSSolver& solver, 
-                             const DARPMD_ProblemInstance& data, 
+ALNSEvaluator::ALNSEvaluator(const DARPMD_ProblemInstance& data, 
                              const ALNSParams& params)
-    : data(data), params(params), solver(solver) { };
+    : data(data), params(params) { };
 
 void ALNSEvaluator::evaluateRoute(ALNSRoute& route) {
     route.distanceCost = 0.0;
@@ -117,11 +116,6 @@ void ALNSEvaluator::evaluateSolution(ALNSSolution& sol) {
     for (auto& r : sol.routes) {
         evaluateRoute(r);
         sol.objectiveValue += r.totalCost;
-        
-        // Add valid routes to pool for later Set Partitioning (TODO: maybe only those that are feasible or below a certain cost threshold)
-        if (r.isFeasible) {
-            solver.addRouteToPool(r);
-        }
     }
     // Penalize unassigned
     sol.objectiveValue += sol.unassignedRequests.size() * params.unassignedPenalty;

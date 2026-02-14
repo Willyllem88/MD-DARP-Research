@@ -13,7 +13,7 @@ ALNSSolver::ALNSSolver(const DARPMD_ProblemInstance& instance,
     rng = std::mt19937(123);
 
     params = std::make_unique<ALNSParams>();
-    evaluator = std::make_unique<ALNSEvaluator>(*this, data, *params);
+    evaluator = std::make_unique<ALNSEvaluator>(data, *params);
     spSolver = std::make_unique<SetPartitioningSolver>(data, *params, *evaluator);
     operators = std::make_unique<ALNSOperators>(data, *params, *evaluator, rng);
 
@@ -228,6 +228,11 @@ void ALNSSolver::solve() {
         applyRepair(neighbor, repairOpIdx);
 
         evaluator->evaluateSolution(neighbor);
+        for (const auto& route : neighbor.routes) {
+            if (!route.sequence.empty()) {
+                addRouteToPool(route);
+            }
+        }
 
         // --- Acceptance Criterion ---
         double iterScore = 0.0;
@@ -278,8 +283,8 @@ void ALNSSolver::solve() {
     std::chrono::duration<double> totalElapsed = end - start;
     this->solveTime = totalElapsed.count();
 
-    //Print the violations in the best solution
-    std::cout << std::endl << "ALNS Finished. Best Objective: " << bestObjective << std::endl;
+    std::cout << std::endl << std::string(50, '=') << std::endl 
+              << "ALNS Finished. Best Objective: " << bestObjective << std::endl;
     // Print the objective value of the arcs used (distance cost only, without penalties)
     double totalDistanceCost = 0.0;
     for (const auto& r : bestSolution.routes) {
@@ -309,7 +314,7 @@ void ALNSSolver::solve() {
     //Print violation
     std::cout << std::endl << "Violations in Best Solution:" << std::endl;
     for (const auto& r : bestSolution.routes) {
-        std::cout << " Vehicle " << r.vehicleId << " Violations: TimeWindows: " << r.timeWindowViolation
+        std::cout << "  Vehicle " << r.vehicleId << " Violations: TimeWindows: " << r.timeWindowViolation
                   << ", MaxRouteTime: " << r.vehicleMaxRouteTimeViolation << ", Load: " << r.loadViolation 
                   << ", RideTime: " << r.rideTimeViolation << std::endl;
     }

@@ -4,6 +4,7 @@
 struct ALNSParams {
     int maxIterations = 2000;
     int setPartitioningInterval = 250; // Run CPLEX SP every X iterations
+    double cplexTimeLimit = 10.0; // Time limit for CPLEX in seconds (per SP solve)
     double initialTemperature = 100.0;
     double coolingRate = 0.9995;
     double destroyFraction = 0.4; // Fraction of requests to remove in destroy phase

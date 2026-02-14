@@ -96,9 +96,6 @@ private:
     // Helper: Check if a request (pickup p, delivery d) can be inserted into route at pos i, j
     // Returns incremental cost (or infinity if impossible/too expensive)
     double calculateInsertionCost(const ALNSRoute& route, int requestIdx, int pIdx, int dIdx);
-    
-    // Helper: Calculate relatedness between two requests for adaptive selection in destroy
-    double calculateRelatedness(int i, int j);
 
     // Helper: Check if solution has any violations (time windows, capacity, ride time) for debugging/logging
     void printSolutionDetails(const ALNSSolution& sol) const;
@@ -109,4 +106,6 @@ private:
     // --- CPLEX Integration (Set Partitioning) ---
     // Solves a Set Partitioning problem using the accumulated routePool
     void solveSetPartitioning(); 
+
+    void runSimpleLocalSearch(ALNSSolution& sol);
 };
