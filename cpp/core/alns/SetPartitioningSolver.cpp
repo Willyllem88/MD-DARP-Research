@@ -87,7 +87,7 @@ ALNSSolution SetPartitioningSolver::solve(const std::map<int, std::vector<ALNSRo
                 const auto& route = routes[rIdx];
                 
                 // Initialize column with Objective Coefficient
-                IloNumColumn col = obj(route.distanceCost);
+                IloNumColumn col = obj(route.totalCost);
                 
                 // Add coefficient for Vehicle Constraint
                 col += vehicleConstraints[currentVehicleRowIdx](1.0);
