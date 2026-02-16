@@ -184,24 +184,32 @@ def generate_json_structure(data):
 
     return output
 
+def silent_print(message, silent):
+    if not silent:
+        print(message)
+
 def main():
     parser = argparse.ArgumentParser(description="Convert Cordeau DARP instances to Multi-Depot JSON (Rigorous Formulation).")
     parser.add_argument("--load", required=True, help="Path to instance file (.txt/.dat)")
     parser.add_argument("--output", required=True, help="Path to output file (.json)")
+    parser.add_argument("--silent", action='store_true', help="Run without printing progress messages")
     
     args = parser.parse_args()
 
-    print(f"Reading instance: {args.load}")
+    silent_print(f"Reading instance: {args.load}", args.silent)
+
     data = read_cordeau_instance(args.load)
     
-    print("Generating JSON structure...")
+    silent_print("Generating JSON structure...", args.silent)
+
     json_data = generate_json_structure(data)
     
-    print(f"Writing output to: {args.output}")
+    silent_print(f"Writing output to: {args.output}", args.silent)
+    
     with open(args.output, 'w') as f:
         json.dump(json_data, f, indent=2)
     
-    print("Done!")
+    silent_print("Done!", args.silent)
 
 if __name__ == "__main__":
     main()

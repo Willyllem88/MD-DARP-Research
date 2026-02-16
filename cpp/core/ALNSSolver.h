@@ -3,8 +3,15 @@
 #include "Solver.h"
 #include "DARPMD_ProblemInstance.h"
 #include "DARPMD_ResultInstance.h"
+#include "alns/ALNSRoute.h"
+#include "alns/ALNSSolution.h"
+#include "alns/ALNSParams.h"
+#include "alns/ALNSEvaluator.h"
+#include "alns/SetPartitioningSolver.h"
+#include "alns/ALNSOperators.h"
 
 #include <ilcplex/ilocplex.h>
+
 #include <vector>
 #include <map>
 #include <unordered_map>
@@ -14,65 +21,7 @@
 #include <random>
 #include <optional>
 
-// Configuration for the ALNS
-struct ALNSParams {
-    int maxIterations = 2000;
-    int setPartitioningInterval = 250; // Run CPLEX SP every X iterations
-    double initialTemperature = 100.0;
-    double coolingRate = 0.9995;
-    double destroyFraction = 0.4; // Fraction of requests to remove in destroy phase
-    double worstRemovalPower = 3.0; // For destroyWorst
-    
-    // Penalties
-    double timeWindowPenalty = 100.0;           // per minute
-    double vehicleMaxRouteTimePenalty = 100.0;  // per minute
-    double capacityPenalty = 100.0;             // per unit
-    double rideTimePenalty = 100.0;             // per minute
-    double unassignedPenalty = 100000.0; // per request
-
-    // Punction for adaptive operator selection constants
-    const double sigma1 = 33.0; // For new best global
-    const double sigma2 = 9.0;  // For better than current
-    const double sigma3 = 13.0;  // For accepted (but not better)
-    const double reactionFactor = 0.1; // How much to adjust weights based on performance
-};
-
-// Internal representation of a single vehicle route
-struct ALNSRoute {
-    int vehicleId;
-    std::vector<int> sequence; // Sequence of Node IDs (Depot -> ... -> Depot)
-    
-    // Evaluation metrics
-    double distanceCost = 0.0;
-    double timeWindowViolation = 0.0;
-    double vehicleMaxRouteTimeViolation = 0.0;
-    double loadViolation = 0.0;
-    double rideTimeViolation = 0.0;
-    double totalCost = 0.0; // penalized cost
-    
-    bool isFeasible = false;
-
-    // Timestamps and loads for reconstruction
-    std::map<int, double> arrivalTimes;
-    std::map<int, double> loads;
-};
-
-struct RouteSequenceHash {
-    std::size_t operator()(const std::vector<int>& seq) const {
-        std::size_t hash = 0;
-        for (int nodeId : seq) {
-            hash ^= std::hash<int>{}(nodeId) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
-        }
-        return hash;
-    }
-};
-
-// Internal representation of a full solution
-struct ALNSSolution {
-    std::vector<ALNSRoute> routes; // One per vehicle
-    std::set<int> unassignedRequests; // IDs of requests in P not served
-    double objectiveValue = 0.0; // Total penalized cost
-};
+class ALNSEvaluator; // Forward declaration to avoid circular dependency
 
 class ALNSSolver : public Solver {
 public:
@@ -86,10 +35,18 @@ public:
         return "Matheuristic (ALNS + CPLEX Set Partitioning)";
     }
 
+    // Utility to save a route to the pool if it's good/feasible
+    // TODO: this function will be declared in anothar place
+    void addRouteToPool(const ALNSRoute& route);
+
 private:
     const DARPMD_ProblemInstance& data;
     std::optional<double> timeLimit;
-    ALNSParams params;
+    
+    std::unique_ptr<ALNSParams> params;
+    std::unique_ptr<ALNSEvaluator> evaluator;
+    std::unique_ptr<SetPartitioningSolver> spSolver;
+    std::unique_ptr<ALNSOperators> operators;
 
     // Random engine
     std::mt19937 rng;
@@ -106,19 +63,15 @@ private:
     std::unordered_map<int, std::unordered_set<std::vector<int>, RouteSequenceHash>> seenRoutes;
 
     // --- Core Logic Methods ---
+
+    bool stoppingCriteria(int iter, double elapsedSeconds);
+    bool acceptanceCriteria(double candidateObj, double currentObj, double temperature, double& score);
+
+    void applyDestroy(ALNSSolution& sol, int destroyOpIdx);
+    void applyRepair(ALNSSolution& sol, int repairOpIdx);
     
     // Solution Management
-    void evaluateRoute(ALNSRoute& route);
-    void evaluateSolution(ALNSSolution& sol);
     ALNSSolution createInitialSolution();
-    
-    // ALNS Operators
-    void destroyRandom(ALNSSolution& sol, int q);
-    void destroyWorst(ALNSSolution& sol, int q);
-    void destroyShaw(ALNSSolution& sol, int q);
-    
-    void repairGreedy(ALNSSolution& sol);
-    void repairRegret2(ALNSSolution& sol);
 
     enum class DestroyMethod {RANDOM, WORST, SHAW, COUNT}; // COUNT the number of methods for stats
     enum class RepairMethod {GREEDY, REGRET2, COUNT};
@@ -143,14 +96,16 @@ private:
     // Helper: Check if a request (pickup p, delivery d) can be inserted into route at pos i, j
     // Returns incremental cost (or infinity if impossible/too expensive)
     double calculateInsertionCost(const ALNSRoute& route, int requestIdx, int pIdx, int dIdx);
-    
-    // Helper: Calculate relatedness between two requests for adaptive selection in destroy
-    double calculateRelatedness(int i, int j);
+
+    // Helper: Check if solution has any violations (time windows, capacity, ride time) for debugging/logging
+    void printSolutionDetails(const ALNSSolution& sol) const;
+
+    // Helper: Check if any delivery appears before its pickup in the solution (should never happen)
+    void checkPickupAfterDelivery(const ALNSSolution& sol, const DARPMD_ProblemInstance& data) const;
 
     // --- CPLEX Integration (Set Partitioning) ---
     // Solves a Set Partitioning problem using the accumulated routePool
     void solveSetPartitioning(); 
 
-    // Utility to save a route to the pool if it's good/feasible
-    void addRouteToPool(const ALNSRoute& route);
+    void runSimpleLocalSearch(ALNSSolution& sol);
 };

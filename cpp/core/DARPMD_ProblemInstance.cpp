@@ -110,6 +110,13 @@ bool DARPMD_ProblemInstance::loadFromJSON(const std::string& path) {
         return false;
     }
 
+    // Load node statuses
+    allNodesStatus.resize(max_node_id + 1, -1); // Initialize with -1 (undefined)
+    for (int p : P) allNodesStatus[p] = 0; // Pickup
+    for (int d : D) allNodesStatus[d] = 1; // Delivery
+    for (const auto& [k, start] : StartNode) allNodesStatus[start] = 2; // Depot Start
+    for (const auto& [k, end] : EndNode) allNodesStatus[end] = 3; // Depot End
+
     return true;
 }
 
@@ -148,6 +155,26 @@ double DARPMD_ProblemInstance::getVehicleCapacity(int k) const {
 
 double DARPMD_ProblemInstance::getVehicleMaxRouteTime(int k) const {
     return max_route_time.at(k);
+}
+
+bool DARPMD_ProblemInstance::isPickup(int nodeId) const {
+    if (nodeId < 0 || nodeId > max_node_id) return false;
+    return allNodesStatus[nodeId] == 0;
+}
+
+bool DARPMD_ProblemInstance::isDelivery(int nodeId) const {
+    if (nodeId < 0 || nodeId > max_node_id) return false;
+    return allNodesStatus[nodeId] == 1;
+}
+
+bool DARPMD_ProblemInstance::isVehicleStart(int nodeId) const {
+    if (nodeId < 0 || nodeId > max_node_id) return false;
+    return allNodesStatus[nodeId] == 2;
+}
+
+bool DARPMD_ProblemInstance::isVehicleEnd(int nodeId) const {
+    if (nodeId < 0 || nodeId > max_node_id) return false;
+    return allNodesStatus[nodeId] == 3;
 }
 
 void DARPMD_ProblemInstance::displayInfo() const {
