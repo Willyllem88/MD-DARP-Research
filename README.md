@@ -13,5 +13,5 @@ mkdir build
 cd build
 cmake ..
 cmake --build .
-./cpp/core/darpmd
+./cpp/core/darpmd_runner --help
 ```
