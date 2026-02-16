@@ -244,7 +244,7 @@ void ALNSSolver::solve() {
             if (neighbor.objectiveValue < bestObjective) {
                 bestSolution = neighbor;
                 bestObjective = neighbor.objectiveValue;
-                std::cout << "Iter " << iter << ": New Best = " << bestObjective 
+                std::cout << "* Iter " << iter << ": New Best = " << bestObjective 
                           << " (Violations: " << (evaluator->solutionHasViolations(neighbor) ? "Yes" : "No") << ")" << std::endl;
                 //solutionDetails(bestSolution);
             }
