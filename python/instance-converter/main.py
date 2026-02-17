@@ -142,8 +142,8 @@ def generate_json_structure(data):
         })
 
         # Añadir coordenadas de los depósitos a metadata
-        output["metadata"]["coordinates"][str(start_node_id)] = [depot_coords['x'], depot_coords['y']]
-        output["metadata"]["coordinates"][str(end_node_id)] = [depot_coords['x'], depot_coords['y']]
+        output["metadata"]["coordinates"][str(start_node_id)] = [depot_coords['y'], depot_coords['x']]
+        output["metadata"]["coordinates"][str(end_node_id)] = [depot_coords['y'], depot_coords['x']]
 
     # 4. Generate Matrices based on Set Ak definition
     # Ak = (i,j) where i,j in P U D U {sk, ek}
