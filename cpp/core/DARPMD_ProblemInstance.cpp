@@ -13,6 +13,7 @@ void DARPMD_ProblemInstance::clear() {
     K.clear();
     StartNode.clear();
     EndNode.clear();
+    
     service_time.clear();
     demand.clear();
     time_window_start.clear();
@@ -20,8 +21,13 @@ void DARPMD_ProblemInstance::clear() {
     capacity.clear();
     max_route_time.clear();
     max_ride_time = 0.0;
+
     t_ij.clear();
     flat_cost_matrix.clear();
+    stride_time_i = 0;
+    stride_cost_i = 0;
+    stride_cost_j = 0;
+    
     metadata = Metadata();
 }
 

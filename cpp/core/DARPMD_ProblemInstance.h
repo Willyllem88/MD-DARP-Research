@@ -72,10 +72,10 @@ public:
     const Metadata& getMetadata() const { return metadata; }
 
 private:
-    std::vector<int> service_time;           // d_i
-    std::vector<int> demand;                 // q_i
-    std::vector<int> time_window_start;      // e_i
-    std::vector<int> time_window_end;        // l_i
+    std::vector<double> service_time;           // d_i
+    std::vector<double> demand;                 // q_i
+    std::vector<double> time_window_start;      // e_i
+    std::vector<double> time_window_end;        // l_i
 
     std::vector<double> capacity;            // Q_k
     std::vector<double> max_route_time;      // T_k

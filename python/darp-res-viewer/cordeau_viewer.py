@@ -34,11 +34,12 @@ class CordeauRouteVisualizer(RouteVisualizer):
         """
         Draws the problem context: Depot, Pickup nodes, Delivery nodes, and their relationships.
         """
-        # A. Draw Depot
-        if '0' in self.coordinates:
-            y_depot, x_depot = self.coordinates['0']
-            ax.scatter(x_depot, y_depot, c='black', marker='s', s=150, zorder=5)
-            ax.text(x_depot, y_depot + 0.5, 'Depot', fontsize=9, ha='center')
+        # A. Draw First Depot (as all vehicles start from the same depot in Cordeau instances)
+        first_depot_index = str(2 * self.N_requests + 1)
+        print(f"🏠 Drawing depot at node {first_depot_index}...")
+        y_depot, x_depot = self.coordinates[first_depot_index]
+        ax.scatter(x_depot, y_depot, c='black', marker='s', s=150, zorder=5)
+        ax.text(x_depot, y_depot + 0.5, 'Depot', fontsize=9, ha='center')
 
         # B. Draw Requests (Pickup -> Delivery relationships)
         # We iterate from 1 to N_requests to match Cordeau standard IDs

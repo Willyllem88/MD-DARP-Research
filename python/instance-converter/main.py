@@ -95,7 +95,7 @@ def generate_json_structure(data):
             }
             output["nodes"].append({k:v for k,v in node_obj.items() if k not in ['x', 'y']})
             all_nodes_map[i] = node_obj
-            output["metadata"]["coordinates"][str(i)] = [n["x"], n["y"]]
+            output["metadata"]["coordinates"][str(i)] = [n["y"], n["x"]]
 
     # 3. Create Start/End Depots per Vehicle & Vehicle Objects
     depot_coords = raw_nodes[0] # Original depot coordinates (node 0)
