@@ -19,8 +19,13 @@ struct ALNSRoute {
     bool isFeasible = false;
 
     // Timestamps and loads for reconstruction
-    std::map<int, double> arrivalTimes;
-    std::map<int, double> loads;
+    std::vector<double> arrivalTimes;
+    std::vector<double> loads;
+
+    void resize(int numNodes) {
+        arrivalTimes.assign(numNodes, 0.0);
+        loads.assign(numNodes, 0.0);
+    }
 };
 
 struct RouteSequenceHash {

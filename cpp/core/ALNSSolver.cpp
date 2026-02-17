@@ -395,11 +395,8 @@ DARPMD_ResultInstance ALNSSolver::getResult() const {
             else step.type = "Delivery";
 
             // Timing info from evaluation
-            if (r.arrivalTimes.count(nodeId)) step.arrivalTime = r.arrivalTimes.at(nodeId);
-            else step.arrivalTime = 0.0;
-
-            if (r.loads.count(nodeId)) step.loadAfter = r.loads.at(nodeId);
-            else step.loadAfter = 0.0;
+            step.arrivalTime = (nodeId < (int)r.arrivalTimes.size()) ? r.arrivalTimes[nodeId] : 0.0;
+            step.loadAfter   = (nodeId < (int)r.loads.size())        ? r.loads[nodeId]        : 0.0;
 
             vRoute.steps.push_back(step);
         }

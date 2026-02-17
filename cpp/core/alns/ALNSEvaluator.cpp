@@ -7,29 +7,33 @@ ALNSEvaluator::ALNSEvaluator(const DARPMD_ProblemInstance& data,
     : data(data), params(params) { };
 
 void ALNSEvaluator::evaluateRoute(ALNSRoute& route) {
+    // Reset metrics
     route.distanceCost = 0.0;
-    //TODO: timeWindowViolation and vehicleMaxRouteTimeViolation should be calculated separately
     route.timeWindowViolation = 0.0;
     route.vehicleMaxRouteTimeViolation = 0.0;
     route.loadViolation = 0.0;
     route.rideTimeViolation = 0.0;
-    route.arrivalTimes.clear();
-    route.loads.clear();
 
     if (route.sequence.empty()) return;
+
+    if ((int)route.arrivalTimes.size() < data.max_node_id + 1) {
+        route.resize(data.max_node_id + 1);
+    }
+
+    // Assumption: pickup ids 1..n
+    static std::vector<double> pickupTimes; 
+    if ((int)pickupTimes.size() < data.N_requests + 1) pickupTimes.assign(data.N_requests + 1, -1.0);
+    else std::fill(pickupTimes.begin(), pickupTimes.end(), -1.0);
 
     double currentTime = 0.0;
     double currentLoad = 0.0;
     
     // 1. Initialize at Start Depot
     int startNode = route.sequence.front();
-    double startWindow = data.getTimeWindowStart(startNode);
-    currentTime = std::max(0.0, startWindow); 
+    currentTime = std::max(0.0, data.getTimeWindowStart(startNode)); 
     
     route.arrivalTimes[startNode] = currentTime;
     route.loads[startNode] = 0.0;
-
-    std::map<int, double> pickupTimes;
 
     for (size_t i = 0; i < route.sequence.size() - 1; ++i) {
         int u = route.sequence[i];
@@ -82,7 +86,7 @@ void ALNSEvaluator::evaluateRoute(ALNSRoute& route) {
         else if (data.isDelivery(v)) {
             // Find corresponding pickup ID. Assuming D_id = P_id + N_requests
             int pickupId = v - data.N_requests; 
-            if (pickupTimes.count(pickupId)) {
+            if (pickupTimes[pickupId] >= 0) {
                 double rideTime = currentTime - (pickupTimes[pickupId] + data.getServiceTime(pickupId));
                 if (rideTime > data.getMaxRideTime()) {
                     route.rideTimeViolation += (rideTime - data.getMaxRideTime());
