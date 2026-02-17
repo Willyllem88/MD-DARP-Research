@@ -15,3 +15,13 @@ cmake ..
 cmake --build .
 ./cpp/core/darpmd_runner --help
 ```
+
+## Cordeau DARP Instances
+
+To install the Cordeau DARP instances (48 instances), run the following command from the root of the project:
+
+```bash
+cd build
+cmake ..
+cmake --build . --target install_cordeau_instances
+```
