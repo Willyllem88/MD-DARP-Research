@@ -84,8 +84,8 @@ void ALNSEvaluator::evaluateRoute(ALNSRoute& route) {
             int pickupId = v - data.N_requests; 
             if (pickupTimes.count(pickupId)) {
                 double rideTime = currentTime - (pickupTimes[pickupId] + data.getServiceTime(pickupId));
-                if (rideTime > data.max_ride_time) {
-                    route.rideTimeViolation += (rideTime - data.max_ride_time);
+                if (rideTime > data.getMaxRideTime()) {
+                    route.rideTimeViolation += (rideTime - data.getMaxRideTime());
                 }
             }
         }
@@ -94,8 +94,8 @@ void ALNSEvaluator::evaluateRoute(ALNSRoute& route) {
     // Check Max Route Duration
     int endNode = route.sequence.back();
     double duration = route.arrivalTimes[endNode] - route.arrivalTimes[startNode];
-    if (duration > data.max_route_time.at(route.vehicleId)) {
-        route.vehicleMaxRouteTimeViolation += (duration - data.max_route_time.at(route.vehicleId));
+    if (duration > data.getVehicleMaxRouteTime(route.vehicleId)) {
+        route.vehicleMaxRouteTimeViolation += (duration - data.getVehicleMaxRouteTime(route.vehicleId));
     }
 
     // Final Cost Aggregation

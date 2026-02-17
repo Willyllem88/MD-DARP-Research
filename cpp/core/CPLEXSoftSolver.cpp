@@ -234,7 +234,7 @@ void CPLEXSoftSolver::buildModel() {
     for (int k : data.K) {
         int sk = data.StartNode.at(k);
         int ek = data.EndNode.at(k);
-        double Tmax = data.max_route_time.at(k);
+        double Tmax = data.getVehicleMaxRouteTime(k);
         
         model.add(u[{ek, k}] - u[{sk, k}] <= Tmax + viol_duration[k]);
     }
@@ -269,7 +269,7 @@ void CPLEXSoftSolver::buildModel() {
     for (int i : data.P) {
         int delivery_node = i + data.N_requests;
         double serv = data.getServiceTime(i);
-        double L = data.max_ride_time;
+        double L = data.getMaxRideTime();
         double l_del = data.getTimeWindowEnd(delivery_node);
         double e_pick = data.getTimeWindowStart(i);
 
@@ -297,7 +297,7 @@ void CPLEXSoftSolver::buildModel() {
     // w[j,k] >= w[i,k] + q[j] - M(1 - x)
     for (const auto& [i, j, k] : A_k) {
         double q_j = data.getDemand(j);
-        double Q_k = data.capacity.at(k);
+        double Q_k = data.getVehicleCapacity(k);
 
         double M_ijk = Q_k;
         
@@ -310,7 +310,7 @@ void CPLEXSoftSolver::buildModel() {
     for (int i : V_nodes) {
         double qi = data.getDemand(i);
         for (int k : data.K) {
-            double Qk = data.capacity.at(k);
+            double Qk = data.getVehicleCapacity(k);
             double lb = std::max(0.0, qi);
             
             model.add(w[{i, k}] >= lb);
