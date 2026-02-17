@@ -21,9 +21,9 @@ void ALNSEvaluator::evaluateRoute(ALNSRoute& route) {
     }
 
     // Assumption: pickup ids 1..n
-    static std::vector<double> pickupTimes; 
-    if ((int)pickupTimes.size() < data.N_requests + 1) pickupTimes.assign(data.N_requests + 1, -1.0);
-    else std::fill(pickupTimes.begin(), pickupTimes.end(), -1.0);
+    static thread_local std::vector<double> pickupTimes;
+    if ((int)pickupTimes.size() < data.N_requests + 1) pickupTimes.resize(data.N_requests + 1);
+    std::fill(pickupTimes.begin(), pickupTimes.end(), -1.0);
 
     double currentTime = 0.0;
     double currentLoad = 0.0;
