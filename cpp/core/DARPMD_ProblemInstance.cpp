@@ -13,6 +13,7 @@ void DARPMD_ProblemInstance::clear() {
     K.clear();
     StartNode.clear();
     EndNode.clear();
+    
     service_time.clear();
     demand.clear();
     time_window_start.clear();
@@ -20,8 +21,13 @@ void DARPMD_ProblemInstance::clear() {
     capacity.clear();
     max_route_time.clear();
     max_ride_time = 0.0;
+
     t_ij.clear();
-    c_ijk.clear();
+    flat_cost_matrix.clear();
+    stride_time_i = 0;
+    stride_cost_i = 0;
+    stride_cost_j = 0;
+    
     metadata = Metadata();
 }
 
@@ -48,11 +54,16 @@ bool DARPMD_ProblemInstance::loadFromJSON(const std::string& path) {
         K_vehicles = j.at("vehicles").size();
 
         // Calculate the maximum node ID for resizing vectors
-        max_node_id = 0;
-        for (auto& n : j.at("nodes")) {
-            int id = n.at("id");
-            if (id > max_node_id) max_node_id = id;
-        }
+        max_node_id = 2 * N_requests +2 * K_vehicles;
+
+        // Reserve memory
+        service_time.resize(max_node_id + 1, 0.0);
+        demand.resize(max_node_id + 1, 0.0);
+        time_window_start.resize(max_node_id + 1, 0.0);
+        time_window_end.resize(max_node_id + 1, 0.0);
+        
+        capacity.resize(K_vehicles + 1, 0.0);
+        max_route_time.resize(K_vehicles + 1, 0.0);
 
         // 2. Load Nodes
         for (auto& n : j.at("nodes")) {
@@ -77,24 +88,36 @@ bool DARPMD_ProblemInstance::loadFromJSON(const std::string& path) {
         max_ride_time = j.at("global_params").at("L_ride");
 
         // 5. Time Matrix (t_ij)
-        t_ij.resize(max_node_id + 1, std::vector<double>(max_node_id + 1, 999999.0)); // Initalize with large time
-
+        t_ij.resize((max_node_id + 1) * (max_node_id + 1), INF); // Initialize with INF
+        stride_time_i = max_node_id + 1;
         for (auto& x : j.at("matrix_t")) {
             int u = x.at("from");
             int v = x.at("to");
-            double val = x.at("value");
-            if (u <= max_node_id && v <= max_node_id) {
-                t_ij[u][v] = val;
+            size_t index = (size_t)u * stride_time_i + (size_t)v;
+
+            if (index < t_ij.size()) {
+                t_ij[index] = x.at("value");
             }
         }
 
         // 6. Costs (c_ijk)
+        int dim_node = max_node_id + 1;
+        int dim_veh = K_vehicles + 1;
+        stride_cost_i = dim_node * dim_veh;
+        stride_cost_j = dim_veh;
+        size_t total_size = (size_t)dim_node * dim_node * dim_veh;
+        flat_cost_matrix.resize(total_size, INF);
         for (auto& x : j.at("matrix_c")) {
             int u = x.at("from");
             int v = x.at("to");
             int k = x.at("k");
-            double val = x.at("value");
-            c_ijk[{u, v, k}] = val;
+            size_t index = (size_t)u * stride_cost_i + 
+                           (size_t)v * stride_cost_j + 
+                           (size_t)k;
+            
+            if (index < flat_cost_matrix.size()) {
+                flat_cost_matrix[index] = x.at("value");
+            }
         }
 
         // 7. Load city metadata if present
@@ -110,71 +133,7 @@ bool DARPMD_ProblemInstance::loadFromJSON(const std::string& path) {
         return false;
     }
 
-    // Load node statuses
-    allNodesStatus.resize(max_node_id + 1, -1); // Initialize with -1 (undefined)
-    for (int p : P) allNodesStatus[p] = 0; // Pickup
-    for (int d : D) allNodesStatus[d] = 1; // Delivery
-    for (const auto& [k, start] : StartNode) allNodesStatus[start] = 2; // Depot Start
-    for (const auto& [k, end] : EndNode) allNodesStatus[end] = 3; // Depot End
-
     return true;
-}
-
-double DARPMD_ProblemInstance::getTravelTime(int i, int j) const {
-    return t_ij[i][j];
-}
-
-double DARPMD_ProblemInstance::getCost(int i, int j, int k) const {
-    auto it = c_ijk.find({i, j, k});
-    if (it != c_ijk.end()) {
-        return it->second;
-    }
-    std::cout << "Warning: Cost not found for (" << i << ", " << j << ", " << k << "). Returning 0.0." << std::endl;
-    return 0.0;
-}
-
-double DARPMD_ProblemInstance::getServiceTime(int i) const {
-    return service_time.at(i);
-}
-
-double DARPMD_ProblemInstance::getDemand(int i) const {
-    return demand.at(i);
-}
-
-double DARPMD_ProblemInstance::getTimeWindowStart(int i) const {
-    return time_window_start.at(i);
-}
-
-double DARPMD_ProblemInstance::getTimeWindowEnd(int i) const {
-    return time_window_end.at(i);
-}
-
-double DARPMD_ProblemInstance::getVehicleCapacity(int k) const {
-    return capacity.at(k);
-}
-
-double DARPMD_ProblemInstance::getVehicleMaxRouteTime(int k) const {
-    return max_route_time.at(k);
-}
-
-bool DARPMD_ProblemInstance::isPickup(int nodeId) const {
-    if (nodeId < 0 || nodeId > max_node_id) return false;
-    return allNodesStatus[nodeId] == 0;
-}
-
-bool DARPMD_ProblemInstance::isDelivery(int nodeId) const {
-    if (nodeId < 0 || nodeId > max_node_id) return false;
-    return allNodesStatus[nodeId] == 1;
-}
-
-bool DARPMD_ProblemInstance::isVehicleStart(int nodeId) const {
-    if (nodeId < 0 || nodeId > max_node_id) return false;
-    return allNodesStatus[nodeId] == 2;
-}
-
-bool DARPMD_ProblemInstance::isVehicleEnd(int nodeId) const {
-    if (nodeId < 0 || nodeId > max_node_id) return false;
-    return allNodesStatus[nodeId] == 3;
 }
 
 void DARPMD_ProblemInstance::displayInfo() const {
@@ -216,8 +175,8 @@ void DARPMD_ProblemInstance::displayInfo() const {
     for (int k : K) {
         int start = (StartNode.count(k)) ? StartNode.at(k) : -1;
         int end = (EndNode.count(k)) ? EndNode.at(k) : -1;
-        double cap = (capacity.count(k)) ? capacity.at(k) : 0.0;
-        double max_t = (max_route_time.count(k)) ? max_route_time.at(k) : 0.0;
+        double cap = capacity[k];
+        double max_t = max_route_time[k];
 
         std::cout << std::left 
                   << std::setw(10) << k 
@@ -271,16 +230,14 @@ void DARPMD_ProblemInstance::displayInfo() const {
     std::cout << "--- Matrices Dimensions ---\n";
     
     // Travel Time Matrix (t_ij)
-    if (!t_ij.empty()) {
-        std::cout << "Travel Time Matrix (t_ij): " 
-                  << t_ij.size() << " rows x " 
-                  << t_ij[0].size() << " cols\n";
-    } else {
-        std::cout << "Travel Time Matrix (t_ij): [Empty]\n";
-    }
+    std::cout << "Travel Time Matrix (t_ij): " 
+              << "Dimensions: (" << max_node_id + 1 << " x " << max_node_id + 1 << ")\n";
 
     // Cost Matrix (c_ijk)
-    std::cout << "Cost Map (c_ijk): " << c_ijk.size() << " entries loaded.\n";
+    std::cout << "Cost Matrix (c_ijk): " 
+              << "Dimensions: (" << max_node_id + 1 << " x " 
+              << max_node_id + 1 << " x " 
+              << K_vehicles + 1 << ")\n";
 
     std::cout << "============================================\n\n";
 }

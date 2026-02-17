@@ -66,7 +66,11 @@ def generate_json_structure(data):
         "vehicles": [],
         "nodes": [],
         "matrix_t": [],
-        "matrix_c": []
+        "matrix_c": [],
+        "metadata": {
+            "city": "_Cordeau_",
+            "coordinates": {}
+        }
     }
 
     # 1. Fill Requests
@@ -91,6 +95,7 @@ def generate_json_structure(data):
             }
             output["nodes"].append({k:v for k,v in node_obj.items() if k not in ['x', 'y']})
             all_nodes_map[i] = node_obj
+            output["metadata"]["coordinates"][str(i)] = [n["y"], n["x"]]
 
     # 3. Create Start/End Depots per Vehicle & Vehicle Objects
     depot_coords = raw_nodes[0] # Original depot coordinates (node 0)
@@ -135,6 +140,10 @@ def generate_json_structure(data):
             "capacity": data['capacity'],
             "max_time": data['max_route_time']
         })
+
+        # Añadir coordenadas de los depósitos a metadata
+        output["metadata"]["coordinates"][str(start_node_id)] = [depot_coords['y'], depot_coords['x']]
+        output["metadata"]["coordinates"][str(end_node_id)] = [depot_coords['y'], depot_coords['x']]
 
     # 4. Generate Matrices based on Set Ak definition
     # Ak = (i,j) where i,j in P U D U {sk, ek}

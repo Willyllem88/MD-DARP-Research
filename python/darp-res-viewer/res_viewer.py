@@ -17,8 +17,14 @@ class RouteVisualizer:
         
         # Colors for the routes of different trucks
         self.route_colors = [
-            '#e6194b', '#3cb44b', '#ffe119', '#4363d8', 
-            '#f58231', '#911eb4', '#46f0f0', '#f032e6'
+            "#1f77b4",
+            "#d62728",
+            "#2ca02c",
+            "#ff7f0e",
+            "#9467bd",
+            "#8c564b",
+            "#17becf",
+            "#bcbd22" 
         ]
 
     def _get_node_style(self, node_type, vehicle_idx):

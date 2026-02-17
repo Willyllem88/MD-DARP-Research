@@ -76,7 +76,7 @@ void InstanceAnalyzer::printReport() const {
     // 1. General Dimensions
     std::cout << "Requests (n):  " << data.N_requests << "\n";
     std::cout << "Vehicles (k):  " << data.K_vehicles << "\n";
-    std::cout << "Max Ride Time (L): " << data.max_ride_time << "\n";
+    std::cout << "Max Ride Time (L): " << data.getMaxRideTime() << "\n";
 
     // 2. Time Window Analysis
     // Cordeau & Laporte (2003) emphasize TW width as a hardness factor.
