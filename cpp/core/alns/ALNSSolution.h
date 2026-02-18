@@ -30,5 +30,5 @@ struct ALNSSolution {
             std::cout << req << " ";
         }
         std::cout << std::endl;
-    }
+    };
 };

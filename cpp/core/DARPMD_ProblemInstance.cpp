@@ -241,3 +241,109 @@ void DARPMD_ProblemInstance::displayInfo() const {
 
     std::cout << "============================================\n\n";
 }
+
+void DARPMD_ProblemInstance::checkAndFixTriangleInequality(bool fixIt, bool verbose) {
+    const double TOLERANCE = 1e-3;
+    int timeViolations = 0;
+    int costViolations = 0;
+    double maxTimeViolation = 0.0;
+    double maxCostViolation = 0.0;
+
+    if (verbose) {
+        std::cout << "--- [DARPMD] Verificando Desigualdad Triangular (Tiempos y Costes) ---" << std::endl;
+    }
+
+    // 1. Time verification (t_ij)
+    if (!t_ij.empty()) {
+        for (int k = 1; k <= max_node_id; ++k) { // middle node
+            for (int i = 1; i <= max_node_id; ++i) { // origin
+                if (i == k) continue;
+
+                // Acceso directo optimizado
+                size_t idx_i_base = (size_t)i * stride_time_i;
+                double dist_ik = t_ij[idx_i_base + k]; // i->k
+
+                // if i -> k is INF, it makes no sense to check detours through k, skip
+                if (dist_ik >= INF) continue;
+
+                for (int j = 1; j <= max_node_id; ++j) { // destination
+                    if (j == i || j == k) continue;
+
+                    size_t idx_k_j = (size_t)k * stride_time_i + j;
+                    size_t idx_i_j = idx_i_base + j; // direct i -> j
+
+                    double dist_kj = t_ij[idx_k_j];
+                    double directDist = t_ij[idx_i_j];
+                    double detourDist = dist_ik + dist_kj;
+
+                    // Is it faster to go i->k->j than directly i->j?
+                    if (directDist > detourDist + TOLERANCE) {
+                        timeViolations++;
+                        double diff = directDist - detourDist;
+                        if (diff > maxTimeViolation) maxTimeViolation = diff;
+
+                        if (fixIt) {
+                            t_ij[idx_i_j] = detourDist;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. Cost verification (c_ijk)
+    if (!flat_cost_matrix.empty()) {
+        for (int v = 0; v < K_vehicles; ++v) { 
+            for (int k = 1; k <= max_node_id; ++k) { // middle node
+                for (int i = 1; i <= max_node_id; ++i) { // origin
+                    if (i == k) continue;
+
+                    size_t idx_i_k = (size_t)i * stride_cost_i + (size_t)k * stride_cost_j + v;
+                    double cost_ik = flat_cost_matrix[idx_i_k];
+
+                    if (cost_ik >= INF) continue;
+
+                    for (int j = 1; j <= max_node_id; ++j) { // destination
+                        if (j == i || j == k) continue;
+
+                        size_t idx_k_j = (size_t)k * stride_cost_i + (size_t)j * stride_cost_j + v;
+                        size_t idx_i_j = (size_t)i * stride_cost_i + (size_t)j * stride_cost_j + v;
+
+                        double cost_kj = flat_cost_matrix[idx_k_j];
+                        double directCost = flat_cost_matrix[idx_i_j];
+                        double detourCost = cost_ik + cost_kj;
+
+                        // Is it cheaper to go i->k->j than directly i->j for vehicle v?
+                        if (directCost > detourCost + TOLERANCE) {
+                            costViolations++;
+                            double diff = directCost - detourCost;
+                            if (diff > maxCostViolation) maxCostViolation = diff;
+
+                            if (fixIt) {
+                                flat_cost_matrix[idx_i_j] = detourCost;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 3. Report results
+    if (verbose) {
+        if (timeViolations > 0 || costViolations > 0) {
+            std::cout << "    [Resultados]" << std::endl;
+            std::cout << "      -> Tiempos (t_ij): " << timeViolations << " violaciones. (Max Reduccion: " << maxTimeViolation << ")" << std::endl;
+            std::cout << "      -> Costes (C_ijk): " << costViolations << " violaciones. (Max Reduccion: " << maxCostViolation << ")" << std::endl;
+            
+            if (fixIt) {
+                std::cout << "    [FIX] Se han corregido ambas matrices. Ahora cumplen la Desigualdad Triangular." << std::endl;
+            } else {
+                std::cout << "    [WARNING] Se han detectado inconsistencias. Se recomienda usar fixIt=true." << std::endl;
+            }
+        } else {
+            std::cout << "    [OK] Tiempos y Costes son consistentes (Cumplen Desigualdad Triangular)." << std::endl;
+        }
+        std::cout << "--------------------------------------------------------------" << std::endl;
+    }
+}
