@@ -82,7 +82,7 @@ private:
         std::vector<int> timesUsed;
 
         void init(int size) {
-            weights.assign(size, 1.0); // Todos empiezan con igual probabilidad
+            weights.assign(size, 1.0); // All operators start with equal weight
             scores.assign(size, 0.0);
             timesUsed.assign(size, 0);
         }
