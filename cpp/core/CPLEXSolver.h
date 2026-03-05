@@ -48,7 +48,7 @@ private:
     // Key: <i, j, k>: whether vehicle k travels from i to j
     std::map<std::tuple<int, int, int>, IloNumVar> x;
     // Key: <node_id, vehicle_id>: time at which vehicle k arrives at node i
-    std::map<std::pair<int, int>, IloNumVar> u;
+    std::map<int, IloNumVar> u;
     // Key: <node_id, vehicle_id>: load of vehicle k upon arrival at node i
     std::map<std::pair<int, int>, IloNumVar> w;
 

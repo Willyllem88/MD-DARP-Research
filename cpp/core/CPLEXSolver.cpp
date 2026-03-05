@@ -63,11 +63,11 @@ void CPLEXSolver::buildModel() {
 
     // u[i, k] - Continuous (Time) and w[i, k] - Continuous (Load)
     for (int i : V_nodes) {
+        std::string u_name = "u_" + std::to_string(i);
+        u[i] = IloNumVar(env, 0, IloInfinity, ILOFLOAT, u_name.c_str());
+
         for (int k : data.K) {
-            std::string u_name = "u_" + std::to_string(i) + "_" + std::to_string(k);
             std::string w_name = "w_" + std::to_string(i) + "_" + std::to_string(k);
-            
-            u[{i, k}] = IloNumVar(env, 0, IloInfinity, ILOFLOAT, u_name.c_str());
             w[{i, k}] = IloNumVar(env, 0, IloInfinity, ILOFLOAT, w_name.c_str());
         }
     }
@@ -179,7 +179,7 @@ void CPLEXSolver::buildModel() {
         double M_ij = std::max(0.0, l_i + serv + trav - e_j);
         
         model.add(
-            u[{j, k}] >= u[{i, k}] + serv + trav - M_ij * (1 - x[arc])
+            u[j] >= u[i] + serv + trav - M_ij * (1 - x[arc])
         );
     }
 
@@ -190,8 +190,8 @@ void CPLEXSolver::buildModel() {
             double ei = data.getTimeWindowStart(i);
             double li = data.getTimeWindowEnd(i);
             
-            model.add(u[{i, k}] >= ei);
-            model.add(u[{i, k}] <= li);
+            model.add(u[i] >= ei);
+            model.add(u[i] <= li);
         }
     }
 
@@ -201,7 +201,7 @@ void CPLEXSolver::buildModel() {
         int ek = data.EndNode.at(k);
         double Tmax = data.getVehicleMaxRouteTime(k);
         
-        model.add(u[{ek, k}] - u[{sk, k}] <= Tmax);
+        model.add(u[ek] - u[sk] <= Tmax);
     }
 
     // c8: Precedence
@@ -209,24 +209,10 @@ void CPLEXSolver::buildModel() {
         int delivery_node = i + data.N_requests;
         double serv = data.getServiceTime(i);
         double trav = data.getTravelTime(i, delivery_node);
-        double l_pick = data.getTimeWindowEnd(i);
-        double e_del = data.getTimeWindowStart(delivery_node);
         
-        const double M_ik = std::max(0.0, l_pick + serv + trav - e_del);
-        
-        for (int k : data.K) {
-            IloExpr k_serves_i(env);
-            for (const auto& [ii, jj, kk] : A_k) {
-                if (ii == i && kk == k) {
-                    k_serves_i += x[{ii, jj, kk}];
-                }
-            }
-
-            model.add(
-                u[{delivery_node, k}] >= u[{i, k}] + serv + trav - M_ik * (1 - k_serves_i)
-            );
-            k_serves_i.end();
-        }
+        model.add(
+            u[delivery_node] >= u[i] + serv + trav
+        );
     }
 
     // c9: Ride Time Limit
@@ -235,25 +221,10 @@ void CPLEXSolver::buildModel() {
         int delivery_node = i + data.N_requests;
         double serv = data.getServiceTime(i);
         double L = data.getMaxRideTime();
-        double l_del = data.getTimeWindowEnd(delivery_node);
-        double e_pick = data.getTimeWindowStart(i);
 
-        double max_possible_ride = l_del - (e_pick + serv);
-        double M_ik = std::max(0.0, max_possible_ride - L);
-
-        for (int k : data.K) {
-            IloExpr k_serves_i(env);
-            for (const auto& [ii, jj, kk] : A_k) {
-                if (ii == i && kk == k) {
-                    k_serves_i += x[{ii, jj, kk}];
-                }
-            }
-
-            model.add(
-                u[{delivery_node, k}] - (u[{i, k}] + serv) <= L + M_ik * (1 - k_serves_i)
-            );
-            k_serves_i.end();
-        }
+        model.add(
+            u[delivery_node] - (u[i] + serv) <= L
+        );
     }
 
     // c10: Load Consistency
@@ -382,8 +353,8 @@ DARPMD_ResultInstance CPLEXSolver::getResult() const {
             else step.type = "Node";
 
             // Extract continuous variable values u (time) and w (load)
-            if (u.count({current_node, k})) 
-                step.arrivalTime = cplex.getValue(u.at({current_node, k}));
+            if (u.count(current_node)) 
+                step.arrivalTime = cplex.getValue(u.at(current_node));
             else 
                 step.arrivalTime = 0.0;
 
