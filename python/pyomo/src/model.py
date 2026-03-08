@@ -36,9 +36,9 @@ class MDDARP_ResultInstance:
         print("              SOLUTION RESULTS              ")
         print("============================================")
         print(f"Status:      {self.solver_status}")
-        print(f"Objective:   {self.objective_value:.2f}")
-        print(f"Solve Time:  {self.solve_time:.2f} s")
-        print(f"MIP Gap:     {self.mip_gap * 100:.2f}%")
+        print(f"Objective:   {self.objective_value:.4f}")
+        print(f"Solve Time:  {self.solve_time:.4f} s")
+        print(f"MIP Gap:     {self.mip_gap * 100:.4f}%")
         print("--------------------------------------------")
         for k, route in self.routes.items():
             print(f"Vehicle {k} Route:")
@@ -50,23 +50,23 @@ class MDDARP_ResultInstance:
 
 class MDDARP_Model_Solver:
     def __init__(self, instance, time_limit: Optional[float] = None, solver_name: Optional[str] = 'cplex'):
-        self.data = instance
-        self.time_limit = time_limit
-        self.solver_name = solver_name if solver_name else 'cplex'
+        self.data: MDDARP_ProblemInstance = instance
+        self.time_limit: Optional[float] = time_limit
+        self.solver_name: Optional[str] = solver_name if solver_name else 'cplex'
 
         self.model = pyo.ConcreteModel()
         
         # Result attributes
-        self.solve_time = 0.0
-        self.objective_value = 0.0
-        self.mip_gap = 0.0
-        self.solver_status_str = "Not Solved"
+        self.solve_time: float = 0.0
+        self.objective_value: float = 0.0
+        self.mip_gap: float = 0.0
+        self.solver_status_str: str = "Not Solved"
 
         # 1. Create Set V: P u D u StartNodes u EndNodes
         distinct_nodes = set(self.data.P + self.data.D)
         for node in self.data.StartNodes: distinct_nodes.add(node)
         for node in self.data.EndNodes: distinct_nodes.add(node)
-        self.V_nodes = list(distinct_nodes)
+        self.V_nodes: List[int] = list(distinct_nodes)
 
         # 2. Crear Set A_k: Arcos válidos
         self.A_k = []
@@ -80,10 +80,13 @@ class MDDARP_Model_Solver:
                     if i == j: continue
                     if i == ek: continue  # Do not leave End depot
                     if j == sk: continue  # Do not begin before Start depot
-                    if (j in self.data.P) and (i == j + self.data.N_requests): continue     # Do not go from delivery to its pickup
-                    if (i in self.data.StartNodes) and (j in self.data.D): continue         # Do not go from Start depot to delivery
-                    if (i in self.data.P) and (j in self.data.EndNodes): continue           # Do not go from pickup to End depot
+                    if (self.data.is_delivery(i)) and (i == j + self.data.N_requests): continue      # Do not go from delivery_i to its pickup_i
+                    if (self.data.is_vehicle_start(i)) and (self.data.is_delivery(j)): continue      # Do not go from Start depot to delivery
+                    if (self.data.is_pickup(i)) and (self.data.is_vehicle_end(j)): continue          # Do not go from pickup to End depot
+
                     self.A_k.append((i, j, k))
+
+        print(f"Total arcs in A_k: {len(self.A_k)}")
 
         self.build_model()
 
@@ -152,6 +155,7 @@ class MDDARP_Model_Solver:
         for i in self.V_nodes:
             ei = d.get_time_window_start(i)
             li = d.get_time_window_end(i)
+
             m.constraints.add(m.u[i] >= ei)
             m.constraints.add(m.u[i] <= li)
 
@@ -309,7 +313,7 @@ class MDDARP_Model_Solver:
 
 if __name__ == "__main__":    
     
-    json_path = "/home/guillem/TFG-Guillem/data/instances_static/bcn-10R2V.json" # <--- CAMBIA ESTO
+    json_path = "/home/guillem/TFG-Guillem/data/instances_static/cordeau-instances/a3-24.json"
     
     instance = MDDARP_ProblemInstance()    
     success = instance.load_from_json(json_path)
