@@ -32,7 +32,11 @@ CPLEXSolver::CPLEXSolver(const DARPMD_ProblemInstance& instance, std::optional<d
             for (int j : nodes_k) {
                 if (i == j) continue;
                 if (i == ek) continue; // Does not leave the end
-                if (j == sk) continue; // Does not enter the start                
+                if (j == sk) continue; // Does not enter the start
+                if ((data.isDelivery(i)) && (i == j + data.N_requests)) continue;    // Do not go from delivery to its pickup
+                if ((data.isVehicleStart(i)) && (data.isDelivery(j))) continue;      // Do not go from Start depot to delivery
+                if ((data.isPickup(i)) && (data.isVehicleEnd(j))) continue;          // Do not go from pickup to End depot
+
                 A_k.emplace_back(i, j, k);
             }
         }
@@ -185,14 +189,12 @@ void CPLEXSolver::buildModel() {
 
     // c6: Time Windows
     for (int i : V_nodes) {
-        for (int k : data.K) {
-            // Check limits. If vector indices match node IDs
-            double ei = data.getTimeWindowStart(i);
-            double li = data.getTimeWindowEnd(i);
-            
-            model.add(u[i] >= ei);
-            model.add(u[i] <= li);
-        }
+        // Check limits. If vector indices match node IDs
+        double ei = data.getTimeWindowStart(i);
+        double li = data.getTimeWindowEnd(i);
+        
+        model.add(u[i] >= ei);
+        model.add(u[i] <= li);
     }
 
     // c7: Max Route Duration
