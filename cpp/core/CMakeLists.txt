@@ -1,30 +1,28 @@
-# Ejecutable principal
-add_executable(darpmd
-    main.cpp
+add_library(darpmd_core
     CPLEXSolver.cpp
     CPLEXSoftSolver.cpp
     ALNSSolver.cpp
     DARPMD_ProblemInstance.cpp
     DARPMD_ResultInstance.cpp
+    alns/ALNSEvaluator.cpp
+    alns/SetPartitioningSolver.cpp
+    alns/ALNSOperators.cpp
 )
 
-# Includes del proyecto
-target_include_directories(darpmd PRIVATE
+target_include_directories(darpmd_core PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
-    /opt/ibm/ILOG/CPLEX_Studio2211/cplex/include
-    /opt/ibm/ILOG/CPLEX_Studio2211/concert/include
+    ${CPLEX_INCLUDE_DIR}
+    ${CONCERT_INCLUDE_DIR}
 )
 
-# Librerías CPLEX (ajusta arquitectura si hace falta)
-target_link_directories(darpmd PRIVATE
-    /opt/ibm/ILOG/CPLEX_Studio2211/cplex/lib/x86-64_linux/static_pic
-    /opt/ibm/ILOG/CPLEX_Studio2211/concert/lib/x86-64_linux/static_pic
+target_link_directories(darpmd_core PUBLIC
+    ${CPLEX_LIB_DIR}
+    ${CONCERT_LIB_DIR}
 )
 
-target_link_libraries(darpmd
-    ilocplex
-    cplex
-    concert
-    pthread
-    m
+target_link_libraries(darpmd_core PUBLIC
+    ilocplex cplex concert pthread m dl
 )
+
+add_executable(darpmd_run main.cpp)
+target_link_libraries(darpmd_run PRIVATE darpmd_core)

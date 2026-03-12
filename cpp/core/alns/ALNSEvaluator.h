@@ -1,0 +1,21 @@
+#pragma once
+
+#include "ALNSSolution.h"
+#include "ALNSParams.h"
+#include "DARPMD_ProblemInstance.h"
+
+class ALNSEvaluator {
+public:
+    ALNSEvaluator(
+        const DARPMD_ProblemInstance& data,
+        const ALNSParams& params);
+
+    void evaluateRoute(ALNSRoute& route);
+    void evaluateSolution(ALNSSolution& sol);
+
+    bool solutionHasViolations(const ALNSSolution&) const;
+
+private:
+    const DARPMD_ProblemInstance& data;
+    const ALNSParams& params;
+};

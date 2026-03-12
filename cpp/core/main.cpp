@@ -25,7 +25,7 @@ void printUsage(const char* program_name) {
     std::cout << "  -t, --time       Time limit in seconds (optional)" << std::endl;
     std::cout << "  -o, --output     Path to output solution file" << std::endl;
     std::cout << "  -m, --method     Solver method: 'ILP', 'ILPSoft', 'ALNS'" << std::endl;
-    std::cout << "  -h               Show this help message" << std::endl;
+    std::cout << "  -h, --help       Show this help message" << std::endl;
     std::cout << "Example: " << program_name << " -i ./gracia-4R2V.json -t 300 -o ./solution.json -m ILP" << std::endl;
 }
 
@@ -56,7 +56,7 @@ Args parseArgs(int argc, char** argv) {
             }
             args.method = method;
         }
-        else if (a == "-h") {
+        else if (a == "-h" || a == "--help") {
             printUsage(argv[0]);
             exit(0);
         }

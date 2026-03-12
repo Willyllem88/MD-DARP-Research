@@ -4,7 +4,9 @@ from tkinter import filedialog
 import argparse
 import sys
 import os
+
 from res_viewer import RouteVisualizer
+from cordeau_viewer import CordeauRouteVisualizer
 
 def load_json_from_path(file_path):
     """
@@ -79,7 +81,11 @@ def main():
     # 3. Execute visualization
     if data:
         try:
-            visualizer = RouteVisualizer(data)
+            city = data.get('metadata', {}).get('city', None)
+            if city == "_Cordeau_":
+                visualizer = CordeauRouteVisualizer(data)
+            else:
+                visualizer = RouteVisualizer(data)
             visualizer.plot()
         except Exception as e:
             print(f"Error initializing the visualizer: {e}")
