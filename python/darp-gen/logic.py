@@ -1,3 +1,4 @@
+from yaml import warnings
 import osmnx as ox
 import networkx as nx
 import json
@@ -32,6 +33,34 @@ class DARPGraphManager:
             
         print(f"✅ Graph ready with {len(self.G.nodes())} nodes.")
         return self.G
+    
+    def haversine_distance(self, lat1, lon1, lat2, lon2):
+        """Calculate the Haversine distance between two points."""
+        from math import radians, cos, sin, asin, sqrt
+        
+        # Convert decimal degrees to radians
+        lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
+        
+        # Haversine formula
+        dlon = lon2 - lon1 
+        dlat = lat2 - lat1 
+        a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+        c = 2 * asin(sqrt(a)) 
+        R = 6371000  # Radius of Earth in meters
+        return c * R
+    
+    def get_nearest_node_distance(self, lat, lon):
+        """Get the distance from a click to the nearest node."""
+        if self.G is None:
+            return None
+        
+        target_node = ox.nearest_nodes(self.G, lon, lat)
+        node_data = self.G.nodes[target_node]
+        node_lat = node_data['y']
+        node_lon = node_data['x']
+        
+        dist_meters = self.haversine_distance(lat, lon, node_lat, node_lon)
+        return dist_meters
 
     def get_nearest_node(self, lat, lon):
         """Find the graph node closest to a click (lat, lon)."""

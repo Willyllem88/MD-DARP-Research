@@ -1,4 +1,6 @@
 import tkinter as tk
+from tkinter import filedialog
+from input_loader import YamlLoader
 import networkx as nx
 from tkinter import ttk, messagebox, simpledialog
 from matplotlib.lines import Line2D 
@@ -92,6 +94,9 @@ class DarpApp:
 
         self.btn_load = tk.Button(self.left_panel, text="Load Map", command=self.load_map, bg="#4CAF50", fg="white")
         self.btn_load.pack(pady=20, fill=tk.X, padx=5)
+
+        self.btn_yaml = tk.Button(self.left_panel, text="Import from YAML", command=self.import_yaml, bg="#2196F3", fg="white")
+        self.btn_yaml.pack(pady=5, fill=tk.X, padx=5)
         
         # Instructions / Status Area
         self.lbl_status = tk.Label(self.left_panel, text="Status: Waiting for config...", fg="blue", bg="#f0f0f0", wraplength=280, font=("Arial", 16))
@@ -129,17 +134,7 @@ class DarpApp:
             ox.plot_graph(self.manager.G, ax=self.ax, show=False, close=False, node_size=0, edge_linewidth=0.5, bgcolor='white')
             
             # We add legend info
-            legend_elements = [
-                Line2D([0], [0], marker='o', color='w', label='Depot Start',
-                       markerfacecolor='green', markeredgecolor='green', markersize=8),
-                Line2D([0], [0], marker='o', color='w', label='Depot End',
-                       markerfacecolor='red', markeredgecolor='red', markersize=8),
-                Line2D([0], [0], marker='o', color='w', label='Pickup',
-                       markerfacecolor='blue', markeredgecolor='blue', markersize=8),
-                Line2D([0], [0], marker='o', color='w', label='Delivery',
-                       markerfacecolor='none', markeredgecolor='blue', markersize=8)
-            ]
-            self.ax.legend(handles=legend_elements, loc='upper right', fancybox=True, shadow=True)
+            self._draw_legend()
             
             self.ax.set_title(f"Map: {place}")
             self.canvas.draw()
@@ -158,6 +153,113 @@ class DarpApp:
         except Exception as e:
             messagebox.showerror("Error", str(e))
             self.lbl_status.config(text="Error en descarga.")
+    
+    def import_yaml(self):
+        file_path = filedialog.askopenfilename(filetypes=[("YAML files", "*.yaml")])
+        if not file_path:
+            return
+
+        self.lbl_status.config(text="Processing YAML & Geocoding addresses...")
+        self.root.update()
+
+        # Instanciar el loader pasándole el manager actual
+        loader = YamlLoader(self.manager)
+        
+        # Cargar datos (esto descargará el mapa y buscará nodos)
+        result = loader.load_scenario(file_path)
+        
+        if result:
+            # Actualizar datos de la App
+            self.requests_data = result['requests']
+            self.vehicles_data = result['vehicles']
+            self.entry_place.set(result['place'])
+            
+            # Actualizar UI Inputs Globales
+            self.entry_reqs.delete(0, tk.END)
+            self.entry_reqs.insert(0, str(len(self.requests_data)))
+            self.entry_vehs.delete(0, tk.END)
+            self.entry_vehs.insert(0, str(len(self.vehicles_data)))
+            
+            g_params = result['global']
+            if 'L_ride' in g_params:
+                self.entry_lride.delete(0, tk.END)
+                self.entry_lride.insert(0, str(g_params['L_ride']))
+
+            # Dibujar el mapa base
+            self.ax.clear()
+            ox.plot_graph(self.manager.G, ax=self.ax, show=False, close=False, node_size=0, edge_linewidth=0.5, bgcolor='white')
+            
+            # Draw pickups and deliveries
+            for i, req in enumerate(self.requests_data):
+                self._draw_node(req['pickup_node'], str(i+1), 'pickup')
+                self._draw_node(req['delivery_node'], str(i+1), 'delivery')
+
+            # Draw vehicle starts and ends
+            for i, veh in enumerate(self.vehicles_data):
+                self._draw_node(veh['start_node'], str(i+1), 'start')
+                self._draw_node(veh['end_node'], str(i+1), 'end')
+
+            # Draw legend
+            self._draw_legend()
+            
+            self.lbl_status.config(text="Data loaded via YAML. Ready to Generate JSON.")
+            self.canvas.draw()
+
+            self.finish_generation()
+        else:
+            self.lbl_status.config(text="Error loading YAML.")
+
+    def _draw_legend(self):
+        legend_elements = [
+                Line2D([0], [0], marker='o', color='w', label='Depot Start',
+                       markerfacecolor='green', markeredgecolor='green', markersize=8),
+                Line2D([0], [0], marker='o', color='w', label='Depot End',
+                       markerfacecolor='red', markeredgecolor='red', markersize=8),
+                Line2D([0], [0], marker='o', color='w', label='Pickup',
+                       markerfacecolor='blue', markeredgecolor='blue', markersize=8),
+                Line2D([0], [0], marker='o', color='w', label='Delivery',
+                       markerfacecolor='none', markeredgecolor='blue', markersize=8)
+            ]
+        self.ax.legend(handles=legend_elements, loc='upper right', fancybox=True, shadow=True)
+
+    def _draw_node(self, node_id, label_text, sub_type):
+        """
+        Pinta un nodo en el mapa con el estilo unificado.
+        sub_type puede ser: 'pickup', 'delivery', 'start', 'end'
+        """
+        if node_id is None: return
+
+        # Obtener coordenadas del grafo
+        y = self.manager.nodes_data[node_id]['y']
+        x = self.manager.nodes_data[node_id]['x']
+
+        # Definir colores (Lógica idéntica a tu on_map_click original)
+        color_map = {'pickup': 'blue', 'delivery': 'blue', 'start': 'green', 'end': 'red'}
+        color = color_map.get(sub_type, 'black')
+        
+        # Solo delivery es hueco (no relleno)
+        filled = (sub_type != 'delivery')
+
+        # Pintar el punto (Estilos copiados de tu código original)
+        self.ax.plot(
+            x, y,
+            marker='o',
+            markersize=12,         # Tamaño original
+            markeredgecolor='none' if filled else color,
+            markerfacecolor=color if filled else 'none',
+            markeredgewidth=2,
+            alpha=0.4,             # Transparencia original
+        )
+        
+        # Pintar el texto (Estilos copiados de tu código original)
+        self.ax.text(
+            x, y, 
+            str(label_text), 
+            color='black',
+            fontsize=10,
+            fontweight='bold',
+            ha='center', va='center', 
+        )
 
     def start_selection_sequence(self):
         self.step = "PICKING"
@@ -204,27 +306,10 @@ class DarpApp:
         x = self.manager.nodes_data[node]['x']
         
         tipo, idx, sub = self.current_pick_target
-        color_map = {'pickup': 'blue', 'delivery': 'blue', 'start': 'green', 'end': 'red'}
-        color = color_map.get(sub, 'black')
-        filled = sub != 'delivery'
+
         
-        self.ax.plot(
-            x, y,
-            marker='o',
-            markersize=12,
-            markeredgecolor='none' if filled else color,
-            markerfacecolor=color if filled else 'none',
-            markeredgewidth=2,
-            alpha=0.4,
-        )
-        self.ax.text(
-            x, y, 
-            str(idx+1), 
-            color='black',
-            fontsize=10,
-            fontweight='bold',
-            ha='center', va='center', 
-        )
+        self._draw_node(node, idx+1, sub)
+
         self.canvas.draw()
         
         # 3. Ask for additional data
