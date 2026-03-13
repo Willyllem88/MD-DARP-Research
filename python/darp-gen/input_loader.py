@@ -20,16 +20,13 @@ class YamlLoader:
             messagebox.showerror("Error YAML", f"Could not read the file:\n{e}")
             return None
 
-        # 1. Configurar Grafo (Lugar)
         place = data.get('place', 'Barcelona, Spain')
         
-        # Si el grafo no está cargado o es un sitio diferente, descargarlo
-        # (Asumimos que manager tiene un atributo para saber el sitio actual o simplemente recargamos)
         try:
-            print(f"Cargando mapa para: {place}...")
+            print(f"Loading map for: {place}...")
             self.manager.download_graph(place)
         except Exception as e:
-            messagebox.showerror("Error Mapa", f"No se pudo descargar el mapa de {place}:\n{e}")
+            messagebox.showerror("Error Map", f"Could not download the map for {place}:\n{e}")
             return None
 
         requests_data = []
@@ -40,12 +37,12 @@ class YamlLoader:
         for req in data.get('requests', []):
             try:
                 # Geocode Pickup
-                p_addr = req.get('pickup_address')
-                p_node = self._address_to_node(p_addr)
-                
+                p_coords = req.get('pickup_coords')
+                p_node = self._coords_to_node(p_coords) if p_coords else self._address_to_node(req.get('pickup_address'))
+
                 # Geocode Delivery
-                d_addr = req.get('delivery_address')
-                d_node = self._address_to_node(d_addr)
+                d_coords = req.get('delivery_coords')
+                d_node = self._coords_to_node(d_coords) if d_coords else self._address_to_node(req.get('delivery_address'))
 
                 # Build request object
                 r_obj = {
@@ -58,9 +55,6 @@ class YamlLoader:
                     'd_tw_start': req.get('d_tw_start', 0),
                     'd_tw_end': req.get('d_tw_end', 1440),
                     'd_service_time': req.get('d_service_time', 60),
-                    # Extra metadata for visualization if needed
-                    'meta_pickup_addr': p_addr,
-                    'meta_delivery_addr': d_addr
                 }
                 requests_data.append(r_obj)
             except Exception as e:
@@ -71,11 +65,11 @@ class YamlLoader:
         print("Geocoding Vehicles...")
         for veh in data.get('vehicles', []):
             try:
-                s_addr = veh.get('start_address')
-                s_node = self._address_to_node(s_addr)
-                
-                e_addr = veh.get('end_address')
-                e_node = self._address_to_node(e_addr)
+                s_addr = veh.get('start_coords')
+                s_node = self._coords_to_node(s_addr) if s_addr else self._address_to_node(veh.get('start_address'))
+
+                e_addr = veh.get('end_coords')
+                e_node = self._coords_to_node(e_addr) if e_addr else self._address_to_node(veh.get('end_address'))
 
                 v_obj = {
                     'start_node': s_node,
@@ -103,6 +97,15 @@ class YamlLoader:
             'place': place
         }
 
+    def _coords_to_node(self, coords):
+        """Convert lat/lon to Node ID using the manager's graph"""
+        lat, lon = coords
+        node_dist = self.manager.get_nearest_node_distance(lat, lon)
+        if node_dist > 500:
+            print(f"⚠️ Warning: the coordinates ({lat}, {lon}) are {node_dist:.1f} meters from the nearest graph node. Consider refining the coordinates for better accuracy.")
+        node = self.manager.get_nearest_node(lat, lon)
+        return node
+
     def _address_to_node(self, address):
         """Convert text address to Node ID using Geopy"""
         if not address:
@@ -119,13 +122,11 @@ class YamlLoader:
             lon = location.longitude
             
             # IMPORTANT: Pause to respect Nominatim's policy (1 req/sec)
-            # If you don't do this, your IP will be blocked while processing the list.
-            time.sleep(2.0) 
+            time.sleep(1.1)  # Sleep a bit more than 1 second to be safe
             
         except Exception as e:
             raise ValueError(f"Error geocoding '{address}': {e}")
 
-        # El resto sigue igual (buscar nodo en el grafo del manager)
         node_dist = self.manager.get_nearest_node_distance(lat, lon)
         if node_dist > 500:
             print(f"⚠️ Warning: the address '{address}' is {node_dist:.1f} meters from the nearest graph node. Consider refining the address for better accuracy.")
