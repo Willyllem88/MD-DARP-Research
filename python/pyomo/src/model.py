@@ -68,7 +68,7 @@ class MDDARP_Model_Solver:
         for node in self.data.EndNodes: distinct_nodes.add(node)
         self.V_nodes: List[int] = list(distinct_nodes)
 
-        # 2. Crear Set A_k: Arcos válidos
+        # 2. Create Set A_k: Valid arcs
         self.A_k = []
         for k in self.data.K:
             sk = self.data.start_node[k]
@@ -77,18 +77,117 @@ class MDDARP_Model_Solver:
             
             for i in nodes_k:
                 for j in nodes_k:
-                    if i == j: continue
-                    if i == ek: continue  # Do not leave End depot
-                    if j == sk: continue  # Do not begin before Start depot
-                    if (self.data.is_delivery(i)) and (i == j + self.data.N_requests): continue      # Do not go from delivery_i to its pickup_i
-                    if (self.data.is_vehicle_start(i)) and (self.data.is_delivery(j)): continue      # Do not go from Start depot to delivery
-                    if (self.data.is_pickup(i)) and (self.data.is_vehicle_end(j)): continue          # Do not go from pickup to End depot
+                    if self._is_arc_feasible(i, j, k):
+                        self.A_k.append((i, j, k))
 
-                    self.A_k.append((i, j, k))
-
-        print(f"Total arcs in A_k: {len(self.A_k)}")
+        nb_a_k_nodes: int = len(self.A_k)
+        total_posible_arcs: int = len(self.V_nodes) * len(self.V_nodes) * len(self.data.K)
+        ratio_pruned: float = ((total_posible_arcs - nb_a_k_nodes) / total_posible_arcs) * 100
+        print(f"Total arcs generated (A_k): {nb_a_k_nodes}")
+        print(f"Total possible arcs: {total_posible_arcs}")
+        print(f"Ratio pruned: {ratio_pruned:.2f}%\n")
 
         self.build_model()
+
+    def _is_arc_feasible(self, i: int, j: int, k: int) -> bool:
+        """
+        Evaluates whether arc (i, j) is feasible for vehicle k based on
+        precedence rules, time windows, capacity, and maximum ride time.
+        Returns True if the arc is valid, False if it should be pruned.
+        """
+        d = self.data
+        sk = d.start_node[k]
+        ek = d.end_node[k]
+        N = d.N_requests
+        epsilon = 1e-4
+
+        # --- 1. Basic logical and structural rules ---
+        if i == j: return False
+        if i == ek: return False  # Cannot leave the end depot
+        if j == sk: return False  # Cannot arrive at the start depot
+        if d.is_delivery(i) and i == j + N: return False  # Cannot go from a delivery to its own pickup
+        if d.is_vehicle_start(i) and d.is_delivery(j): return False  # Cannot go from start depot directly to a delivery
+        if d.is_pickup(i) and d.is_vehicle_end(j): return False  # Cannot go from a pickup directly to the end depot
+
+        # --- 2. Direct time window feasibility (i -> j) ---
+        ei = d.get_time_window_start(i)
+        di = d.get_service_time(i)
+        t_ij = d.get_travel_time(i, j)
+        lj = d.get_time_window_end(j)
+
+        if ei + di + t_ij > lj + epsilon:
+            return False
+
+        # --- 3. Strict capacity rule (Pickup -> Pickup) ---
+        if d.is_pickup(i) and d.is_pickup(j):
+            if d.get_demand(i) + d.get_demand(j) > d.get_vehicle_capacity(k) + epsilon:
+                return False
+
+        # --- 4. Feasible return to the end depot ---
+        if j != ek:
+            Ej_start = max(ei + di + t_ij, d.get_time_window_start(j))
+            dj = d.get_service_time(j)
+            l_ek = d.get_time_window_end(ek)
+
+            if d.is_pickup(j):
+                # If 'j' is a pickup, its delivery must be served before going to the depot
+                delivery_j = j + N
+                d_del_j = d.get_service_time(delivery_j)
+                t_j_del = d.get_travel_time(j, delivery_j)
+                t_delj_ek = d.get_travel_time(delivery_j, ek)
+
+                e_del_j_start = max(Ej_start + dj + t_j_del, d.get_time_window_start(delivery_j))
+                if e_del_j_start + d_del_j + t_delj_ek > l_ek + epsilon:
+                    return False
+            else:
+                # If 'j' is a delivery (or start depot), check direct return to end depot
+                t_j_ek = d.get_travel_time(j, ek)
+                if Ej_start + dj + t_j_ek > l_ek + epsilon:
+                    return False
+
+        # --- 5. Three-node sequences (i -> j -> delivery_i) if 'i' is a pickup ---
+        if d.is_pickup(i):
+            delivery_i = i + N
+            if j != delivery_i:
+                # 5a. Feasibility of arrival time at the delivery node
+                arr_j = max(d.get_time_window_start(j), ei + di + t_ij)
+                arr_del_i = max(
+                    d.get_time_window_start(delivery_i),
+                    arr_j + d.get_service_time(j) + d.get_travel_time(j, delivery_i)
+                )
+
+                if arr_del_i > d.get_time_window_end(delivery_i) + epsilon:
+                    return False
+
+                # 5b. Maximum ride time constraint
+                # Assume we leave 'i' as late as possible to avoid counting waiting time at 'j'
+                li = d.get_time_window_end(i)
+                ej = d.get_time_window_start(j)
+                mandatory_wait_j = max(0.0, ej - (li + di + t_ij))
+
+                min_ride_time_i = (
+                    t_ij +
+                    mandatory_wait_j +
+                    d.get_service_time(j) +
+                    d.get_travel_time(j, delivery_i)
+                )
+
+                if min_ride_time_i > d.max_ride_time + epsilon:
+                    return False
+
+        return True
+
+    def node_alias(self, node_id: int) -> str:
+        if self.data.is_vehicle_start(node_id):
+            return f"V{node_id - 2*self.data.N_requests}+"
+        elif self.data.is_vehicle_end(node_id):
+            return f"V{node_id - 2*self.data.N_requests - self.data.K_vehicles}-"
+        elif self.data.is_pickup(node_id):
+            return f"{node_id}+"
+        elif self.data.is_delivery(node_id):
+            return f"{node_id - self.data.N_requests}-"
+        else:
+            return f"N{node_id}"
 
     def build_model(self):
         print("Creating the Pyomo model...")
@@ -112,33 +211,62 @@ class MDDARP_Model_Solver:
 
         # c1: Each request served once
         for i in d.P:
-            m.constraints.add(
-                sum(m.x[ii, jj, kk] for (ii, jj, kk) in self.A_k if ii == i) == 1
-            )
+            valid_arcs = [(ii, jj, kk) for (ii, jj, kk) in self.A_k if ii == i]
+            if not valid_arcs:
+                print(f"⚠️ Alerta: El nodo de recogida {i} no tiene arcos válidos. El problema es infactible.")
+                m.constraints.add(pyo.Constraint.Infeasible)
+            else:
+                m.constraints.add(sum(m.x[a] for a in valid_arcs) == 1)
 
         # c2: Flow conservation
         PuD = d.P + d.D
         for i in PuD:
             for k in d.K:
-                in_flow = sum(m.x[ii, jj, kk] for (ii, jj, kk) in self.A_k if kk == k and jj == i)
-                out_flow = sum(m.x[ii, jj, kk] for (ii, jj, kk) in self.A_k if kk == k and ii == i)
+                in_arcs = [(ii, jj, kk) for (ii, jj, kk) in self.A_k if kk == k and jj == i]
+                out_arcs = [(ii, jj, kk) for (ii, jj, kk) in self.A_k if kk == k and ii == i]
+
+                if not in_arcs and not out_arcs:
+                    print(f"⚠️ Alerta: El nodo {i} para el vehículo {k} no tiene arcos válidos. El problema es infactible.")
+                    m.constraints.add(pyo.Constraint.Infeasible)
+                    continue
+
+                in_flow = sum(m.x[a] for a in in_arcs) if in_arcs else 0
+                out_flow = sum(m.x[a] for a in out_arcs) if out_arcs else 0
                 m.constraints.add(in_flow - out_flow == 0)
 
         # c3: Flow at Depots
         for k in d.K:
             sk = d.start_node[k]
             ek = d.end_node[k]
-            start_expr = sum(m.x[ii, jj, kk] for (ii, jj, kk) in self.A_k if ii == sk and kk == k)
-            end_expr = sum(m.x[ii, jj, kk] for (ii, jj, kk) in self.A_k if jj == ek and kk == k)
-            m.constraints.add(start_expr == 1)
-            m.constraints.add(end_expr == 1)
+            start_arcs = [(ii, jj, kk) for (ii, jj, kk) in self.A_k if ii == sk and kk == k]
+            end_arcs = [(ii, jj, kk) for (ii, jj, kk) in self.A_k if jj == ek and kk == k]
+            
+            if start_arcs: 
+                m.constraints.add(sum(m.x[a] for a in start_arcs) == 1)
+            else: 
+                print(f"⚠️ Alerta: El depósito inicial {sk} para el vehículo {k} no tiene arcos salientes válidos. El problema es infactible.")
+                m.constraints.add(pyo.Constraint.Infeasible)
+                
+            if end_arcs: 
+                m.constraints.add(sum(m.x[a] for a in end_arcs) == 1)
+            else:
+                print(f"⚠️ Alerta: El depósito final {ek} para el vehículo {k} no tiene arcos entrantes válidos. El problema es infactible.")
+                m.constraints.add(pyo.Constraint.Infeasible)
 
         # c4: Pairing
         for i in d.P:
             delivery_node = i + d.N_requests
             for k in d.K:
-                flow_pick = sum(m.x[ii, jj, kk] for (ii, jj, kk) in self.A_k if kk == k and ii == i)
-                flow_del = sum(m.x[ii, jj, kk] for (ii, jj, kk) in self.A_k if kk == k and ii == delivery_node)
+                pick_arcs = [(ii, jj, kk) for (ii, jj, kk) in self.A_k if kk == k and ii == i]
+                del_arcs = [(ii, jj, kk) for (ii, jj, kk) in self.A_k if kk == k and ii == delivery_node]
+                
+                # Si el vehículo 'k' no puede ni recoger ni entregar, evitamos el 0 == 0
+                if not pick_arcs and not del_arcs:
+                    print(f"⚠️ Alerta: El pedido {i} no tiene arcos válidos para el vehículo {k}. El problema es infactible.")
+                    continue
+                    
+                flow_pick = sum(m.x[a] for a in pick_arcs) if pick_arcs else 0
+                flow_del = sum(m.x[a] for a in del_arcs) if del_arcs else 0
                 m.constraints.add(flow_pick - flow_del == 0)
 
         # c5: Time Consistency
@@ -313,7 +441,7 @@ class MDDARP_Model_Solver:
 
 if __name__ == "__main__":    
     
-    json_path = "/home/guillem/TFG-Guillem/data/instances_static/cordeau-instances/a3-24.json"
+    json_path = "/home/guillem/TFG-Guillem/data/instances_static/cordeau-instances/a3-18.json"
     
     instance = MDDARP_ProblemInstance()    
     success = instance.load_from_json(json_path)
@@ -321,7 +449,7 @@ if __name__ == "__main__":
     if success:
         instance.display_info()
         
-        solver = MDDARP_Model_Solver(instance, time_limit=60.0, solver_name='cplex')
+        solver = MDDARP_Model_Solver(instance, solver_name='cplex')
         solver.solve()
         
         results = solver.get_result()
