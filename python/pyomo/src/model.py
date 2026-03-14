@@ -109,21 +109,12 @@ class MDDARP_Model_Solver:
         if d.is_vehicle_start(i) and d.is_delivery(j): return False  # Cannot go from start depot directly to a delivery
         if d.is_pickup(i) and d.is_vehicle_end(j): return False  # Cannot go from a pickup directly to the end depot
 
-        # --- 2. Direct time window feasibility (i -> j) ---
         ei = d.get_time_window_start(i)
         di = d.get_service_time(i)
         t_ij = d.get_travel_time(i, j)
         lj = d.get_time_window_end(j)
 
-        if ei + di + t_ij > lj + epsilon:
-            return False
-
-        # --- 3. Strict capacity rule (Pickup -> Pickup) ---
-        if d.is_pickup(i) and d.is_pickup(j):
-            if d.get_demand(i) + d.get_demand(j) > d.get_vehicle_capacity(k) + epsilon:
-                return False
-
-        # --- 4. Feasible return to the end depot ---
+        # --- 2. Feasible return to the end depot ---
         if j != ek:
             Ej_start = max(ei + di + t_ij, d.get_time_window_start(j))
             dj = d.get_service_time(j)
@@ -145,35 +136,147 @@ class MDDARP_Model_Solver:
                 if Ej_start + dj + t_j_ek > l_ek + epsilon:
                     return False
 
-        # --- 5. Three-node sequences (i -> j -> delivery_i) if 'i' is a pickup ---
+        # 3a. Look-aheads (hacia el futuro)
         if d.is_pickup(i):
             delivery_i = i + N
             if j != delivery_i:
-                # 5a. Feasibility of arrival time at the delivery node
-                arr_j = max(d.get_time_window_start(j), ei + di + t_ij)
-                arr_del_i = max(
-                    d.get_time_window_start(delivery_i),
-                    arr_j + d.get_service_time(j) + d.get_travel_time(j, delivery_i)
-                )
+                if not self.check_path_feasibility([i, j, delivery_i], k):
+                    return False
+                
+        if d.is_pickup(j):
+            delivery_j = j + N
+            if not self.check_path_feasibility([i, j, delivery_j], k):
+                return False
 
-                if arr_del_i > d.get_time_window_end(delivery_i) + epsilon:
+        # 3b. Look-backs (desde el pasado)
+        if d.is_delivery(i):
+            pickup_i = i - N
+            if j != pickup_i:
+                if not self.check_path_feasibility([pickup_i, i, j], k):
                     return False
 
-                # 5b. Maximum ride time constraint
-                # Assume we leave 'i' as late as possible to avoid counting waiting time at 'j'
-                li = d.get_time_window_end(i)
-                ej = d.get_time_window_start(j)
-                mandatory_wait_j = max(0.0, ej - (li + di + t_ij))
-
-                min_ride_time_i = (
-                    t_ij +
-                    mandatory_wait_j +
-                    d.get_service_time(j) +
-                    d.get_travel_time(j, delivery_i)
-                )
-
-                if min_ride_time_i > d.max_ride_time + epsilon:
+        if d.is_delivery(j):
+            pickup_j = j - N
+            if i != pickup_j:
+                if not self.check_path_feasibility([pickup_j, i, j], k):
                     return False
+            
+        # --- 4. Validaciones de subsecuencias de 4 nodos (Interacciones cruzadas) ---
+        # A diferencia de las de 3 nodos (que son caminos únicos), algunas de 4 nodos tienen alternativas (OR).
+
+        # Caso 4a: Dos recogidas consecutivas (i es pickup, j es pickup)
+        if d.is_pickup(i) and d.is_pickup(j):
+            del_i = i + N
+            del_j = j + N
+            # Si recogemos a ambos, tenemos que entregarlos. Hay dos órdenes posibles.
+            # Si NINGUNO de los dos órdenes es factible, entonces el arco (i, j) es imposible.
+            if not (self.check_path_feasibility([i, j, del_i, del_j], k) or 
+                    self.check_path_feasibility([i, j, del_j, del_i], k)):
+                return False
+
+        # Caso 4b: Dos entregas consecutivas (i es delivery, j es delivery)
+        elif d.is_delivery(i) and d.is_delivery(j):
+            pick_i = i - N
+            pick_j = j - N
+            # Si entregamos a ambos, tuvimos que haberlos recogido antes. Hay dos órdenes posibles.
+            if not (self.check_path_feasibility([pick_i, pick_j, i, j], k) or 
+                    self.check_path_feasibility([pick_j, pick_i, i, j], k)):
+                return False
+
+        # Caso 4c: Recogida seguida de entrega de OTRO pasajero (i es pickup, j es delivery)
+        elif d.is_pickup(i) and d.is_delivery(j) and j != i + N:
+            del_i = i + N
+            pick_j = j - N
+            # Para hacer esto, obligatoriamente recogimos a 'j' ANTES que a 'i', 
+            # y entregaremos a 'i' DESPUÉS de 'j'. Este camino es único y lineal.
+            if not self.check_path_feasibility([pick_j, i, j, del_i], k):
+                return False
+
+        # Caso 4d: Entrega seguida de recogida de OTRO pasajero (i es delivery, j es pickup)
+        elif d.is_delivery(i) and d.is_pickup(j):
+            pick_i = i - N
+            del_j = j + N
+            # Obligatoriamente recogimos a 'i' ANTES de la entrega 'i', 
+            # y entregaremos a 'j' DESPUÉS de la recogida 'j'. Camino único.
+            if not self.check_path_feasibility([pick_i, i, j, del_j], k):
+                return False
+
+        return True
+    
+    def check_path_feasibility(self, path: List[int], k: int) -> bool:
+        """
+        Evalúa si una secuencia específica de nodos (path) es factible.
+        Es 100% segura: solo devuelve False si es matemáticamente imposible cumplir 
+        los requisitos, evitando podar soluciones óptimas.
+        """
+        if len(path) < 2:
+            return True
+
+        d = self.data
+        epsilon = 1e-4
+
+        # --- 1. CAPACIDAD (Cota inferior estricta) ---
+        # Calculamos la variación neta de carga en la secuencia.
+        # Si en algún momento la subida neta supera la capacidad máxima del vehículo, es infactible.
+        current_load = 0
+        max_load_seen = 0
+        for node in path:
+            current_load += d.get_demand(node)
+            if current_load > max_load_seen:
+                max_load_seen = current_load
+                
+        if max_load_seen > d.get_vehicle_capacity(k) + epsilon:
+            return False
+
+        # --- 2. VENTANAS DE TIEMPO (Llegada más temprana posible) ---
+        # Si simulamos el viaje lo más rápido posible y aún así llegamos tarde, el arco está roto.
+        t = d.get_time_window_start(path[0])
+        for idx in range(1, len(path)):
+            prev_n = path[idx - 1]
+            curr_n = path[idx]
+            
+            # Hora de llegada al nodo curr_n
+            arrival = max(t, d.get_time_window_start(prev_n)) + d.get_service_time(prev_n) + d.get_travel_time(prev_n, curr_n)
+            
+            if arrival > d.get_time_window_end(curr_n) + epsilon:
+                return False
+                
+            t = arrival # Actualizamos el reloj para la siguiente iteración
+
+        # --- 3. RIDE TIME (Cota inferior de duración) ---
+        # Calculamos el tiempo mínimo absoluto entre un Pickup y su Delivery dentro de la ruta.
+        for i in range(len(path)):
+            p_node = path[i]
+            
+            if d.is_pickup(p_node):
+                d_node = p_node + d.N_requests
+                
+                # Si la ruta contiene tanto la recogida como su entrega
+                if d_node in path[i+1:]:
+                    d_idx = path.index(d_node)
+                    
+                    # 3a. Sumamos tiempos incompresibles: viajes y servicios intermedios
+                    min_ride_time = 0.0
+                    for j in range(i, d_idx):
+                        min_ride_time += d.get_travel_time(path[j], path[j+1])
+                        # El servicio del pickup inicial no cuenta para el ride time (empieza a contar al salir)
+                        if j > i: 
+                            min_ride_time += d.get_service_time(path[j])
+                            
+                    # 3b. Sumamos la espera mínima obligatoria (Solo para el nodo inmediatamente posterior)
+                    # ¿Qué pasa si salimos del pickup en el último segundo posible (l_i)?
+                    if i + 1 < d_idx:
+                        next_n = path[i+1]
+                        l_p = d.get_time_window_end(p_node)
+                        s_p = d.get_service_time(p_node)
+                        t_p_next = d.get_travel_time(p_node, next_n)
+                        e_next = d.get_time_window_start(next_n)
+                        
+                        mandatory_wait = max(0.0, e_next - (l_p + s_p + t_p_next))
+                        min_ride_time += mandatory_wait
+
+                    if min_ride_time > d.max_ride_time + epsilon:
+                        return False
 
         return True
 
