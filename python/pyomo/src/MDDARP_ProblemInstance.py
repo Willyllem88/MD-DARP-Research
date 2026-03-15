@@ -188,21 +188,21 @@ class MDDARP_ProblemInstance:
     def get_vehicle_max_route_time(self, k: int) -> float: return self.max_route_time.get(k, 0.0)
 
     # For matrices we use .get() returning INF if the route does not exist
-    def get_travel_time(self, i: int, j: int) -> float: 
-        return self.t_ij.get((i, j), self.INF)
+    def get_travel_time(self, i: int, j: int) -> float: return self.t_ij.get((i, j), self.INF)
+    def get_cost(self, i: int, j: int, k: int) -> float: return self.c_ijk.get((i, j, k), self.INF)
         
-    def get_cost(self, i: int, j: int, k: int) -> float: 
-        return self.c_ijk.get((i, j, k), self.INF)
 
     # Helpers for node logic
-    def is_pickup(self, i: int) -> bool:
-        return 1 <= i <= self.N_requests
+    def is_pickup(self, i: int) -> bool: return 1 <= i <= self.N_requests 
+    def is_delivery(self, i: int) -> bool: return self.N_requests < i <= 2 * self.N_requests  
+    def is_vehicle_start(self, i: int) -> bool: return 2 * self.N_requests < i <= 2 * self.N_requests + self.K_vehicles 
+    def is_vehicle_end(self, i: int) -> bool: return 2 * self.N_requests + self.K_vehicles < i <= self.max_node_id
 
-    def is_delivery(self, i: int) -> bool:
-        return self.N_requests < i <= 2 * self.N_requests
-
-    def is_vehicle_start(self, i: int) -> bool:
-        return 2 * self.N_requests < i <= 2 * self.N_requests + self.K_vehicles
-
-    def is_vehicle_end(self, i: int) -> bool:
-        return 2 * self.N_requests + self.K_vehicles < i <= self.max_node_id
+    # Setters
+    def update_time_window(self, i: int, new_start: float, new_end: float):
+        """Update the time windows for a given node."""
+        if i in self.time_window_start and i in self.time_window_end:
+            self.time_window_start[i] = new_start
+            self.time_window_end[i] = new_end
+        else:
+            print(f"Warning: Node {i} does not exist in time windows.")

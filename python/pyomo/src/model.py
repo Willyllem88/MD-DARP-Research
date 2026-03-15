@@ -68,6 +68,9 @@ class MDDARP_Model_Solver:
         for node in self.data.EndNodes: distinct_nodes.add(node)
         self.V_nodes: List[int] = list(distinct_nodes)
 
+        # 3. Apply Time-Window Tightening
+        self._tighten_time_windows()
+
         # 2. Create Set A_k: Valid arcs
         self.A_k = []
         for k in self.data.K:
@@ -88,6 +91,73 @@ class MDDARP_Model_Solver:
         print(f"Ratio pruned: {ratio_pruned:.2f}%\n")
 
         self.build_model()
+
+    def _tighten_time_windows(self):
+        """
+        Apply the el Time-Window Tightening (Cordeau 2006) para reducir el 
+        ancho de las ventanas de tiempo sin eliminar soluciones óptimas.
+        """
+        d = self.data
+        L = d.max_ride_time
+        N = d.N_requests
+        
+        # T: Fin del horizonte de planificación. 
+        # Lo estimamos como el límite superior máximo entre todos los depósitos finales.
+        T = max([d.get_time_window_end(ek) for ek in d.EndNodes])
+
+        # --- 1. Ajuste para Pickups (Orígenes) y Deliveries (Destinos) ---
+        for i in d.P:
+            del_i = i + N
+            
+            # Valores originales
+            e_i = d.get_time_window_start(i)
+            l_i = d.get_time_window_end(i)
+            e_n_i = d.get_time_window_start(del_i)
+            l_n_i = d.get_time_window_end(del_i)
+            
+            serv_i = d.get_service_time(i)
+            t_i_ni = d.get_travel_time(i, del_i)
+            
+            # Fórmulas de tightening para el Origen (Outbound user context)
+            new_e_i = max(e_i, e_n_i - L - serv_i)
+            new_l_i = min(l_i, l_n_i - t_i_ni - serv_i, T)
+            
+            # Fórmulas de tightening para el Destino (Inbound user context)
+            new_e_n_i = max(e_n_i, e_i + serv_i + t_i_ni)
+            new_l_n_i = min(l_n_i, l_i + serv_i + L, T)
+            
+            # Actualizamos la instancia de datos
+            d.update_time_window(i, new_e_i, new_l_i)
+            d.update_time_window(del_i, new_e_n_i, new_l_n_i)
+            
+        # --- 2. Ajuste para Depósitos ---
+        for k in d.K:
+            sk = d.start_node[k]
+            ek = d.end_node[k]
+            
+            # Valores originales
+            e_sk = d.get_time_window_start(sk)
+            l_sk = d.get_time_window_end(sk)
+            e_ek = d.get_time_window_start(ek)
+            l_ek = d.get_time_window_end(ek)
+            
+            # Conjunto de todos los clientes (Pickups y Deliveries)
+            PuD = d.P + d.D
+            
+            # --- Fórmula para el Depósito Inicial (e_bar_sk) ---
+            # Busca el cliente que requiere salir más temprano del depósito
+            min_e_sk = min([d.get_time_window_start(j) - d.get_travel_time(sk, j) for j in PuD])
+            new_e_sk = max(e_sk, min_e_sk)
+            
+            # --- Fórmula para el Depósito Final (l_bar_ek) ---
+            # Busca el cliente que te hace llegar más tarde al depósito
+            max_l_ek = max([d.get_time_window_end(j) + d.get_service_time(j) + d.get_travel_time(j, ek) for j in PuD])
+            new_l_ek = min(l_ek, max_l_ek, T)
+            
+            # Actualizamos la instancia de datos
+            # Nota: l_sk y e_ek conservan sus valores originales como indica la fórmula
+            d.update_time_window(sk, new_e_sk, l_sk)
+            d.update_time_window(ek, e_ek, new_l_ek)
 
     def _is_arc_feasible(self, i: int, j: int, k: int) -> bool:
         """
@@ -136,35 +206,11 @@ class MDDARP_Model_Solver:
                 if Ej_start + dj + t_j_ek > l_ek + epsilon:
                     return False
 
-        # 3a. Look-aheads (hacia el futuro)
-        if d.is_pickup(i):
-            delivery_i = i + N
-            if j != delivery_i:
-                if not self.check_path_feasibility([i, j, delivery_i], k):
-                    return False
-                
-        if d.is_pickup(j):
-            delivery_j = j + N
-            if not self.check_path_feasibility([i, j, delivery_j], k):
-                return False
-
-        # 3b. Look-backs (desde el pasado)
-        if d.is_delivery(i):
-            pickup_i = i - N
-            if j != pickup_i:
-                if not self.check_path_feasibility([pickup_i, i, j], k):
-                    return False
-
-        if d.is_delivery(j):
-            pickup_j = j - N
-            if i != pickup_j:
-                if not self.check_path_feasibility([pickup_j, i, j], k):
-                    return False
             
-        # --- 4. Validaciones de subsecuencias de 4 nodos (Interacciones cruzadas) ---
+        # --- 3. Validaciones de subsecuencias de 4 nodos (Interacciones cruzadas) ---
         # A diferencia de las de 3 nodos (que son caminos únicos), algunas de 4 nodos tienen alternativas (OR).
 
-        # Caso 4a: Dos recogidas consecutivas (i es pickup, j es pickup)
+        # Caso 3a: Dos recogidas consecutivas (i es pickup, j es pickup)
         if d.is_pickup(i) and d.is_pickup(j):
             del_i = i + N
             del_j = j + N
@@ -174,7 +220,7 @@ class MDDARP_Model_Solver:
                     self.check_path_feasibility([i, j, del_j, del_i], k)):
                 return False
 
-        # Caso 4b: Dos entregas consecutivas (i es delivery, j es delivery)
+        # Caso 3b: Dos entregas consecutivas (i es delivery, j es delivery)
         elif d.is_delivery(i) and d.is_delivery(j):
             pick_i = i - N
             pick_j = j - N
@@ -183,7 +229,7 @@ class MDDARP_Model_Solver:
                     self.check_path_feasibility([pick_j, pick_i, i, j], k)):
                 return False
 
-        # Caso 4c: Recogida seguida de entrega de OTRO pasajero (i es pickup, j es delivery)
+        # Caso 3c: Recogida seguida de entrega de OTRO pasajero (i es pickup, j es delivery)
         elif d.is_pickup(i) and d.is_delivery(j) and j != i + N:
             del_i = i + N
             pick_j = j - N
@@ -192,7 +238,7 @@ class MDDARP_Model_Solver:
             if not self.check_path_feasibility([pick_j, i, j, del_i], k):
                 return False
 
-        # Caso 4d: Entrega seguida de recogida de OTRO pasajero (i es delivery, j es pickup)
+        # Caso 3d: Entrega seguida de recogida de OTRO pasajero (i es delivery, j es pickup)
         elif d.is_delivery(i) and d.is_pickup(j):
             pick_i = i - N
             del_j = j + N
@@ -222,7 +268,7 @@ class MDDARP_Model_Solver:
         max_load_seen = 0
         for node in path:
             current_load += d.get_demand(node)
-            if current_load > max_load_seen:
+            if current_load > max_load_seen + epsilon:
                 max_load_seen = current_load
                 
         if max_load_seen > d.get_vehicle_capacity(k) + epsilon:
@@ -544,7 +590,7 @@ class MDDARP_Model_Solver:
 
 if __name__ == "__main__":    
     
-    json_path = "/home/guillem/TFG-Guillem/data/instances_static/cordeau-instances/a3-18.json"
+    json_path = "/home/guillem/TFG-Guillem/data/instances_static/cordeau-instances/a3-24.json"
     
     instance = MDDARP_ProblemInstance()    
     success = instance.load_from_json(json_path)
