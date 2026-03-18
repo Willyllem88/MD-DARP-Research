@@ -6,7 +6,7 @@ from pyomo.opt import SolverStatus, TerminationCondition
 
 from MDDARP_ProblemInstance import MDDARP_ProblemInstance
 
-VERBOSE = False
+VERBOSE = True
 
 
 @dataclass
@@ -220,43 +220,42 @@ class MDDARP_Model_Solver:
                     return False
 
             
-        # --- 3. Validaciones de subsecuencias de 4 nodos (Interacciones cruzadas) ---
-        # A diferencia de las de 3 nodos (que son caminos únicos), algunas de 4 nodos tienen alternativas (OR).
+        # --- 3. Cross validation ---
 
-        # Caso 3a: Dos recogidas consecutivas (i es pickup, j es pickup)
+        # Case 3a: Two consecutive pickups (i is pickup, j is pickup)
         if d.is_pickup(i) and d.is_pickup(j):
             del_i = i + N
             del_j = j + N
-            # Si recogemos a ambos, tenemos que entregarlos. Hay dos órdenes posibles.
-            # Si NINGUNO de los dos órdenes es factible, entonces el arco (i, j) es imposible.
+            # If we pick up both, we have to deliver them. There are two possible orders.
+            # If NONE of the two orders is feasible, then the arc (i, j) is impossible.
             if not (self.check_path_feasibility([i, j, del_i, del_j], k) or 
                     self.check_path_feasibility([i, j, del_j, del_i], k)):
                 return False
 
-        # Caso 3b: Dos entregas consecutivas (i es delivery, j es delivery)
+        # Case 3b: Two consecutive deliveries (i is delivery, j is delivery)
         elif d.is_delivery(i) and d.is_delivery(j):
             pick_i = i - N
             pick_j = j - N
-            # Si entregamos a ambos, tuvimos que haberlos recogido antes. Hay dos órdenes posibles.
+            # If we deliver to both, we had to pick them up before. There are two possible orders.
             if not (self.check_path_feasibility([pick_i, pick_j, i, j], k) or 
                     self.check_path_feasibility([pick_j, pick_i, i, j], k)):
                 return False
 
-        # Caso 3c: Recogida seguida de entrega de OTRO pasajero (i es pickup, j es delivery)
+        # Case 3c: Pickup followed by delivery of another passenger (i is pickup, j is delivery)
         elif d.is_pickup(i) and d.is_delivery(j) and j != i + N:
             del_i = i + N
             pick_j = j - N
-            # Para hacer esto, obligatoriamente recogimos a 'j' ANTES que a 'i', 
-            # y entregaremos a 'i' DESPUÉS de 'j'. Este camino es único y lineal.
+            # To do this, we must have picked up 'j' BEFORE picking up 'i',
+            # and we will deliver 'i' AFTER delivering 'j'. This path is unique and linear.
             if not self.check_path_feasibility([pick_j, i, j, del_i], k):
                 return False
 
-        # Caso 3d: Entrega seguida de recogida de OTRO pasajero (i es delivery, j es pickup)
+        # Case 3d: Delivery followed by pickup of another passenger (i is delivery, j is pickup)
         elif d.is_delivery(i) and d.is_pickup(j):
             pick_i = i - N
             del_j = j + N
-            # Obligatoriamente recogimos a 'i' ANTES de la entrega 'i', 
-            # y entregaremos a 'j' DESPUÉS de la recogida 'j'. Camino único.
+            # To do this, we must have picked up 'i' BEFORE delivering 'i',
+            # and we will deliver 'j' AFTER picking up 'j'. This path is unique and linear.
             if not self.check_path_feasibility([pick_i, i, j, del_j], k):
                 return False
 
@@ -264,9 +263,9 @@ class MDDARP_Model_Solver:
     
     def check_path_feasibility(self, path: List[int], k: int) -> bool:
         """
-        Evalúa si una secuencia específica de nodos (path) es factible.
-        Es 100% segura: solo devuelve False si es matemáticamente imposible cumplir 
-        los requisitos, evitando podar soluciones óptimas.
+        Evaluates if a specific sequence of nodes (path) is feasible.
+        It is 100% safe: it only returns False if it is mathematically impossible to satisfy 
+        the requirements, avoiding pruning optimal solutions.
         """
         if len(path) < 2:
             return True
@@ -375,7 +374,7 @@ class MDDARP_Model_Solver:
         for i in d.P:
             valid_arcs = [(ii, jj, kk) for (ii, jj, kk) in self.A_k if ii == i]
             if not valid_arcs:
-                print(f"⚠️ Alerta: El nodo de recogida {i} no tiene arcos válidos. El problema es infactible.")
+                print(f"⚠️ Warning: The pickup node {i} has no valid arcs. The problem is infeasible.")
                 m.constraints.add(pyo.Constraint.Infeasible)
             else:
                 m.constraints.add(sum(m.x[a] for a in valid_arcs) == 1)
@@ -388,7 +387,7 @@ class MDDARP_Model_Solver:
                 out_arcs = [(ii, jj, kk) for (ii, jj, kk) in self.A_k if kk == k and ii == i]
 
                 if not in_arcs and not out_arcs:
-                    print(f"⚠️ Alerta: El nodo {i} para el vehículo {k} no tiene arcos válidos. El problema es infactible.")
+                    print(f"⚠️ Warning: The node {i} for the vehicle {k} has no valid arcs. The problem is infeasible.")
                     m.constraints.add(pyo.Constraint.Infeasible)
                     continue
 
@@ -406,13 +405,13 @@ class MDDARP_Model_Solver:
             if start_arcs: 
                 m.constraints.add(sum(m.x[a] for a in start_arcs) == 1)
             else: 
-                print(f"⚠️ Alerta: El depósito inicial {sk} para el vehículo {k} no tiene arcos salientes válidos. El problema es infactible.")
+                print(f"⚠️ Warning: The initial depot {sk} for the vehicle {k} has no valid outgoing arcs. The problem is infeasible.")
                 m.constraints.add(pyo.Constraint.Infeasible)
                 
             if end_arcs: 
                 m.constraints.add(sum(m.x[a] for a in end_arcs) == 1)
             else:
-                print(f"⚠️ Alerta: El depósito final {ek} para el vehículo {k} no tiene arcos entrantes válidos. El problema es infactible.")
+                print(f"⚠️ Warning: The final depot {ek} for the vehicle {k} has no valid incoming arcs. The problem is infeasible.")
                 m.constraints.add(pyo.Constraint.Infeasible)
 
         # c4: Pairing
@@ -603,9 +602,9 @@ class MDDARP_Model_Solver:
 
 # --- Main for testing ---
 
-if __name__ == "__main__":    
-    
-    json_path = "/home/guillem/TFG-Guillem/data/instances_static/cordeau-instances/a3-24.json"
+if __name__ == "__main__":
+
+    json_path = "/home/guillem/TFG-Guillem/data/instances_static/cordeau-instances/a4-48.json"
     
     instance = MDDARP_ProblemInstance()    
     success = instance.load_from_json(json_path)
@@ -617,6 +616,6 @@ if __name__ == "__main__":
         solver.solve()
         
         results = solver.get_result()
-        results.display()
+        #results.display()
     else:
         print("Failed to load instance from JSON.")
