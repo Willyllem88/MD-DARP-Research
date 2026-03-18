@@ -6,7 +6,8 @@ from pyomo.opt import SolverStatus, TerminationCondition
 
 from MDDARP_ProblemInstance import MDDARP_ProblemInstance
 
-# --- Result classes ---
+VERBOSE = False
+
 
 @dataclass
 class RouteStep:
@@ -19,6 +20,11 @@ class RouteStep:
 class VehicleRoute:
     vehicle_id: int = 0
     steps: List[RouteStep] = field(default_factory=list)
+
+def clamp(x, lower, upper):
+    if x < lower: return lower
+    if x > upper: return upper
+    return x
 
 @dataclass
 class MDDARP_ResultInstance:
@@ -94,22 +100,22 @@ class MDDARP_Model_Solver:
 
     def _tighten_time_windows(self):
         """
-        Apply the el Time-Window Tightening (Cordeau 2006) para reducir el 
-        ancho de las ventanas de tiempo sin eliminar soluciones óptimas.
+        Apply the Time-Window Tightening (Cordeau 2006) to reduce the width of
+        the time windows without eliminating optimal solutions.
         """
         d = self.data
         L = d.max_ride_time
         N = d.N_requests
         
-        # T: Fin del horizonte de planificación. 
-        # Lo estimamos como el límite superior máximo entre todos los depósitos finales.
+        # T: End of the planning horizon. 
+        # We estimate it as the maximum upper limit between all final depots.
         T = max([d.get_time_window_end(ek) for ek in d.EndNodes])
 
-        # --- 1. Ajuste para Pickups (Orígenes) y Deliveries (Destinos) ---
+        # --- 1. Pickup and Delivery adjustment ---
         for i in d.P:
             del_i = i + N
             
-            # Valores originales
+            # Original values
             e_i = d.get_time_window_start(i)
             l_i = d.get_time_window_end(i)
             e_n_i = d.get_time_window_start(del_i)
@@ -118,46 +124,53 @@ class MDDARP_Model_Solver:
             serv_i = d.get_service_time(i)
             t_i_ni = d.get_travel_time(i, del_i)
             
-            # Fórmulas de tightening para el Origen (Outbound user context)
+            # Formulas of tightening for the Origin (Outbound user context)
             new_e_i = max(e_i, e_n_i - L - serv_i)
             new_l_i = min(l_i, l_n_i - t_i_ni - serv_i, T)
             
-            # Fórmulas de tightening para el Destino (Inbound user context)
+            # Formulas of tightening for the Destination (Inbound user context)
             new_e_n_i = max(e_n_i, e_i + serv_i + t_i_ni)
             new_l_n_i = min(l_n_i, l_i + serv_i + L, T)
             
-            # Actualizamos la instancia de datos
+            # Update the instance of data with the new tightened time windows
             d.update_time_window(i, new_e_i, new_l_i)
             d.update_time_window(del_i, new_e_n_i, new_l_n_i)
             
-        # --- 2. Ajuste para Depósitos ---
+        # --- 2. Depots adjustment ---
         for k in d.K:
             sk = d.start_node[k]
             ek = d.end_node[k]
+            PuD = d.P + d.D
             
-            # Valores originales
+            # Original values
             e_sk = d.get_time_window_start(sk)
             l_sk = d.get_time_window_end(sk)
             e_ek = d.get_time_window_start(ek)
             l_ek = d.get_time_window_end(ek)
             
-            # Conjunto de todos los clientes (Pickups y Deliveries)
-            PuD = d.P + d.D
+            # --- 1. Theoretical bounds (The '*' variables) ---
             
-            # --- Fórmula para el Depósito Inicial (e_bar_sk) ---
-            # Busca el cliente que requiere salir más temprano del depósito
-            min_e_sk = min([d.get_time_window_start(j) - d.get_travel_time(sk, j) for j in PuD])
-            new_e_sk = max(e_sk, min_e_sk)
+            # Start depot: Earliest and latest possible departures dictated by customers
+            e_star_sk = min([d.get_time_window_start(j) - d.get_travel_time(sk, j) for j in d.P])
+            l_star_sk = max([d.get_time_window_end(j)   - d.get_travel_time(sk, j) for j in d.P])
             
-            # --- Fórmula para el Depósito Final (l_bar_ek) ---
-            # Busca el cliente que te hace llegar más tarde al depósito
-            max_l_ek = max([d.get_time_window_end(j) + d.get_service_time(j) + d.get_travel_time(j, ek) for j in PuD])
-            new_l_ek = min(l_ek, max_l_ek, T)
+            # End depot: Earliest and latest possible arrivals dictated by customers
+            e_star_ek = min([d.get_time_window_start(j) + d.get_service_time(j) + d.get_travel_time(j, ek) for j in d.D])
+            l_star_ek = max([d.get_time_window_end(j)   + d.get_service_time(j) + d.get_travel_time(j, ek) for j in d.D])
             
-            # Actualizamos la instancia de datos
-            # Nota: l_sk y e_ek conservan sus valores originales como indica la fórmula
-            d.update_time_window(sk, new_e_sk, l_sk)
-            d.update_time_window(ek, e_ek, new_l_ek)
+            # --- 2. Bounding / Clamping to ensure feasibility ---
+            
+            # Start depot adjustment
+            new_e_sk = clamp(e_star_sk, e_sk, l_sk)
+            new_l_sk = clamp(l_star_sk, new_e_sk, l_sk)
+            
+            # End depot adjustment (Remember: Calculate latest FIRST)
+            new_l_ek = clamp(l_star_ek, e_ek, l_ek)
+            new_e_ek = clamp(e_star_ek, e_ek, new_l_ek)
+            
+            # Update the instance of data with the fully tightened time windows
+            d.update_time_window(sk, new_e_sk, new_l_sk)
+            d.update_time_window(ek, new_e_ek, new_l_ek)
 
     def _is_arc_feasible(self, i: int, j: int, k: int) -> bool:
         """
@@ -490,7 +503,7 @@ class MDDARP_Model_Solver:
             solver.options['timelimit'] = self.time_limit
 
         start_time = time.perf_counter()
-        results = solver.solve(self.model, tee=True) # tee=True to show solver output in console
+        results = solver.solve(self.model, tee=VERBOSE)
         end_time = time.perf_counter()
 
         self.solve_time = end_time - start_time
