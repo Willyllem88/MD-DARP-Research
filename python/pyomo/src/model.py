@@ -496,6 +496,8 @@ class MDDARP_Model_Solver:
 
     def solve(self):
         print(f"Starting resolution with {self.solver_name.upper()}...")
+        print(f"Number of variables: {len(self.model.x) + len(self.model.u) + len(self.model.w)}")
+        print(f"Number of constraints: {len(self.model.constraints)}")
         
         solver = pyo.SolverFactory(self.solver_name)
         
