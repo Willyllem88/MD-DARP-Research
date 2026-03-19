@@ -125,17 +125,17 @@ class MDDARP_Model_Solver:
             serv_i = d.get_service_time(i)
             t_i_ni = d.get_travel_time(i, del_i)
             
-            # Formulas of tightening for the Origin (Outbound user context)
+            # Formulas of tightening for the Origin
             new_e_i = max(e_i, e_n_i - L - serv_i)
             new_l_i = min(l_i, l_n_i - t_i_ni - serv_i, T)
             
-            # Formulas of tightening for the Destination (Inbound user context)
-            new_e_n_i = max(e_n_i, e_i + serv_i + t_i_ni)
-            new_l_n_i = min(l_n_i, l_i + serv_i + L, T)
+            # Formulas of tightening for the Destination
+            new_e_del_i = max(e_n_i, e_i + serv_i + t_i_ni)
+            new_l_del_i = min(l_n_i, l_i + serv_i + L, T)
             
             # Update the instance of data with the new tightened time windows
             d.update_time_window(i, new_e_i, new_l_i)
-            d.update_time_window(del_i, new_e_n_i, new_l_n_i)
+            d.update_time_window(del_i, new_e_del_i, new_l_del_i)
             
         # --- 2. Depots adjustment ---
         for k in d.K:
@@ -156,8 +156,8 @@ class MDDARP_Model_Solver:
             l_star_sk = max([d.get_time_window_end(j)   - d.get_travel_time(sk, j) for j in d.P])
             
             # End depot: Earliest and latest possible arrivals dictated by customers
-            e_star_ek = min([d.get_time_window_start(j) + d.get_service_time(j) + d.get_travel_time(j, ek) for j in d.D])
-            l_star_ek = max([d.get_time_window_end(j)   + d.get_service_time(j) + d.get_travel_time(j, ek) for j in d.D])
+            e_star_ek = min([d.get_time_window_start(i) + d.get_service_time(i) + d.get_travel_time(i, ek) for i in d.D])
+            l_star_ek = max([d.get_time_window_end(i)   + d.get_service_time(i) + d.get_travel_time(i, ek) for i in d.D])
             
             # --- 2. Bounding / Clamping to ensure feasibility ---
             
@@ -196,7 +196,6 @@ class MDDARP_Model_Solver:
         ei = d.get_time_window_start(i)
         di = d.get_service_time(i)
         t_ij = d.get_travel_time(i, j)
-        lj = d.get_time_window_end(j)
 
         # --- 2. Feasible return to the end depot ---
         if j != ek:
