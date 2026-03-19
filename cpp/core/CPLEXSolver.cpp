@@ -4,7 +4,7 @@
 #include <set>
 #include <chrono>
 
-CPLEXSolver::CPLEXSolver(const DARPMD_ProblemInstance& instance, std::optional<double> timeLimit) 
+CPLEXSolver::CPLEXSolver(DARPMD_ProblemInstance& instance, std::optional<double> timeLimit) 
     : data(instance), timeLimit(timeLimit), model(env), cplex(model) {
         
     // Create Set V: P u D u StartNodes u EndNodes
@@ -13,8 +13,11 @@ CPLEXSolver::CPLEXSolver(const DARPMD_ProblemInstance& instance, std::optional<d
     for (int i : data.D) distinct_nodes.insert(i);
     for (auto const& [k, node] : data.StartNode) distinct_nodes.insert(node);
     for (auto const& [k, node] : data.EndNode) distinct_nodes.insert(node);
-    
+
     V_nodes.assign(distinct_nodes.begin(), distinct_nodes.end());
+
+    // Apply Time-Window tightening
+    tightenTimeWindows();
 
     // Create Set A_k: Valid Arcs
     for (int k : data.K) {
@@ -28,19 +31,19 @@ CPLEXSolver::CPLEXSolver(const DARPMD_ProblemInstance& instance, std::optional<d
         nodes_k.push_back(sk);
         nodes_k.push_back(ek);
 
-        for (int i : nodes_k) {
-            for (int j : nodes_k) {
-                if (i == j) continue;
-                if (i == ek) continue; // Does not leave the end
-                if (j == sk) continue; // Does not enter the start
-                if ((data.isDelivery(i)) && (i == j + data.N_requests)) continue;    // Do not go from delivery to its pickup
-                if ((data.isVehicleStart(i)) && (data.isDelivery(j))) continue;      // Do not go from Start depot to delivery
-                if ((data.isPickup(i)) && (data.isVehicleEnd(j))) continue;          // Do not go from pickup to End depot
-
-                A_k.emplace_back(i, j, k);
-            }
-        }
+        for (int i : nodes_k)
+            for (int j : nodes_k)
+                if (isArcFeasible(i, j, k))
+                    A_k.emplace_back(i, j, k);
     }
+
+    uint nb_a_k = A_k.size();
+    uint total_possible_arcs = V_nodes.size() * V_nodes.size() * data.K.size();
+    double ratio_pruned = 1.0 - ((double)nb_a_k / total_possible_arcs);
+
+    std::cout << "Total arcs generated (A_k): " << nb_a_k << std::endl;
+    std::cout << "Total possible arcs: " << total_possible_arcs << std::endl;
+    std::cout << "Ratio pruned: " << ratio_pruned * 100 << "%" << std::endl;
 
     buildModel();
 }
@@ -51,6 +54,248 @@ CPLEXSolver::~CPLEXSolver() {
 
 bool CPLEXSolver::varExists(int i, int j, int k) const {
     return x.find({i, j, k}) != x.end();
+}
+
+void CPLEXSolver::tightenTimeWindows() {
+    double L = data.getMaxRideTime();
+    uint N = data.N_requests;
+
+    // T: End of the planning horizon
+    double T = 0.0;
+    for (const auto& [k, node] : data.EndNode) {
+        T = std::max(T, data.getTimeWindowEnd(node));
+    }
+
+    // 1. Tighten Pickup and Delivery Time-Windows
+    for (uint i : data.P) {
+        uint del_i = i + N; // Corresponding delivery node
+        double e_i = data.getTimeWindowStart(i);
+        double l_i = data.getTimeWindowEnd(i);
+        double e_del_i = data.getTimeWindowStart(del_i);
+        double l_del_i = data.getTimeWindowEnd(del_i);
+
+        double serv_i = data.getServiceTime(i);
+        double t_i_ni = data.getTravelTime(i, del_i);
+
+        // Tighten the pickup
+        double new_e_i = std::max(e_i, e_del_i - L - serv_i);
+        double new_l_i = std::min(l_i, std::min(l_del_i - t_i_ni - serv_i, T));
+        data.updateTimeWindow(i, new_e_i, new_l_i);
+
+        // Tighten the delivery
+        double new_e_del_i = std::max(e_del_i, e_i + serv_i + t_i_ni);
+        double new_l_del_i = std::min(l_del_i, std::min(l_i + serv_i + L, T));
+        data.updateTimeWindow(del_i, new_e_del_i, new_l_del_i);
+    }
+
+    // 2. Tighten depots time-windows
+    for (int k : data.K) {
+        int sk = data.StartNode.at(k);
+        int ek = data.EndNode.at(k);
+        
+        // Original values
+        double e_sk = data.getTimeWindowStart(sk);
+        double l_sk = data.getTimeWindowEnd(sk);
+        double e_ek = data.getTimeWindowStart(ek);
+        double l_ek = data.getTimeWindowEnd(ek);
+
+        // 1. Therorical bounds
+        double e_star_sk = 0.0;
+        double l_star_sk = T;
+        for (uint j : data.P) {
+            e_star_sk = std::min(e_star_sk, data.getTimeWindowStart(j) - data.getTravelTime(sk, j));
+            l_star_sk = std::max(l_star_sk, data.getTimeWindowEnd(j)   - data.getTravelTime(sk, j));
+        }
+
+        double e_star_ek = 0.0;
+        double l_star_ek = T;
+        for (uint i : data.D) {
+            e_star_ek = std::min(e_star_ek, data.getTimeWindowStart(i) + data.getServiceTime(i) + data.getTravelTime(i, ek));
+            l_star_ek = std::max(l_star_ek, data.getTimeWindowEnd(i)   + data.getServiceTime(i) + data.getTravelTime(i, ek));
+        }
+
+        // 2. Bounding / Clamping to ensure feasibility
+        double new_e_sk = std::clamp(e_star_sk, e_sk, l_sk);
+        double new_l_sk = std::clamp(l_star_sk, new_e_sk, l_sk);
+        double new_l_ek = std::clamp(l_star_ek, e_ek, l_ek);
+        double new_e_ek = std::clamp(e_star_ek, e_ek, new_l_ek);
+
+        // Update the instance of data with the fully tightened time windows
+        data.updateTimeWindow(sk, new_e_sk, new_l_sk);
+        data.updateTimeWindow(ek, new_e_ek, new_l_ek);
+
+    }
+}
+
+bool CPLEXSolver::isArcFeasible(uint i, uint j, uint k) const {
+    uint sk = data.StartNode.at(k);
+    uint ek = data.EndNode.at(k);
+    uint N = data.N_requests;
+    double epsilon = 1e-4;
+
+    // 1. Basic logical and structural rules
+    if (i == j) return false;  // No self-loops
+    if (i == ek) return false; // Does not leave the end
+    if (j == sk) return false; // Does not enter the start
+    if (data.isDelivery(i) && i == j + N) return false;    // Do not go from delivery to its pickup
+    if (data.isVehicleStart(i) && data.isDelivery(j)) return false;      // Do not go from Start depot to delivery
+    if (data.isPickup(i) && data.isVehicleEnd(j)) return false;          // Do not go from pickup to End depot
+    
+    double e_i = data.getTimeWindowStart(i);
+    double d_i = data.getServiceTime(i);
+    double t_ij = data.getTravelTime(i, j);
+
+    // 2. Feasible return to the depot
+    if (j != ek) {
+        double Ej_start = std::max(e_i + d_i + t_ij, data.getTimeWindowStart(j));
+        double d_j = data.getServiceTime(j);
+        double l_ek = data.getTimeWindowEnd(ek);
+
+        if (data.isPickup(j)) {
+            // If j is a pickup, we need to consider the corresponding delivery
+            uint del_j = j + N;
+            double d_del_j = data.getServiceTime(del_j);
+            double t_j_delj = data.getTravelTime(j, del_j);
+            double t_delj_ek = data.getTravelTime(del_j, ek);
+
+            double e_delj_start = std::max(Ej_start + d_j + t_j_delj, data.getTimeWindowStart(del_j));
+            if (e_delj_start + d_del_j + t_delj_ek > l_ek + epsilon)
+                return false;
+        }
+        else {
+            double t_j_ek = data.getTravelTime(j, ek);
+            if (Ej_start + d_j + t_j_ek > l_ek + epsilon)
+                return false;
+        }
+    }
+
+    // 3. Cross validation
+    
+    // Case 3a: Two consecutive pickups (i is pickup, j is pickup)
+    if (data.isPickup(i) && data.isPickup(j)) {
+        uint del_i = i + N;
+        uint del_j = j + N;
+
+        if (!(checkPathFeasibility({i, j, del_i, del_j}, k) ||
+              checkPathFeasibility({i, j, del_j, del_i}, k))) {
+            return false;
+        }
+    }
+    // Case 3b: Two consecutive deliveries (i is delivery, j is delivery)
+    else if (data.isDelivery(i) && data.isDelivery(j)) {
+        uint pick_i = i - N;
+        uint pick_j = j - N;
+
+        if (!(checkPathFeasibility({pick_i, pick_j, i, j}, k) ||
+              checkPathFeasibility({pick_j, pick_i, i, j}, k))) {
+            return false;
+        }
+    }
+    // Case 3c: Pickup followed by delivery of another passenger (i is pickup, j is delivery)
+    else if (data.isPickup(i) && data.isDelivery(j) && (j != i + N)) {
+        uint del_i = i + N;
+        uint pick_j = j - N;
+
+        if (!checkPathFeasibility({pick_j, i, j, del_i}, k)) {
+            return false;
+        }
+
+    }
+    // Case 3d: Delivery followed by pickup of another passenger (i is delivery, j is pickup)
+    else if (data.isDelivery(i) && data.isPickup(j)) {
+        uint pick_i = i - N;
+        uint del_j = j + N;
+
+        if (!checkPathFeasibility({pick_i, i, j, del_j}, k)) {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+bool CPLEXSolver::checkPathFeasibility(const std::vector<uint>& path, uint k) const {
+    if (path.size() < 2) {
+        return true;
+    }
+
+    double epsilon = 1e-4;
+
+    // 1. CAPACITY (String lower bound)
+    // We calculate the net load variation in the sequence.
+    double current_load = 0.0;
+    double max_load_seen = 0.0;
+    
+    for (uint node : path) {
+        current_load += data.getDemand(node);
+        if (current_load > max_load_seen + epsilon) {
+            max_load_seen = current_load;
+        }
+    }
+            
+    if (max_load_seen > data.getVehicleCapacity(k) + epsilon) {
+        return false;
+    }
+
+    // --- 2. TIME WINDOWS (Earliest possible arrival) ---
+    // If we simulate the trip at the fastest possible speed and still arrive late, the arc is infeasible.
+    double t = data.getTimeWindowStart(path[0]);
+    for (size_t idx = 1; idx < path.size(); ++idx) {
+        uint prev_n = path[idx - 1];
+        uint curr_n = path[idx];
+        
+        double arrival = std::max(t, data.getTimeWindowStart(prev_n)) 
+                       + data.getServiceTime(prev_n) 
+                       + data.getTravelTime(prev_n, curr_n);
+        
+        if (arrival > data.getTimeWindowEnd(curr_n) + epsilon) {
+            return false;
+        }
+            
+        t = arrival;
+    }
+
+    // --- 3. RIDE TIME (Lower bound of duration) ---
+    // We calculate the minimum absolute time between a Pickup and its Delivery within the route.
+    for (size_t i = 0; i < path.size(); ++i) {
+        uint p_node = path[i];
+        
+        if (data.isPickup(p_node)) {
+            uint d_node = p_node + data.N_requests;
+            
+            // Check if the route contains the delivery node after the pickup
+            auto it = std::find(path.begin() + i + 1, path.end(), d_node);
+            
+            if (it != path.end()) {
+                size_t d_idx = std::distance(path.begin(), it);
+                double min_ride_time = 0.0;
+                
+                for (size_t j = i; j < d_idx; ++j) {
+                    min_ride_time += data.getTravelTime(path[j], path[j + 1]);
+                    if (j > i) {
+                        min_ride_time += data.getServiceTime(path[j]);
+                    }
+                }
+
+                if (i + 1 < d_idx) {
+                    uint next_n = path[i + 1];
+                    double l_p = data.getTimeWindowEnd(p_node);
+                    double s_p = data.getServiceTime(p_node);
+                    double t_p_next = data.getTravelTime(p_node, next_n);
+                    double e_next = data.getTimeWindowStart(next_n);
+                    
+                    double mandatory_wait = std::max(0.0, e_next - (l_p + s_p + t_p_next));
+                    min_ride_time += mandatory_wait;
+                }
+
+                if (min_ride_time > data.getMaxRideTime() + epsilon) {
+                    return false;
+                }
+            }
+        }
+    }
+
+    return true;
 }
 
 void CPLEXSolver::buildModel() {

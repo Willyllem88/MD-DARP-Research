@@ -14,7 +14,7 @@
 class CPLEXSolver: public Solver {
 public:
     CPLEXSolver(
-        const DARPMD_ProblemInstance& instance,
+        DARPMD_ProblemInstance& instance,
         std::optional <double> timeLimit = std::nullopt
     );
 
@@ -29,7 +29,7 @@ public:
     }
 
 private:
-    const DARPMD_ProblemInstance& data;
+    DARPMD_ProblemInstance& data;
 
     std::optional<double> timeLimit;
     
@@ -52,8 +52,15 @@ private:
     // Key: <node_id, vehicle_id>: load of vehicle k upon arrival at node i
     std::map<std::pair<int, int>, IloNumVar> w;
 
+    // --- Methods ---
+    void tightenTimeWindows();
+
     // Build the model (Variables, Objective, Constraints)
     void buildModel();
+    // Check if an arc is feasible
+    bool isArcFeasible(uint i, uint j, uint k) const;
+    // Check if a path is feasible
+    bool checkPathFeasibility(const std::vector<uint>& path, uint k) const;
     
     // Helper to check if a tuple exists in the map (like "if (i,j,k) in m.A_k")
     bool varExists(int i, int j, int k) const;
