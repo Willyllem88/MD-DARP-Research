@@ -92,6 +92,7 @@ class MDDARP_Model_Solver:
         nb_a_k_nodes: int = len(self.A_k)
         total_posible_arcs: int = len(self.V_nodes) * len(self.V_nodes) * len(self.data.K)
         ratio_pruned: float = ((total_posible_arcs - nb_a_k_nodes) / total_posible_arcs) * 100
+
         print(f"Total arcs generated (A_k): {nb_a_k_nodes}")
         print(f"Total possible arcs: {total_posible_arcs}")
         print(f"Ratio pruned: {ratio_pruned:.2f}%\n")
@@ -148,7 +149,7 @@ class MDDARP_Model_Solver:
             e_ek = d.get_time_window_start(ek)
             l_ek = d.get_time_window_end(ek)
             
-            # --- 1. Theoretical bounds (The '*' variables) ---
+            # --- 1. Theoretical bounds ---
             
             # Start depot: Earliest and latest possible departures dictated by customers
             e_star_sk = min([d.get_time_window_start(j) - d.get_travel_time(sk, j) for j in d.P])
@@ -273,9 +274,9 @@ class MDDARP_Model_Solver:
         d = self.data
         epsilon = 1e-4
 
-        # --- 1. CAPACIDAD (Cota inferior estricta) ---
-        # Calculamos la variación neta de carga en la secuencia.
-        # Si en algún momento la subida neta supera la capacidad máxima del vehículo, es infactible.
+        # --- 1. CAPACITY (String lower bound) ---
+        # We calculate the net load variation in the sequence.
+        # If at any point the net pickup exceeds the maximum vehicle capacity, it is infeasible.
         current_load = 0
         max_load_seen = 0
         for node in path:
@@ -286,43 +287,39 @@ class MDDARP_Model_Solver:
         if max_load_seen > d.get_vehicle_capacity(k) + epsilon:
             return False
 
-        # --- 2. VENTANAS DE TIEMPO (Llegada más temprana posible) ---
-        # Si simulamos el viaje lo más rápido posible y aún así llegamos tarde, el arco está roto.
+        # --- 2. TIME WINDOWS (Earliest possible arrival) ---
+        # If we simulate the trip at the fastest possible speed and still arrive late, the arc is infeasible.
         t = d.get_time_window_start(path[0])
         for idx in range(1, len(path)):
             prev_n = path[idx - 1]
             curr_n = path[idx]
             
-            # Hora de llegada al nodo curr_n
             arrival = max(t, d.get_time_window_start(prev_n)) + d.get_service_time(prev_n) + d.get_travel_time(prev_n, curr_n)
             
             if arrival > d.get_time_window_end(curr_n) + epsilon:
                 return False
                 
-            t = arrival # Actualizamos el reloj para la siguiente iteración
+            t = arrival
 
-        # --- 3. RIDE TIME (Cota inferior de duración) ---
-        # Calculamos el tiempo mínimo absoluto entre un Pickup y su Delivery dentro de la ruta.
+        # --- 3. RIDE TIME (Lower bound of duration) ---
+        # We calculate the minimum absolute time between a Pickup and its Delivery within the route.
         for i in range(len(path)):
             p_node = path[i]
             
             if d.is_pickup(p_node):
                 d_node = p_node + d.N_requests
                 
-                # Si la ruta contiene tanto la recogida como su entrega
+                # If the route contains both the pickup and its delivery
                 if d_node in path[i+1:]:
                     d_idx = path.index(d_node)
                     
-                    # 3a. Sumamos tiempos incompresibles: viajes y servicios intermedios
                     min_ride_time = 0.0
                     for j in range(i, d_idx):
                         min_ride_time += d.get_travel_time(path[j], path[j+1])
-                        # El servicio del pickup inicial no cuenta para el ride time (empieza a contar al salir)
                         if j > i: 
                             min_ride_time += d.get_service_time(path[j])
                             
-                    # 3b. Sumamos la espera mínima obligatoria (Solo para el nodo inmediatamente posterior)
-                    # ¿Qué pasa si salimos del pickup en el último segundo posible (l_i)?
+
                     if i + 1 < d_idx:
                         next_n = path[i+1]
                         l_p = d.get_time_window_end(p_node)
@@ -421,7 +418,7 @@ class MDDARP_Model_Solver:
                 pick_arcs = [(ii, jj, kk) for (ii, jj, kk) in self.A_k if kk == k and ii == i]
                 del_arcs = [(ii, jj, kk) for (ii, jj, kk) in self.A_k if kk == k and ii == delivery_node]
                 
-                # Si el vehículo 'k' no puede ni recoger ni entregar, evitamos el 0 == 0
+                # If the vehicle 'k' cannot pick up or deliver, we avoid the 0 == 0
                 if not pick_arcs and not del_arcs:
                     print(f"⚠️ Alerta: El pedido {i} no tiene arcos válidos para el vehículo {k}. El problema es infactible.")
                     continue
@@ -604,7 +601,7 @@ class MDDARP_Model_Solver:
 
 if __name__ == "__main__":
 
-    json_path = "/home/guillem/TFG-Guillem/data/instances_static/cordeau-instances/a4-48.json"
+    json_path = "/home/guillem/TFG-Guillem/data/instances_static/cordeau-instances/a3-24.json"
     
     instance = MDDARP_ProblemInstance()    
     success = instance.load_from_json(json_path)
