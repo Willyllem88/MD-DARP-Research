@@ -71,6 +71,15 @@ public:
     // --- City metadata ---
     const Metadata& getMetadata() const { return metadata; }
 
+    // Triangle Inequality Check and Fix (for travel times and costs) [UNUSED]
+    void checkAndFixTriangleInequality(bool fixIt = false, bool verbose = true);
+
+    // Update time windows (used in tightening)
+    void updateTimeWindow(int i, double new_e_i, double new_l_i) {
+        time_window_start[i] = new_e_i;
+        time_window_end[i] = new_l_i;
+    }
+
 private:
     std::vector<double> service_time;           // d_i
     std::vector<double> demand;                 // q_i

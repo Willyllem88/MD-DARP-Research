@@ -39,7 +39,6 @@ class CordeauRouteVisualizer(RouteVisualizer):
         print(f"🏠 Drawing depot at node {first_depot_index}...")
         y_depot, x_depot = self.coordinates[first_depot_index]
         ax.scatter(x_depot, y_depot, c='black', marker='s', s=150, zorder=5)
-        ax.text(x_depot, y_depot + 0.5, 'Depot', fontsize=9, ha='center')
 
         # B. Draw Requests (Pickup -> Delivery relationships)
         # We iterate from 1 to N_requests to match Cordeau standard IDs
@@ -53,13 +52,31 @@ class CordeauRouteVisualizer(RouteVisualizer):
                 dy, dx = self.coordinates[d_id]
                 
                 # Pickup Node (Green Up Triangle)
-                ax.scatter(px, py, c='green', marker='^', s=100, edgecolors='black', zorder=4)
-                ax.text(px, py + 0.3, f'{i}', fontsize=8, ha='center', color='green', fontweight='bold')
-                
+                ax.plot(
+                    px, py,
+                    marker='o', markersize=12,
+                    markeredgecolor='none', markerfacecolor='blue',
+                    markeredgewidth=2, alpha=0.4, zorder=4
+                )
+                ax.text(
+                    px, py, f'{i}', 
+                    color='black', fontsize=10, fontweight='bold', 
+                    ha='center', va='center', zorder=4
+                )
+
                 # Delivery Node (Red Down Triangle)
-                ax.scatter(dx, dy, c='red', marker='v', s=100, edgecolors='black', zorder=4)
-                ax.text(dx, dy + 0.3, f'{i+self.N_requests}', fontsize=8, ha='center', color='red')
-                
+                ax.plot(
+                    dx, dy,
+                    marker='o', markersize=12,
+                    markeredgecolor='blue', markerfacecolor='none',
+                    markeredgewidth=2, alpha=0.4, zorder=1
+                )
+                ax.text(
+                    dx, dy, f'{i}',
+                    color='black', fontsize=10, fontweight='bold', 
+                    ha='center', va='center', zorder=1
+                )
+
                 # Relationship Line (Dotted Gray)
                 ax.plot([px, dx], [py, dy], c='gray', linestyle=':', alpha=0.3, zorder=1)
 
@@ -69,44 +86,33 @@ class CordeauRouteVisualizer(RouteVisualizer):
         """
         print("🎨 Drawing routes on Cartesian plane...")
         
+        legend_patches = []
         for i, route in enumerate(self.routes):
             steps = route.get('steps', [])
+            vehicle_id = route.get('vehicle_id', i+1)
             color = self.route_colors[i % len(self.route_colors)]
             
-            # Extract Path Coordinates
-            path_x = []
-            path_y = []
-            
-            for step in steps:
-                node_id = str(step['node'])
-                if node_id in self.coordinates:
-                    y, x = self.coordinates[node_id]
-                    path_x.append(x)
-                    path_y.append(y)
-            
-            # A. Draw the continuous route line
-            ax.plot(path_x, path_y, color=color, linewidth=2, alpha=0.7, zorder=2)
-            
-            # B. Draw Direction Arrows
-            for k in range(len(path_x) - 1):
-                # Calculate vector components
-                dx = path_x[k+1] - path_x[k]
-                dy = path_y[k+1] - path_y[k]
-                
-                # Only draw arrow if distance is significant to avoid clutter
-                if abs(dx) > 0.1 or abs(dy) > 0.1:
-                    ax.arrow(
-                        path_x[k], path_y[k], 
-                        dx * 0.5, dy * 0.5, 
-                        head_width=0.3, head_length=0.4, 
-                        fc=color, ec=color, alpha=0.8, zorder=3
-                    )
+            legend_patches.append(Line2D([0], [0], color=color, lw=2, label=f'Vehicle {vehicle_id}'))
+
+            for j in range(len(steps) - 1):
+                start_node = str(steps[j]['node'])
+                end_node = str(steps[j+1]['node'])
+
+                if start_node in self.coordinates and end_node in self.coordinates:
+                    y1, x1 = self.coordinates[start_node]
+                    y2, x2 = self.coordinates[end_node]
+                    # Arrows with a bit of transparency to avoid saturation
+                    ax.annotate("", xy=(x2, y2), xytext=(x1, y1),
+                                arrowprops=dict(arrowstyle="->", color=color, 
+                                                lw=2, connectionstyle="arc3,rad=0.1", alpha=0.8),
+                                zorder=1)
+                        
 
     def _configure_plot(self, ax):
         """
         Sets up the legend, titles, and grid.
         """
-        ax.set_title(f"Solución DARP - Instancia {self.city}")
+        ax.set_title(f"DARPMD Solution - (Cordeau Instance)")
         ax.set_xlabel("X")
         ax.set_ylabel("Y")
         ax.grid(True, linestyle='--', alpha=0.5)
@@ -116,14 +122,17 @@ class CordeauRouteVisualizer(RouteVisualizer):
         for i, route in enumerate(self.routes):
             vehicle_id = route.get('vehicle_id', i+1)
             color = self.route_colors[i % len(self.route_colors)]
-            vehicle_patches.append(mpatches.Patch(color=color, label=f'Vehículo {vehicle_id}'))
+            vehicle_patches.append(mpatches.Patch(color=color, label=f'Vehicle {vehicle_id}'))
 
         # 2. Node Type Legend
         custom_lines = [
-            Line2D([0], [0], marker='s', color='w', markerfacecolor='black', label='Depósito'),
-            Line2D([0], [0], marker='^', color='w', markerfacecolor='green', label='Pickup'),
-            Line2D([0], [0], marker='v', color='w', markerfacecolor='red', label='Delivery'),
-            Line2D([0], [0], color='gray', linestyle=':', label='Flujo Demanda'),
+            Line2D([0], [0], marker='o', color='w', label='Pickup',
+                markerfacecolor='blue', markeredgecolor='blue', markersize=8),
+            Line2D([0], [0], marker='o', color='w', label='Delivery',
+                markerfacecolor='none', markeredgecolor='blue', markersize=8),
+            Line2D([0], [0], marker='s', color='w', label='Depot',
+                   markerfacecolor='black', markeredgecolor='black', markersize=8),
+            Line2D([0], [0], linestyle=':', color='gray', label='P-D Relationship')
         ]
 
         ax.legend(handles=custom_lines + vehicle_patches, loc='best')

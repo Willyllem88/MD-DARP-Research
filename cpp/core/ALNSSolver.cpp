@@ -350,27 +350,6 @@ void ALNSSolver::checkPickupAfterDelivery(const ALNSSolution& sol, const DARPMD_
     }
 }
 
-void ALNSSolver::printSolutionDetails(const ALNSSolution& sol) const {
-    std::cout << "  Routes:" << std::endl;
-    for (const auto& r : sol.routes) {
-        std::cout << "    Vehicle " << r.vehicleId << ": ";
-        for (int node : r.sequence) {
-            std::cout << node << " ";
-        }
-        std::cout << "| Cost: " << r.totalCost 
-                  << " | TW Violation: " << r.timeWindowViolation 
-                  << " | Load Violation: " << r.loadViolation 
-                  << " | Ride Time Violation: " << r.rideTimeViolation
-                  << std::endl;
-    }
-    std::cout << "  Unassigned Requests: ";
-    for (int req : sol.unassignedRequests) {
-        std::cout << req << " ";
-    }
-    std::cout << std::endl;
-}
-
-
 DARPMD_ResultInstance ALNSSolver::getResult() const {
     DARPMD_ResultInstance result(data);
     result.solveTime = this->solveTime;

@@ -97,9 +97,6 @@ private:
     // Returns incremental cost (or infinity if impossible/too expensive)
     double calculateInsertionCost(const ALNSRoute& route, int requestIdx, int pIdx, int dIdx);
 
-    // Helper: Check if solution has any violations (time windows, capacity, ride time) for debugging/logging
-    void printSolutionDetails(const ALNSSolution& sol) const;
-
     // Helper: Check if any delivery appears before its pickup in the solution (should never happen)
     void checkPickupAfterDelivery(const ALNSSolution& sol, const DARPMD_ProblemInstance& data) const;
 
