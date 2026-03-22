@@ -21,6 +21,9 @@ public:
     ~CPLEXSolver();
 
     void solve() override;
+    void solveLPRelaxation();
+    int getNumberOfConstraints() const;
+
 
     DARPMD_ResultInstance getResult() const override;
 

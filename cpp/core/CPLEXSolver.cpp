@@ -552,7 +552,7 @@ DARPMD_ResultInstance CPLEXSolver::getResult() const {
         return result;
     }
 
-    // 2. Reconstruct routes (Logic similar to displayResults but storing data)
+    // 2. Reconstruct routes
     for (int k : data.K) {
         VehicleRoute vRoute;
         vRoute.vehicleId = k;
@@ -624,4 +624,33 @@ DARPMD_ResultInstance CPLEXSolver::getResult() const {
     }
 
     return result;
+}
+
+void CPLEXSolver::solveLPRelaxation() {
+    IloNumVarArray binaryVars(env);
+    for (const auto& arc : A_k) {
+        binaryVars.add(x[arc]); 
+    }
+
+    IloConversion lpRelaxation(env, binaryVars, ILOFLOAT);
+
+    model.add(lpRelaxation);
+
+    auto start = std::chrono::high_resolution_clock::now();
+    bool solved = cplex.solve();
+    auto end = std::chrono::high_resolution_clock::now();
+
+    std::chrono::duration<double> elapsed = end - start;
+
+    if (solved) {
+        std::cout << "Status of the LP relaxation: " << cplex.getStatus() << std::endl;
+        std::cout << "LP Objective Value (Lower Bound): " << cplex.getObjValue() << std::endl;
+    } else {
+        std::cout << "No solution found or infeasible. Status: " << cplex.getStatus() << std::endl;
+    }
+    std::cout << "LP Solving Time: " << elapsed.count() << " s\n" << std::endl;
+
+    model.remove(lpRelaxation);
+    lpRelaxation.end();
+    binaryVars.end();
 }
