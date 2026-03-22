@@ -1,0 +1,3 @@
+add_executable(run_experiments run_experiments.cpp)
+
+target_link_libraries(run_experiments PRIVATE darpmd_core)
