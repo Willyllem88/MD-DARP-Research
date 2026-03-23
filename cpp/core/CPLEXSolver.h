@@ -15,7 +15,8 @@ class CPLEXSolver: public Solver {
 public:
     CPLEXSolver(
         DARPMD_ProblemInstance& instance,
-        std::optional <double> timeLimit = std::nullopt
+        std::optional <double> timeLimit = std::nullopt,
+        bool verbose = false
     );
 
     ~CPLEXSolver();

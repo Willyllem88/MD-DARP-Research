@@ -4,8 +4,15 @@
 #include <set>
 #include <chrono>
 
-CPLEXSolver::CPLEXSolver(DARPMD_ProblemInstance& instance, std::optional<double> timeLimit) 
-    : data(instance), timeLimit(timeLimit), model(env), cplex(model) {
+CPLEXSolver::CPLEXSolver(DARPMD_ProblemInstance& instance, std::optional<double> timeLimit, bool verbose) 
+    : Solver(verbose), data(instance), timeLimit(timeLimit), model(env), cplex(model) {
+    
+    // Mute CPLEX output if not verbose
+    if (!verbose) {
+        cplex.setOut(env.getNullStream());
+        cplex.setWarning(env.getNullStream());
+        cplex.setError(env.getNullStream());
+    }
         
     // Create Set V: P u D u StartNodes u EndNodes
     std::set<int> distinct_nodes;
@@ -41,9 +48,9 @@ CPLEXSolver::CPLEXSolver(DARPMD_ProblemInstance& instance, std::optional<double>
     uint total_possible_arcs = V_nodes.size() * V_nodes.size() * data.K.size();
     double ratio_pruned = 1.0 - ((double)nb_a_k / total_possible_arcs);
 
-    std::cout << "Total arcs generated (A_k): " << nb_a_k << std::endl;
-    std::cout << "Total possible arcs: " << total_possible_arcs << std::endl;
-    std::cout << "Ratio pruned: " << ratio_pruned * 100 << "%" << std::endl;
+    logger.log("Total arcs generated (A_k): " + std::to_string(nb_a_k));
+    logger.log("Total possible arcs: " + std::to_string(total_possible_arcs));
+    logger.log("Ratio pruned: " + std::to_string(ratio_pruned * 100) + "%");
 
     buildModel();
 }
@@ -299,7 +306,7 @@ bool CPLEXSolver::checkPathFeasibility(const std::vector<uint>& path, uint k) co
 }
 
 void CPLEXSolver::buildModel() {
-    std::cout << "Building CPLEX Model..." << std::endl;
+    logger.log("Building CPLEX Model");
 
     // --- 1. Create Variables ---
 
@@ -515,7 +522,7 @@ void CPLEXSolver::solve() {
         cplex.setParam(IloCplex::Param::TimeLimit, timeLimit.value());
     }
     
-    std::cout << "Starting CPLEX solve..." << std::endl;
+    logger.log("Starting CPLEX solve");
 
     auto start = std::chrono::high_resolution_clock::now();
 
@@ -528,14 +535,14 @@ void CPLEXSolver::solve() {
 
     // Print solve
     if (solved) {
-        std::cout << "CPLEX Status: " << cplex.getStatus() << std::endl;
-        std::cout << "Objective Value: " << cplex.getObjValue() << std::endl;
+        logger.log("CPLEX Status: " + std::to_string(cplex.getStatus()));
+        logger.log("Objective Value: " + std::to_string(cplex.getObjValue()));
         this->mipGap = cplex.getMIPRelativeGap();
         this->objectiveValue = cplex.getObjValue();
     } else {
-        std::cout << "No solution found or infeasible. Status: " << cplex.getStatus() << std::endl;
+        logger.log("No solution found or infeasible. Status: " + std::to_string(cplex.getStatus()));
     }
-    std::cout << "Total Solve Time: " << this->solveTime << " s" << std::endl;
+    logger.log("Total Solve Time: " + std::to_string(this->solveTime) + " s");
 }
 
 DARPMD_ResultInstance CPLEXSolver::getResult() const {
@@ -643,12 +650,12 @@ void CPLEXSolver::solveLPRelaxation() {
     std::chrono::duration<double> elapsed = end - start;
 
     if (solved) {
-        std::cout << "Status of the LP relaxation: " << cplex.getStatus() << std::endl;
-        std::cout << "LP Objective Value (Lower Bound): " << cplex.getObjValue() << std::endl;
+        logger.log("Status of the LP relaxation: " + std::to_string(cplex.getStatus()));
+        logger.log("LP Objective Value (Lower Bound): " + std::to_string(cplex.getObjValue()));
     } else {
-        std::cout << "No solution found or infeasible. Status: " << cplex.getStatus() << std::endl;
+        logger.log("No solution found or infeasible. Status: " + std::to_string(cplex.getStatus()));
     }
-    std::cout << "LP Solving Time: " << elapsed.count() << " s\n" << std::endl;
+    logger.log("LP Solving Time: " + std::to_string(elapsed.count()) + " s\n");
 
     model.remove(lpRelaxation);
     lpRelaxation.end();

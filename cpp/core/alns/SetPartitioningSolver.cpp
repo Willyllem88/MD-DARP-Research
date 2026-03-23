@@ -7,8 +7,9 @@
 // Constructor: Initializes the persistent environment and pre-calculates indices
 SetPartitioningSolver::SetPartitioningSolver(const DARPMD_ProblemInstance& data, 
                                              const ALNSParams& params, 
-                                             ALNSEvaluator& evaluator) 
-    : data(data), params(params), evaluator(evaluator), env() 
+                                             ALNSEvaluator& evaluator,
+                                             Logger& logger)
+    : data(data), params(params), evaluator(evaluator), logger(logger), env() 
 {
     // Pre-calculate requestToIndex mapping for O(1) access during column generation
     int idx = 0;
@@ -177,12 +178,12 @@ ALNSSolution SetPartitioningSolver::solve(const std::map<int, std::vector<ALNSRo
             for (const auto& [k, routes] : routePool) {
                 totalRoutes += routes.size();
             }
-            std::cout << "  [SetPartitioning] Total Routes in Pool: " << totalRoutes << std::endl;
-            std::cout << "  [SetPartitioning] CPLEX Status: " 
-                      << (cplex.getStatus() == IloAlgorithm::Infeasible ? "Infeasible" : 
-                          cplex.getStatus() == IloAlgorithm::Optimal ? "Optimal" :
-                          cplex.getStatus() == IloAlgorithm::Feasible ? "Feasible (Time Limit)" : "Unknown") << std::endl;
-            std::cout << "  [SetPartitioning] CPLEX time: " << cplex.getTime() << " seconds" << std::endl;
+            logger.log("  [SetPartitioning] Total Routes in Pool: " + std::to_string(totalRoutes));
+            logger.log("  [SetPartitioning] CPLEX Status: " + std::string(
+                cplex.getStatus() == IloAlgorithm::Infeasible ? "Infeasible" : 
+                cplex.getStatus() == IloAlgorithm::Optimal ? "Optimal" :
+                cplex.getStatus() == IloAlgorithm::Feasible ? "Feasible (Time Limit)" : "Unknown"));
+            logger.log("  [SetPartitioning] CPLEX time: " + std::to_string(cplex.getTime()) + " seconds");
         }
 
         // --- 4. Critical Memory Cleanup ---

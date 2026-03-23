@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../DARPMD_ProblemInstance.h"
+#include "../logger.h"
 #include "ALNSSolution.h"
 #include "ALNSParams.h"
 #include "ALNSEvaluator.h"
@@ -14,7 +15,8 @@ public:
     SetPartitioningSolver(
         const DARPMD_ProblemInstance& data, 
         const ALNSParams& params, 
-        ALNSEvaluator& evaluator
+        ALNSEvaluator& evaluator,
+        Logger& logger
     );
     ~SetPartitioningSolver();
 
@@ -24,7 +26,7 @@ private:
     const DARPMD_ProblemInstance& data;
     const ALNSParams& params;
     ALNSEvaluator& evaluator;
-
+    Logger& logger;
     IloEnv env;
 
     // Map to quickly find which routes cover each request (built from routePool)
