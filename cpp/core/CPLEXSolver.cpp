@@ -51,6 +51,9 @@ CPLEXSolver::CPLEXSolver(DARPMD_ProblemInstance& instance, std::optional<double>
     logger.log("Total arcs generated (A_k): " + std::to_string(nb_a_k));
     logger.log("Total possible arcs: " + std::to_string(total_possible_arcs));
     logger.log("Ratio pruned: " + std::to_string(ratio_pruned * 100) + "%");
+    logger.log("Number of variables: " + std::to_string(cplex.getNcols()));
+    logger.log("Number of constraints: " + std::to_string(cplex.getNrows()));
+    logger.log("\n\n");
 
     buildModel();
 }
@@ -525,9 +528,7 @@ void CPLEXSolver::solve() {
     logger.log("Starting CPLEX solve");
 
     auto start = std::chrono::high_resolution_clock::now();
-
     bool solved = cplex.solve();
-
     auto end =  std::chrono::high_resolution_clock::now();
 
     std::chrono::duration<double> elapsed = end - start;
@@ -543,6 +544,14 @@ void CPLEXSolver::solve() {
         logger.log("No solution found or infeasible. Status: " + std::to_string(cplex.getStatus()));
     }
     logger.log("Total Solve Time: " + std::to_string(this->solveTime) + " s");
+}
+
+int CPLEXSolver::getNumberOfConstraints() const {
+    return cplex.getNrows();
+}
+
+int CPLEXSolver::getNumberOfVariables() const {
+    return cplex.getNcols();
 }
 
 DARPMD_ResultInstance CPLEXSolver::getResult() const {
