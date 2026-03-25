@@ -34,7 +34,9 @@ public:
 
     inline double getTravelTime(int i, int j) const { return t_ij[i * stride_time_i + j]; }
     inline double getCost(int i, int j, int k) const { 
-        size_t index = (size_t)i * stride_cost_i + (size_t)j * stride_cost_j + (size_t)k;
+        size_t index = (size_t)i * stride_cost_i + 
+                       (size_t)j * stride_cost_j + 
+                       (size_t)k * stride_cost_k;
         return flat_cost_matrix[index];
     }
 
@@ -93,9 +95,10 @@ private:
     std::vector<double> t_ij;   // t_ij
     size_t stride_time_i = 0;
 
-    std::vector<double> flat_cost_matrix;
+    std::vector<double> flat_cost_matrix; // c_kij (k first for better cache locality)
     size_t stride_cost_i = 0;
     size_t stride_cost_j = 0;
+    size_t stride_cost_k = 0;
 
     double max_ride_time;                    // L
 

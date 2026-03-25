@@ -103,8 +103,9 @@ bool DARPMD_ProblemInstance::loadFromJSON(const std::string& path) {
         // 6. Costs (c_ijk)
         int dim_node = max_node_id + 1;
         int dim_veh = K_vehicles + 1;
-        stride_cost_i = dim_node * dim_veh;
-        stride_cost_j = dim_veh;
+        stride_cost_i = dim_node;
+        stride_cost_j = 1;
+        stride_cost_k = dim_node * dim_node;
         size_t total_size = (size_t)dim_node * dim_node * dim_veh;
         flat_cost_matrix.resize(total_size, INF);
         for (auto& x : j.at("matrix_c")) {
@@ -113,7 +114,7 @@ bool DARPMD_ProblemInstance::loadFromJSON(const std::string& path) {
             int k = x.at("k");
             size_t index = (size_t)u * stride_cost_i + 
                            (size_t)v * stride_cost_j + 
-                           (size_t)k;
+                           (size_t)k * stride_cost_k;
             
             if (index < flat_cost_matrix.size()) {
                 flat_cost_matrix[index] = x.at("value");
