@@ -64,8 +64,8 @@ ALNSSolution ALNSSolver::createInitialSolution() {
     for (int k : data.K) {
         ALNSRoute r;
         r.vehicleId = k;
-        r.sequence.push_back(data.StartNode.at(k));
-        r.sequence.push_back(data.EndNode.at(k));
+        r.sequence.push_back(data.getVehicleStartNode(k));
+        r.sequence.push_back(data.getVehicleEndNode(k));
         evaluator->evaluateRoute(r); // Zero cost initially
         sol.routes.push_back(r);
     }

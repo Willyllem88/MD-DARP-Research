@@ -22,10 +22,17 @@ public:
     ~CPLEXSolver();
 
     void solve() override;
+
+    // For analysis: solve the LP relaxation of the model (i.e., relax integrality constraints)
+    // This can be useful to understand the strength of the formulation and the quality of the LP bound.
     void solveLPRelaxation();
+
+    // For debugging and analysis, return the number of constraints and variables in the model
+    // before CPLEX preprocessing (i.e., the original model size)
     int getNumberOfConstraints() const;
+    int getNumberOfVariables() const;
 
-
+    // After solving, extract the solution and return it in structured and uniform format
     DARPMD_ResultInstance getResult() const override;
 
     std::string name() const override {
@@ -51,7 +58,8 @@ private:
     // --- Variables ---
     // Key: <i, j, k>: whether vehicle k travels from i to j
     std::map<std::tuple<int, int, int>, IloNumVar> x;
-    // Key: <node_id, vehicle_id>: time at which vehicle k arrives at node i
+    // Key: <node_id>: time at which a vehicle (only one will arrive due to
+    // constraints) arrives at node i
     std::map<int, IloNumVar> u;
     // Key: <node_id, vehicle_id>: load of vehicle k upon arrival at node i
     std::map<std::pair<int, int>, IloNumVar> w;

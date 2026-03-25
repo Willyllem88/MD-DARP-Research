@@ -87,6 +87,7 @@ int main(int argc, char** argv) {
         std::cerr << "Failed to load instance from " << args.instance_path << std::endl;
         return 1;
     }
+    instance.checkAndFixTriangleInequality(true, args.verbose); // Check and fix triangle inequality if needed
     instance.displayInfo();
 
     // Select Solver

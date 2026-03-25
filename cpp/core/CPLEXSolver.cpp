@@ -16,10 +16,10 @@ CPLEXSolver::CPLEXSolver(DARPMD_ProblemInstance& instance, std::optional<double>
         
     // Create Set V: P u D u StartNodes u EndNodes
     std::set<int> distinct_nodes;
-    for (int i : data.P) distinct_nodes.insert(i);
-    for (int i : data.D) distinct_nodes.insert(i);
-    for (auto const& [k, node] : data.StartNode) distinct_nodes.insert(node);
-    for (auto const& [k, node] : data.EndNode) distinct_nodes.insert(node);
+    for (int p : data.P) distinct_nodes.insert(p);
+    for (int d : data.D) distinct_nodes.insert(d);
+    for (int s : data.S) distinct_nodes.insert(s);
+    for (int e : data.E) distinct_nodes.insert(e);
 
     V_nodes.assign(distinct_nodes.begin(), distinct_nodes.end());
 
@@ -28,8 +28,8 @@ CPLEXSolver::CPLEXSolver(DARPMD_ProblemInstance& instance, std::optional<double>
 
     // Create Set A_k: Valid Arcs
     for (int k : data.K) {
-        int sk = data.StartNode.at(k);
-        int ek = data.EndNode.at(k);
+        int sk = data.getVehicleStartNode(k);
+        int ek = data.getVehicleEndNode(k);
 
         // nodes_k = P u D u [sk, ek]
         std::vector<int> nodes_k;
@@ -51,6 +51,9 @@ CPLEXSolver::CPLEXSolver(DARPMD_ProblemInstance& instance, std::optional<double>
     logger.log("Total arcs generated (A_k): " + std::to_string(nb_a_k));
     logger.log("Total possible arcs: " + std::to_string(total_possible_arcs));
     logger.log("Ratio pruned: " + std::to_string(ratio_pruned * 100) + "%");
+    logger.log("Number of variables: " + std::to_string(cplex.getNcols()));
+    logger.log("Number of constraints: " + std::to_string(cplex.getNrows()));
+    logger.log("\n\n");
 
     buildModel();
 }
@@ -69,8 +72,8 @@ void CPLEXSolver::tightenTimeWindows() {
 
     // T: End of the planning horizon
     double T = 0.0;
-    for (const auto& [k, node] : data.EndNode) {
-        T = std::max(T, data.getTimeWindowEnd(node));
+    for (int e : data.E) {
+        T = std::max(T, data.getTimeWindowEnd(e));
     }
 
     // 1. Tighten Pickup and Delivery Time-Windows
@@ -97,9 +100,9 @@ void CPLEXSolver::tightenTimeWindows() {
 
     // 2. Tighten depots time-windows
     for (int k : data.K) {
-        int sk = data.StartNode.at(k);
-        int ek = data.EndNode.at(k);
-        
+        int sk = data.getVehicleStartNode(k);
+        int ek = data.getVehicleEndNode(k);
+
         // Original values
         double e_sk = data.getTimeWindowStart(sk);
         double l_sk = data.getTimeWindowEnd(sk);
@@ -135,8 +138,8 @@ void CPLEXSolver::tightenTimeWindows() {
 }
 
 bool CPLEXSolver::isArcFeasible(uint i, uint j, uint k) const {
-    uint sk = data.StartNode.at(k);
-    uint ek = data.EndNode.at(k);
+    uint sk = data.getVehicleStartNode(k);
+    uint ek = data.getVehicleEndNode(k);
     uint N = data.N_requests;
     double epsilon = 1e-4;
 
@@ -382,7 +385,7 @@ void CPLEXSolver::buildModel() {
     // c3: Flow at Depots
     for (int k : data.K) {
         // Start Depot Rule
-        int sk = data.StartNode.at(k);
+        int sk = data.getVehicleStartNode(k);
         IloExpr startExpr(env);
         for (const auto& [ii, jj, kk] : A_k) {
             if (ii == sk && kk == k) {
@@ -393,7 +396,7 @@ void CPLEXSolver::buildModel() {
         startExpr.end();
 
         // End Depot Rule
-        int ek = data.EndNode.at(k);
+        int ek = data.getVehicleEndNode(k);
         IloExpr endExpr(env);
         for (const auto& [ii, jj, kk] : A_k) {
             if (jj == ek && kk == k) {
@@ -451,8 +454,8 @@ void CPLEXSolver::buildModel() {
 
     // c7: Max Route Duration
     for (int k : data.K) {
-        int sk = data.StartNode.at(k);
-        int ek = data.EndNode.at(k);
+        int sk = data.getVehicleStartNode(k);
+        int ek = data.getVehicleEndNode(k);
         double Tmax = data.getVehicleMaxRouteTime(k);
         
         model.add(u[ek] - u[sk] <= Tmax);
@@ -509,8 +512,8 @@ void CPLEXSolver::buildModel() {
 
     // c12: Depot Initial/Final Load
     for (int k : data.K) {
-        int sk = data.StartNode.at(k);
-        int ek = data.EndNode.at(k);
+        int sk = data.getVehicleStartNode(k);
+        int ek = data.getVehicleEndNode(k);
         model.add(w[{sk, k}] == 0);
         model.add(w[{ek, k}] == 0);
     }
@@ -525,9 +528,7 @@ void CPLEXSolver::solve() {
     logger.log("Starting CPLEX solve");
 
     auto start = std::chrono::high_resolution_clock::now();
-
     bool solved = cplex.solve();
-
     auto end =  std::chrono::high_resolution_clock::now();
 
     std::chrono::duration<double> elapsed = end - start;
@@ -543,6 +544,14 @@ void CPLEXSolver::solve() {
         logger.log("No solution found or infeasible. Status: " + std::to_string(cplex.getStatus()));
     }
     logger.log("Total Solve Time: " + std::to_string(this->solveTime) + " s");
+}
+
+int CPLEXSolver::getNumberOfConstraints() const {
+    return cplex.getNrows();
+}
+
+int CPLEXSolver::getNumberOfVariables() const {
+    return cplex.getNcols();
 }
 
 DARPMD_ResultInstance CPLEXSolver::getResult() const {
@@ -576,8 +585,8 @@ DARPMD_ResultInstance CPLEXSolver::getResult() const {
             }
         }
 
-        int current_node = data.StartNode.at(k);
-        int end_node = data.EndNode.at(k);
+        int current_node = data.getVehicleStartNode(k);
+        int end_node = data.getVehicleEndNode(k);
 
         // If vehicle doesn't move
         if (next_node_map.find(current_node) == next_node_map.end()) {
@@ -600,8 +609,8 @@ DARPMD_ResultInstance CPLEXSolver::getResult() const {
             step.nodeId = current_node;
             
             // Determine type (simple heuristic based on your sets P and D)
-            if (current_node == data.StartNode.at(k)) step.type = "DepotStart";
-            else if (current_node == data.EndNode.at(k)) step.type = "DepotEnd";
+            if (current_node == data.getVehicleStartNode(k)) step.type = "DepotStart";
+            else if (current_node == data.getVehicleEndNode(k)) step.type = "DepotEnd";
             else if (std::find(data.P.begin(), data.P.end(), current_node) != data.P.end()) step.type = "Pickup";
             else if (std::find(data.D.begin(), data.D.end(), current_node) != data.D.end()) step.type = "Delivery";
             else step.type = "Node";

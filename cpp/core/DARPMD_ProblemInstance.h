@@ -40,6 +40,9 @@ public:
 
     inline double getMaxRideTime() const { return max_ride_time; }
 
+    inline int getVehicleStartNode(int k) const { return 2*N_requests + k; }
+    inline int getVehicleEndNode(int k) const { return 2*N_requests + K_vehicles + k; }
+
     // Logic to determine node type based on ID
     // P: 1..n | D: n+1..2n | DepStart: 2n+1..2n+k | DepEnd: 2n+k+1..2n+2k
     inline bool isPickup(int i) const { 
@@ -63,10 +66,8 @@ public:
     std::vector<int> P; // Pickups
     std::vector<int> D; // Deliveries
     std::vector<int> K; // Vehicles
-    
-    // Vehicle mappings
-    std::unordered_map<int, int> StartNode; // k -> start_node
-    std::unordered_map<int, int> EndNode;   // k -> end_node
+    std::vector<int> S; // Start depots
+    std::vector<int> E; // End depots
 
     // --- City metadata ---
     const Metadata& getMetadata() const { return metadata; }
