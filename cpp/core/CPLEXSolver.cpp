@@ -534,7 +534,7 @@ void CPLEXSolver::solve() {
     std::chrono::duration<double> elapsed = end - start;
     this->solveTime = elapsed.count();
 
-    // Print solve
+    // Print solve results
     if (solved) {
         logger.log("CPLEX Status: " + std::to_string(cplex.getStatus()));
         logger.log("Objective Value: " + std::to_string(cplex.getObjValue()));
