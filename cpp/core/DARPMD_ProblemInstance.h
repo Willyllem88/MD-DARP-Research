@@ -34,11 +34,16 @@ public:
 
     inline double getTravelTime(int i, int j) const { return t_ij[i * stride_time_i + j]; }
     inline double getCost(int i, int j, int k) const { 
-        size_t index = (size_t)i * stride_cost_i + (size_t)j * stride_cost_j + (size_t)k;
+        size_t index = (size_t)i * stride_cost_i + 
+                       (size_t)j * stride_cost_j + 
+                       (size_t)k * stride_cost_k;
         return flat_cost_matrix[index];
     }
 
     inline double getMaxRideTime() const { return max_ride_time; }
+
+    inline int getVehicleStartNode(int k) const { return 2*N_requests + k; }
+    inline int getVehicleEndNode(int k) const { return 2*N_requests + K_vehicles + k; }
 
     // Logic to determine node type based on ID
     // P: 1..n | D: n+1..2n | DepStart: 2n+1..2n+k | DepEnd: 2n+k+1..2n+2k
@@ -63,16 +68,20 @@ public:
     std::vector<int> P; // Pickups
     std::vector<int> D; // Deliveries
     std::vector<int> K; // Vehicles
-    
-    // Vehicle mappings
-    std::unordered_map<int, int> StartNode; // k -> start_node
-    std::unordered_map<int, int> EndNode;   // k -> end_node
+    std::vector<int> S; // Start depots
+    std::vector<int> E; // End depots
 
     // --- City metadata ---
     const Metadata& getMetadata() const { return metadata; }
 
     // Triangle Inequality Check and Fix (for travel times and costs) [UNUSED]
     void checkAndFixTriangleInequality(bool fixIt = false, bool verbose = true);
+
+    // Update time windows (used in tightening)
+    void updateTimeWindow(int i, double new_e_i, double new_l_i) {
+        time_window_start[i] = new_e_i;
+        time_window_end[i] = new_l_i;
+    }
 
 private:
     std::vector<double> service_time;           // d_i
@@ -86,9 +95,10 @@ private:
     std::vector<double> t_ij;   // t_ij
     size_t stride_time_i = 0;
 
-    std::vector<double> flat_cost_matrix;
+    std::vector<double> flat_cost_matrix; // c_kij (k first for better cache locality)
     size_t stride_cost_i = 0;
     size_t stride_cost_j = 0;
+    size_t stride_cost_k = 0;
 
     double max_ride_time;                    // L
 

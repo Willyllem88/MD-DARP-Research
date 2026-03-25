@@ -145,33 +145,19 @@ def generate_json_structure(data):
         output["metadata"]["coordinates"][str(start_node_id)] = [depot_coords['y'], depot_coords['x']]
         output["metadata"]["coordinates"][str(end_node_id)] = [depot_coords['y'], depot_coords['x']]
 
-    # 4. Generate Matrices based on Set Ak definition
-    # Ak = (i,j) where i,j in P U D U {sk, ek}
-    # i != j, i != ek, j != sk
+    # 4. Generate Matrices
     
-    added_arcs_t = set() # To avoid duplicates in matrix_t
 
-    customer_ids = list(range(1, (2 * n_req) + 1))
 
-    for k in range(1, n_vehicles + 1):
-        s_k = (2 * n_req) + k
-        e_k = (2 * n_req) + n_vehicles + k
-        
-        # Nodos válidos para el vehículo k
-        valid_nodes = customer_ids + [s_k, e_k]
-
-        for i in valid_nodes:
-            for j in valid_nodes:
-                # Restricciones del Set Ak
-                if i == j: continue       # i != j
-                if i == e_k: continue     # i != ek (cannot leave sink)
-                if j == s_k: continue     # j != sk (cannot enter source)
-
+    
+    for i in all_nodes_map.keys():
+        for j in all_nodes_map.keys():
+            for k in range(1, n_vehicles + 1):
                 # Calcular distancia
                 dist = euclidean_distance(all_nodes_map[i], all_nodes_map[j])
                 dist = round(dist, 3)
 
-                # Añadir a matrix_c (específica del vehículo k)
+                # Add arc to matrix_c (cost matrix, specific for each vehicle)
                 output["matrix_c"].append({
                     "k": k,
                     "from": i,
@@ -179,17 +165,12 @@ def generate_json_structure(data):
                     "value": dist
                 })
 
-                # Añadir a matrix_t (global)
-                # Solo añadimos si no existe ya el arco (i, j).
-                # Nota: Los arcos que involucran sk o ek son únicos para ese vehículo,
-                # pero los arcos entre clientes (i, j donde i,j <= 2n) se repetirán para cada k.
-                if (i, j) not in added_arcs_t:
-                    output["matrix_t"].append({
-                        "from": i,
-                        "to": j,
-                        "value": dist
-                    })
-                    added_arcs_t.add((i, j))
+            # Add arc to matrix_t (time matrix, same for all vehicles)
+            output["matrix_t"].append({
+                "from": i,
+                "to": j,
+                "value": dist
+            })
 
     return output
 

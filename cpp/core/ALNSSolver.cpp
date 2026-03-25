@@ -6,15 +6,16 @@
 #include <limits>
 
 ALNSSolver::ALNSSolver(const DARPMD_ProblemInstance& instance,
-                       std::optional<double> timeLimit)
-    : data(instance),
-      timeLimit(timeLimit)
-{
-    rng = std::mt19937(123);
+                       std::optional<double> timeLimit,
+                       int seed,
+                       bool verbose)
+    : Solver(verbose), data(instance), timeLimit(timeLimit) {
+
+    rng = std::mt19937(seed);
 
     params = std::make_unique<ALNSParams>();
     evaluator = std::make_unique<ALNSEvaluator>(data, *params);
-    spSolver = std::make_unique<SetPartitioningSolver>(data, *params, *evaluator);
+    spSolver = std::make_unique<SetPartitioningSolver>(data, *params, *evaluator, logger);
     operators = std::make_unique<ALNSOperators>(data, *params, *evaluator, rng);
 
     bestObjective = std::numeric_limits<double>::infinity();
@@ -46,15 +47,13 @@ void ALNSSolver::solveSetPartitioning() {
 
     // Handle the new solution from CPLEX
     if (spSol.objectiveValue < bestObjective) {
-        std::cout << "  [Matheuristic] CPLEX found new best: " << spSol.objectiveValue 
-                  << "  (Improvement)" << std::endl;
+        logger.log("  [Matheuristic] CPLEX found new best solution! Objective: " + std::to_string(spSol.objectiveValue) + " (Improvement)");
         
         bestSolution = spSol;
         bestObjective = spSol.objectiveValue;
     }
     else {
-        std::cout << "  [Matheuristic] CPLEX found solution with objective: " << spSol.objectiveValue 
-                  << "  (No improvement)" << std::endl;
+        logger.log("  [Matheuristic] CPLEX found solution with objective: " + std::to_string(spSol.objectiveValue) + " (No improvement)");
     }
 }
 
@@ -65,8 +64,8 @@ ALNSSolution ALNSSolver::createInitialSolution() {
     for (int k : data.K) {
         ALNSRoute r;
         r.vehicleId = k;
-        r.sequence.push_back(data.StartNode.at(k));
-        r.sequence.push_back(data.EndNode.at(k));
+        r.sequence.push_back(data.getVehicleStartNode(k));
+        r.sequence.push_back(data.getVehicleEndNode(k));
         evaluator->evaluateRoute(r); // Zero cost initially
         sol.routes.push_back(r);
     }
@@ -117,13 +116,13 @@ void ALNSSolver::updateWeights(OperatorStats& stats) {
 bool ALNSSolver::stoppingCriteria(int iter, double elapsedSeconds) {
     // 1. Time limit
     if (timeLimit.has_value() && elapsedSeconds >= timeLimit.value()) {
-        std::cout << "--- Stopping: Time limit reached (" << elapsedSeconds << "s) ---" << std::endl;
+        logger.log("--- Stopping: Time limit reached (" + std::to_string(elapsedSeconds) + "s) ---");
         return true;
     }
 
     // 2. Iteration limit
     if (iter >= params->maxIterations) {
-        std::cout << "--- Stopping: Max iterations reached (" << iter << ") ---" << std::endl;
+        logger.log("--- Stopping: Max iterations reached (" + std::to_string(iter) + ") ---");
         return true;
     }
 
@@ -195,7 +194,7 @@ void ALNSSolver::applyRepair(ALNSSolution& sol, int repairOpIdx) {
 // Main Solve Loop
 // ------------------------------------------------------------------
 void ALNSSolver::solve() {
-    std::cout << "Starting ALNS search..." << std::endl;
+    logger.log("Starting ALNS search");
 
     // 1. Initial Solution
     auto start = std::chrono::high_resolution_clock::now();
@@ -207,7 +206,8 @@ void ALNSSolver::solve() {
     repairStats.init((int)RepairMethod::COUNT);
     double temperature = params->initialTemperature;
 
-    std::cout << "Initial Objective: " << bestObjective << std::endl;
+    logger.log("Initial solution created. Objective: " + std::to_string(bestObjective) 
+        + " (Violations: " + (evaluator->solutionHasViolations(currentSol) ? "Yes" : "No") + ")");
 
     // 2. Main Loop
     for (int iter = 0; ; ++iter) {
@@ -244,8 +244,8 @@ void ALNSSolver::solve() {
             if (neighbor.objectiveValue < bestObjective) {
                 bestSolution = neighbor;
                 bestObjective = neighbor.objectiveValue;
-                std::cout << "* Iter " << iter << ": New Best = " << bestObjective 
-                          << " (Violations: " << (evaluator->solutionHasViolations(neighbor) ? "Yes" : "No") << ")" << std::endl;
+                logger.log("* Iter " + std::to_string(iter) + ": New Best = " + std::to_string(bestObjective) 
+                    + " (Violations: " + (evaluator->solutionHasViolations(neighbor) ? "Yes" : "No") + ")");
                 //solutionDetails(bestSolution);
             }
 
@@ -268,7 +268,7 @@ void ALNSSolver::solve() {
 
         // --- Matheuristic Integration ---
         if (iter > 0 && iter % params->setPartitioningInterval == 0) {
-            std::cout << "Iter " << iter << " [Matheuristic] Running Set Partitioning on Pool..." << std::endl;
+            logger.log("Iter " + std::to_string(iter) + " [Matheuristic] Running Set Partitioning on Pool...");
             solveSetPartitioning();
             // Optional: Re-inject the CPLEX solution as the current solution for ALNS
             // currentSol = bestSolution; 
@@ -276,7 +276,7 @@ void ALNSSolver::solve() {
     }
 
     // Final clean run of SP
-    std::cout << "Final Set Partitioning to polish solution..." << std::endl;
+    logger.log("Final Set Partitioning to polish solution...");
     solveSetPartitioning();
 
     auto end = std::chrono::high_resolution_clock::now();
@@ -342,8 +342,8 @@ void ALNSSolver::checkPickupAfterDelivery(const ALNSSolution& sol, const DARPMD_
             if (data.isDelivery(node)) {
                 int pickupId = node - data.N_requests;
                 if (pickupPositions.count(pickupId) && pickupPositions[pickupId] > pos) {
-                    std::cout << "WARNING: Delivery " << node << " appears before Pickup " 
-                                << pickupId << " in Vehicle " << route.vehicleId << std::endl;
+                    logger.log("WARNING: Delivery " + std::to_string(node) + " appears before Pickup " 
+                        + std::to_string(pickupId) + " in Vehicle " + std::to_string(route.vehicleId));
                 }
             }
         }

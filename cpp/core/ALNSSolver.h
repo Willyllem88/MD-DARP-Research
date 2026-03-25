@@ -25,7 +25,12 @@ class ALNSEvaluator; // Forward declaration to avoid circular dependency
 
 class ALNSSolver : public Solver {
 public:
-    ALNSSolver(const DARPMD_ProblemInstance& instance, std::optional<double> timeLimit = std::nullopt);
+    ALNSSolver(
+        const DARPMD_ProblemInstance& instance, 
+        std::optional<double> timeLimit = std::nullopt, 
+        int seed = 42, 
+        bool verbose = false);
+        
     ~ALNSSolver();
 
     void solve() override;

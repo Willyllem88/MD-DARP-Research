@@ -11,8 +11,8 @@ void DARPMD_ProblemInstance::clear() {
     P.clear();
     D.clear();
     K.clear();
-    StartNode.clear();
-    EndNode.clear();
+    S.clear();
+    E.clear();
     
     service_time.clear();
     demand.clear();
@@ -78,8 +78,8 @@ bool DARPMD_ProblemInstance::loadFromJSON(const std::string& path) {
         for (auto& v : j.at("vehicles")) {
             int k = v.at("id");
             K.push_back(k);
-            StartNode[k] = v.at("start_node");
-            EndNode[k] = v.at("end_node");
+            S.push_back(v.at("start_node"));
+            E.push_back(v.at("end_node"));
             capacity[k] = v.at("capacity");
             max_route_time[k] = v.at("max_time");
         }
@@ -103,8 +103,9 @@ bool DARPMD_ProblemInstance::loadFromJSON(const std::string& path) {
         // 6. Costs (c_ijk)
         int dim_node = max_node_id + 1;
         int dim_veh = K_vehicles + 1;
-        stride_cost_i = dim_node * dim_veh;
-        stride_cost_j = dim_veh;
+        stride_cost_i = dim_node;
+        stride_cost_j = 1;
+        stride_cost_k = dim_node * dim_node;
         size_t total_size = (size_t)dim_node * dim_node * dim_veh;
         flat_cost_matrix.resize(total_size, INF);
         for (auto& x : j.at("matrix_c")) {
@@ -113,7 +114,7 @@ bool DARPMD_ProblemInstance::loadFromJSON(const std::string& path) {
             int k = x.at("k");
             size_t index = (size_t)u * stride_cost_i + 
                            (size_t)v * stride_cost_j + 
-                           (size_t)k;
+                           (size_t)k * stride_cost_k;
             
             if (index < flat_cost_matrix.size()) {
                 flat_cost_matrix[index] = x.at("value");
@@ -159,6 +160,8 @@ void DARPMD_ProblemInstance::displayInfo() const {
     printVector("Pickups (P)", P);
     printVector("Deliveries (D)", D);
     printVector("Vehicles (K)", K);
+    printVector("Start Depots (S)", S);
+    printVector("End Depots (E)", E);
     std::cout << "\n";
 
     // --- Vehicle Details ---
@@ -173,8 +176,8 @@ void DARPMD_ProblemInstance::displayInfo() const {
 
     // --- Print vehicle details ---
     for (int k : K) {
-        int start = (StartNode.count(k)) ? StartNode.at(k) : -1;
-        int end = (EndNode.count(k)) ? EndNode.at(k) : -1;
+        int start = getVehicleStartNode(k);
+        int end = getVehicleEndNode(k);
         double cap = capacity[k];
         double max_t = max_route_time[k];
 
@@ -213,8 +216,8 @@ void DARPMD_ProblemInstance::displayInfo() const {
     // Print subset to avoid huge lists, or iterate relevant sets
     std::vector<int> all_nodes;
     // Add depots
-    for(auto const& [k, node] : StartNode) all_nodes.push_back(node);
-    for(auto const& [k, node] : EndNode) all_nodes.push_back(node);
+    for(int s : S) all_nodes.push_back(s);
+    for(int e : E) all_nodes.push_back(e);
     // Add pickup and deliveries
     for(size_t i=0; i < P.size(); ++i) {
         all_nodes.push_back(P[i]);
@@ -243,17 +246,12 @@ void DARPMD_ProblemInstance::displayInfo() const {
 }
 
 void DARPMD_ProblemInstance::checkAndFixTriangleInequality(bool fixIt, bool verbose) {
-    const double TOLERANCE = 1e-3;
+    // Check triangle inequality for travel times and costs
+    const double TOLERANCE = 1e-4;
     int timeViolations = 0;
-    int costViolations = 0;
     double maxTimeViolation = 0.0;
-    double maxCostViolation = 0.0;
 
-    if (verbose) {
-        std::cout << "--- [DARPMD] Verificando Desigualdad Triangular (Tiempos y Costes) ---" << std::endl;
-    }
-
-    // 1. Time verification (t_ij)
+    // Check triangle inequality for travel times (t_ij)
     if (!t_ij.empty()) {
         for (int k = 1; k <= max_node_id; ++k) { // middle node
             for (int i = 1; i <= max_node_id; ++i) { // origin
@@ -280,7 +278,9 @@ void DARPMD_ProblemInstance::checkAndFixTriangleInequality(bool fixIt, bool verb
                     if (directDist > detourDist + TOLERANCE) {
                         timeViolations++;
                         double diff = directDist - detourDist;
-                        if (diff > maxTimeViolation) maxTimeViolation = diff;
+                        if (diff > maxTimeViolation) {
+                            maxTimeViolation = diff;
+                        }
 
                         if (fixIt) {
                             t_ij[idx_i_j] = detourDist;
@@ -291,58 +291,20 @@ void DARPMD_ProblemInstance::checkAndFixTriangleInequality(bool fixIt, bool verb
         }
     }
 
-    // 2. Cost verification (c_ijk)
-    if (!flat_cost_matrix.empty()) {
-        for (int v = 0; v < K_vehicles; ++v) { 
-            for (int k = 1; k <= max_node_id; ++k) { // middle node
-                for (int i = 1; i <= max_node_id; ++i) { // origin
-                    if (i == k) continue;
-
-                    size_t idx_i_k = (size_t)i * stride_cost_i + (size_t)k * stride_cost_j + v;
-                    double cost_ik = flat_cost_matrix[idx_i_k];
-
-                    if (cost_ik >= INF) continue;
-
-                    for (int j = 1; j <= max_node_id; ++j) { // destination
-                        if (j == i || j == k) continue;
-
-                        size_t idx_k_j = (size_t)k * stride_cost_i + (size_t)j * stride_cost_j + v;
-                        size_t idx_i_j = (size_t)i * stride_cost_i + (size_t)j * stride_cost_j + v;
-
-                        double cost_kj = flat_cost_matrix[idx_k_j];
-                        double directCost = flat_cost_matrix[idx_i_j];
-                        double detourCost = cost_ik + cost_kj;
-
-                        // Is it cheaper to go i->k->j than directly i->j for vehicle v?
-                        if (directCost > detourCost + TOLERANCE) {
-                            costViolations++;
-                            double diff = directCost - detourCost;
-                            if (diff > maxCostViolation) maxCostViolation = diff;
-
-                            if (fixIt) {
-                                flat_cost_matrix[idx_i_j] = detourCost;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // 3. Report results
+    // Report results
     if (verbose) {
-        if (timeViolations > 0 || costViolations > 0) {
-            std::cout << "    [Resultados]" << std::endl;
-            std::cout << "      -> Tiempos (t_ij): " << timeViolations << " violaciones. (Max Reduccion: " << maxTimeViolation << ")" << std::endl;
-            std::cout << "      -> Costes (C_ijk): " << costViolations << " violaciones. (Max Reduccion: " << maxCostViolation << ")" << std::endl;
+        if (timeViolations > 0) {
+            std::cout << "[Triangle Inequality Violations] Time violations detected " << std::endl;
+            std::cout << "  Number of violations: " << timeViolations << std::endl;
+            std::cout << "  Max violation: " << maxTimeViolation << std::endl;
             
             if (fixIt) {
-                std::cout << "    [FIX] Se han corregido ambas matrices. Ahora cumplen la Desigualdad Triangular." << std::endl;
+                std::cout << "[Triangle Inequality Violations] Time matrix have been fixed. Now, time triangle inequality holds." << std::endl;
             } else {
-                std::cout << "    [WARNING] Se han detectado inconsistencias. Se recomienda usar fixIt=true." << std::endl;
+                std::cout << "[Triangle Inequality Violations] Some inconsistencies detected. It is recommended to use fixIt=true." << std::endl;
             }
         } else {
-            std::cout << "    [OK] Tiempos y Costes son consistentes (Cumplen Desigualdad Triangular)." << std::endl;
+            std::cout << "[Triangle Inequality Violations] Times are consistent (Satisfy Triangle Inequality)." << std::endl;
         }
         std::cout << "--------------------------------------------------------------" << std::endl;
     }
