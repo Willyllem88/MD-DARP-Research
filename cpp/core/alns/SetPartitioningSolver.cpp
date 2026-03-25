@@ -157,16 +157,13 @@ ALNSSolution SetPartitioningSolver::solve(const std::map<int, std::vector<ALNSRo
                 usedVehicles.insert(r.vehicleId);
             }
             
-            for(int k : data.K) {
-                if(usedVehicles.find(k) == usedVehicles.end()) {
-                     ALNSRoute emptyR;
-                     emptyR.vehicleId = k;
-                     // Ensure vehicle start/end nodes exist
-                     if (data.StartNode.count(k)) {
-                        emptyR.sequence = {data.StartNode.at(k), data.EndNode.at(k)};
-                        evaluator.evaluateRoute(emptyR);
-                        newSol.routes.push_back(emptyR);
-                     }
+            for (int k : data.K) {
+                if (usedVehicles.find(k) == usedVehicles.end()) {
+                    ALNSRoute emptyR;
+                    emptyR.vehicleId = k;
+                    emptyR.sequence = {data.getVehicleStartNode(k), data.getVehicleEndNode(k)};
+                    evaluator.evaluateRoute(emptyR);
+                    newSol.routes.push_back(emptyR);
                 }
             }
             

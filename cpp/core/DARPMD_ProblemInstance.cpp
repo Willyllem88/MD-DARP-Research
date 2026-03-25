@@ -11,8 +11,8 @@ void DARPMD_ProblemInstance::clear() {
     P.clear();
     D.clear();
     K.clear();
-    StartNode.clear();
-    EndNode.clear();
+    S.clear();
+    E.clear();
     
     service_time.clear();
     demand.clear();
@@ -78,8 +78,8 @@ bool DARPMD_ProblemInstance::loadFromJSON(const std::string& path) {
         for (auto& v : j.at("vehicles")) {
             int k = v.at("id");
             K.push_back(k);
-            StartNode[k] = v.at("start_node");
-            EndNode[k] = v.at("end_node");
+            S.push_back(v.at("start_node"));
+            E.push_back(v.at("end_node"));
             capacity[k] = v.at("capacity");
             max_route_time[k] = v.at("max_time");
         }
@@ -159,6 +159,8 @@ void DARPMD_ProblemInstance::displayInfo() const {
     printVector("Pickups (P)", P);
     printVector("Deliveries (D)", D);
     printVector("Vehicles (K)", K);
+    printVector("Start Depots (S)", S);
+    printVector("End Depots (E)", E);
     std::cout << "\n";
 
     // --- Vehicle Details ---
@@ -173,8 +175,8 @@ void DARPMD_ProblemInstance::displayInfo() const {
 
     // --- Print vehicle details ---
     for (int k : K) {
-        int start = (StartNode.count(k)) ? StartNode.at(k) : -1;
-        int end = (EndNode.count(k)) ? EndNode.at(k) : -1;
+        int start = getVehicleStartNode(k);
+        int end = getVehicleEndNode(k);
         double cap = capacity[k];
         double max_t = max_route_time[k];
 
@@ -213,8 +215,8 @@ void DARPMD_ProblemInstance::displayInfo() const {
     // Print subset to avoid huge lists, or iterate relevant sets
     std::vector<int> all_nodes;
     // Add depots
-    for(auto const& [k, node] : StartNode) all_nodes.push_back(node);
-    for(auto const& [k, node] : EndNode) all_nodes.push_back(node);
+    for(int s : S) all_nodes.push_back(s);
+    for(int e : E) all_nodes.push_back(e);
     // Add pickup and deliveries
     for(size_t i=0; i < P.size(); ++i) {
         all_nodes.push_back(P[i]);

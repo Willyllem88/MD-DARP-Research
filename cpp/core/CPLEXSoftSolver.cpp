@@ -9,17 +9,17 @@ CPLEXSoftSolver::CPLEXSoftSolver(const DARPMD_ProblemInstance& instance, std::op
         
     // Create Set V: P u D u StartNodes u EndNodes
     std::set<int> distinct_nodes;
-    for (int i : data.P) distinct_nodes.insert(i);
-    for (int i : data.D) distinct_nodes.insert(i);
-    for (auto const& [k, node] : data.StartNode) distinct_nodes.insert(node);
-    for (auto const& [k, node] : data.EndNode) distinct_nodes.insert(node);
-    
+    for (int p : data.P) distinct_nodes.insert(p);
+    for (int d : data.D) distinct_nodes.insert(d);
+    for (int s : data.S) distinct_nodes.insert(s);
+    for (int e : data.E) distinct_nodes.insert(e);
+
     V_nodes.assign(distinct_nodes.begin(), distinct_nodes.end());
 
     // Create Set A_k: Valid Arcs
     for (int k : data.K) {
-        int sk = data.StartNode.at(k);
-        int ek = data.EndNode.at(k);
+        int sk = data.getVehicleStartNode(k);
+        int ek = data.getVehicleEndNode(k);
 
         // nodes_k = P u D u [sk, ek]
         std::vector<int> nodes_k;
@@ -159,7 +159,7 @@ void CPLEXSoftSolver::buildModel() {
     // c3: Flow at Depots
     for (int k : data.K) {
         // Start Depot Rule
-        int sk = data.StartNode.at(k);
+        int sk = data.getVehicleStartNode(k);
         IloExpr startExpr(env);
         for (const auto& [ii, jj, kk] : A_k) {
             if (ii == sk && kk == k) {
@@ -170,7 +170,7 @@ void CPLEXSoftSolver::buildModel() {
         startExpr.end();
 
         // End Depot Rule
-        int ek = data.EndNode.at(k);
+        int ek = data.getVehicleEndNode(k);
         IloExpr endExpr(env);
         for (const auto& [ii, jj, kk] : A_k) {
             if (jj == ek && kk == k) {
@@ -232,8 +232,8 @@ void CPLEXSoftSolver::buildModel() {
 
     // c7: Max Route Duration
     for (int k : data.K) {
-        int sk = data.StartNode.at(k);
-        int ek = data.EndNode.at(k);
+        int sk = data.getVehicleStartNode(k);
+        int ek = data.getVehicleEndNode(k);
         double Tmax = data.getVehicleMaxRouteTime(k);
         
         model.add(u[{ek, k}] - u[{sk, k}] <= Tmax + viol_duration[k]);
@@ -320,8 +320,8 @@ void CPLEXSoftSolver::buildModel() {
 
     // c12: Depot Initial/Final Load
     for (int k : data.K) {
-        int sk = data.StartNode.at(k);
-        int ek = data.EndNode.at(k);
+        int sk = data.getVehicleStartNode(k);
+        int ek = data.getVehicleEndNode(k);
         model.add(w[{sk, k}] == 0);
         model.add(w[{ek, k}] == 0);
     }
@@ -390,8 +390,8 @@ DARPMD_ResultInstance CPLEXSoftSolver::getResult() const {
             }
         }
 
-        int current_node = data.StartNode.at(k);
-        int end_node = data.EndNode.at(k);
+        int current_node = data.getVehicleStartNode(k);
+        int end_node = data.getVehicleEndNode(k);
 
         // If vehicle doesn't move
         if (next_node_map.find(current_node) == next_node_map.end()) {
@@ -414,8 +414,8 @@ DARPMD_ResultInstance CPLEXSoftSolver::getResult() const {
             step.nodeId = current_node;
             
             // Determine type (simple heuristic based on your sets P and D)
-            if (current_node == data.StartNode.at(k)) step.type = "DepotStart";
-            else if (current_node == data.EndNode.at(k)) step.type = "DepotEnd";
+            if (current_node == data.getVehicleStartNode(k)) step.type = "DepotStart";
+            else if (current_node == data.getVehicleEndNode(k)) step.type = "DepotEnd";
             else if (std::find(data.P.begin(), data.P.end(), current_node) != data.P.end()) step.type = "Pickup";
             else if (std::find(data.D.begin(), data.D.end(), current_node) != data.D.end()) step.type = "Delivery";
             else step.type = "Node";
