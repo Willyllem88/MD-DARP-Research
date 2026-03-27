@@ -642,7 +642,7 @@ DARPMD_ResultInstance CPLEXSolver::getResult() const {
     return result;
 }
 
-void CPLEXSolver::solveLPRelaxation() {
+double CPLEXSolver::solveLPRelaxation() {
     IloNumVarArray binaryVars(env);
     for (const auto& arc : A_k) {
         binaryVars.add(x[arc]); 
@@ -658,9 +658,11 @@ void CPLEXSolver::solveLPRelaxation() {
 
     std::chrono::duration<double> elapsed = end - start;
 
+    double lpObjValue = cplex.getObjValue();
+
     if (solved) {
         logger.log("Status of the LP relaxation: " + std::to_string(cplex.getStatus()));
-        logger.log("LP Objective Value (Lower Bound): " + std::to_string(cplex.getObjValue()));
+        logger.log("LP Objective Value (Lower Bound): " + std::to_string(lpObjValue));
     } else {
         logger.log("No solution found or infeasible. Status: " + std::to_string(cplex.getStatus()));
     }
@@ -669,4 +671,6 @@ void CPLEXSolver::solveLPRelaxation() {
     model.remove(lpRelaxation);
     lpRelaxation.end();
     binaryVars.end();
+
+    return lpObjValue;
 }
