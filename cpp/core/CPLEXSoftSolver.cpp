@@ -230,7 +230,8 @@ void CPLEXSoftSolver::buildModel() {
         double l_i = data.getTimeWindowEnd(i);
         double e_j = data.getTimeWindowStart(j);
 
-        double M_ij = std::max(0.0, l_i + serv + trav - e_j);
+        double MAX_TIME_VIOLATION = 1000.0; // Arbitrary large number to allow violations
+        double M_ij = std::max(0.0, l_i + MAX_TIME_VIOLATION + serv +  trav - e_j);
         
         model.add(
             u[j] >= u[i] + serv + trav - M_ij * (1 - x[arc])
@@ -285,7 +286,9 @@ void CPLEXSoftSolver::buildModel() {
         double q_j = data.getDemand(j);
         double Q_k = data.getVehicleCapacity(k);
 
-        double M_ijk = Q_k;
+        double MAX_LOAD_VIOLATION = 1000.0; // Arbitrary large number to allow violations
+
+        double M_ijk = Q_k + MAX_LOAD_VIOLATION;
         
         model.add(
             w[{j, k}] >= w[{i, k}] + q_j - M_ijk * (1 - x[{i, j, k}])
@@ -348,8 +351,28 @@ int CPLEXSoftSolver::getNumberOfVariables() const {
     return cplex.getNcols();
 }
 
+void CPLEXSoftSolver::fixAllRoutingVariablesToZero() {
+    for (const auto& arc : A_k) {
+        x[arc].setBounds(0.0, 0.0);
+    }
+}
+
+void CPLEXSoftSolver::fixRoutingVariable(int i, int j, int k, double value) {
+    if (varExists(i, j, k)) {
+        x[{i, j, k}].setBounds(value, value);
+    } else {
+        std::cerr << "Warning: Attempting to fix non-existent variable x[" << i << "," << j << "," << k << "]\n";
+    }
+}
+
+void CPLEXSoftSolver::unfixAllRoutingVariables() {
+    for (const auto& arc : A_k) {
+        x[arc].setBounds(0.0, 1.0);
+    }
+}
+
 DARPMD_ResultInstance CPLEXSoftSolver::getResult() const {
-    DARPMD_ResultInstance result(data);
+    DARPMD_ResultInstance result(data); 
 
     // 1. General Solution Info
     try {

@@ -32,6 +32,11 @@ public:
     int getNumberOfConstraints() const;
     int getNumberOfVariables() const;
 
+    // Variable fixing methods (useful for route first schedule later)
+    void fixAllRoutingVariablesToZero();
+    void fixRoutingVariable(int i, int j, int k, double value = 1.0);
+    void unfixAllRoutingVariables();
+
     DARPMD_ResultInstance getResult() const override;
 
     std::string name() const override {
@@ -49,10 +54,10 @@ private:
     IloCplex cplex;
 
     // Violaton multipliers
-    const double alpha = 10000.0; // For load violations
-    const double beta  = 10000.0; // For duration violations
-    const double gamma = 10000.0; // For ride time window violations
-    const double tau   = 10000.0; // For time ride time violations
+    const double alpha = 1000.0; // For load violations
+    const double beta  = 100.0; // For route duration violations
+    const double gamma = 100.0; // For ride time window violations
+    const double tau   = 100.0; // For time ride time violations
 
     // --- Auxiliary Sets ---
     // List of valid arcs (i,j,k)

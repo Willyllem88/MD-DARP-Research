@@ -5,7 +5,9 @@
 #include <chrono>
 #include <limits>
 
-ALNSSolver::ALNSSolver(const DARPMD_ProblemInstance& instance,
+#include "CPLEXSoftSolver.h"
+
+ALNSSolver::ALNSSolver(DARPMD_ProblemInstance& instance,
                        std::optional<double> timeLimit,
                        int seed,
                        bool verbose)
@@ -54,6 +56,33 @@ void ALNSSolver::solveSetPartitioning() {
     }
     else {
         logger.log("  [Matheuristic] CPLEX found solution with objective: " + std::to_string(spSol.objectiveValue) + " (No improvement)");
+    }
+}
+
+void ALNSSolver::solveScheduleLater(ALNSSolution& sol) {
+    logger.log("[Schedule Later] Starting Schedule Later phase with CPLEX. Current solution objective: " + std::to_string(sol.objectiveValue));
+    CPLEXSoftSolver softSolver(data, std::nullopt, verbose);
+
+    softSolver.fixAllRoutingVariablesToZero();
+
+    for (const auto& route : sol.routes) {
+        for (size_t i = 0; i < route.sequence.size() - 1; ++i) {
+            int from = route.sequence[i];
+            int to = route.sequence[i + 1];
+            int k = route.vehicleId;
+
+            softSolver.fixRoutingVariable(from, to, k, 1.0);
+        }
+    }
+
+    softSolver.solve();
+    DARPMD_ResultInstance result = softSolver.getResult();
+ 
+    if (result.objectiveValue < bestObjective) {
+        logger.log("[Schedule Later] CPLEX improved the solution! Objective: " + std::to_string(result.objectiveValue) + " (Improvement)");
+        bestObjective = result.objectiveValue;
+    } else {
+        logger.log("[Schedule Later] CPLEX found solution with objective: " + std::to_string(result.objectiveValue) + " (No improvement)");
     }
 }
 
@@ -270,14 +299,15 @@ void ALNSSolver::solve() {
         if (iter > 0 && iter % params->setPartitioningInterval == 0) {
             logger.log("Iter " + std::to_string(iter) + " [Matheuristic] Running Set Partitioning on Pool...");
             solveSetPartitioning();
-            // Optional: Re-inject the CPLEX solution as the current solution for ALNS
-            // currentSol = bestSolution; 
         }
     }
 
     // Final clean run of SP
     logger.log("Final Set Partitioning to polish solution...");
     solveSetPartitioning();
+
+    // Solve the schedule later
+    solveScheduleLater(bestSolution);
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> totalElapsed = end - start;
