@@ -7,6 +7,7 @@
 
 #include "DARPMD_ProblemInstance.h"
 #include "CPLEXSolver.h"
+#include "CPLEXSoftSolver.h"
 
 namespace fs = std::filesystem;
 
@@ -44,9 +45,6 @@ int main() {
             continue;
         }
 
-        std::cout << "----------------------------------------\n";
-        std::cout << "Solving instance: " << filename << std::endl;
-
         DARPMD_ProblemInstance instance;
         if (!instance.loadFromJSON(filepath)) {
             std::cerr << "Failed to load instance: " << filepath << std::endl;
@@ -58,7 +56,8 @@ int main() {
         solver->solve();
         DARPMD_ResultInstance result = solver->getResult();
 
-        std::cout << "Status: " << result.solverStatus 
+        std::cout << "Name: " << filename
+                    << " | Status: " << result.solverStatus 
                     << " | Objective: " << result.objectiveValue 
                     << " | Time: " << result.solveTime << "s" << std::endl;
 
@@ -76,4 +75,40 @@ int main() {
     std::cout << "All experiments have finished. Results saved in " << output_csv << std::endl;
 
     return 0;
+}
+
+void experiment_softVShard(DARPMD_ProblemInstance& instance, std::string name) {
+    struct Result {
+        int num_variables;
+        int num_constraints;
+        double LP_bound;
+    };
+
+    auto hard_solver = std::make_unique<CPLEXSolver>(instance);
+    auto soft_solver = std::make_unique<CPLEXSoftSolver>(instance);
+
+    Result hard_result = {
+        hard_solver->getNumberOfVariables(),
+        hard_solver->getNumberOfConstraints(),
+        hard_solver->solveLPRelaxation()
+    };
+
+    Result soft_result = {
+        soft_solver->getNumberOfVariables(),
+        soft_solver->getNumberOfConstraints(),
+        soft_solver->solveLPRelaxation()
+    };
+
+    std::cout << name << " & "
+                << instance.K_vehicles << " & "
+                << instance.N_requests << " & "
+                << instance.getVehicleMaxRouteTime(1) << " & "
+                << instance.getVehicleCapacity(1) << " & "
+                << instance.getMaxRideTime() << " & "
+                << hard_result.num_constraints << " & "
+                << hard_result.num_variables << " & "
+                << hard_result.LP_bound << " & "
+                << soft_result.num_constraints << " & "
+                << soft_result.num_variables << " & "
+                << soft_result.LP_bound << " &  \\\\  \n";
 }

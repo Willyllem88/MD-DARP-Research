@@ -25,7 +25,7 @@ public:
 
     // For analysis: solve the LP relaxation of the model (i.e., relax integrality constraints)
     // This can be useful to understand the strength of the formulation and the quality of the LP bound.
-    void solveLPRelaxation();
+    double solveLPRelaxation();
 
     // For debugging and analysis, return the number of constraints and variables in the model
     // before CPLEX preprocessing (i.e., the original model size)
