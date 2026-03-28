@@ -233,7 +233,10 @@ void ALNSSolver::solve() {
 
     destroyStats.init((int)DestroyMethod::COUNT);
     repairStats.init((int)RepairMethod::COUNT);
-    double temperature = params->initialTemperature;
+
+    double z0 = currentSol.objectiveValue;
+    double initialTemperature = (params->w * z0) / std::log(2.0); // Accept 10% worst solution at the beggining with probability of 50%
+    double temperature = initialTemperature;
 
     logger.log("Initial solution created. Objective: " + std::to_string(bestObjective) 
         + " (Violations: " + (evaluator->solutionHasViolations(currentSol) ? "Yes" : "No") + ")");
@@ -308,6 +311,7 @@ void ALNSSolver::solve() {
 
     // Solve the schedule later
     solveScheduleLater(bestSolution);
+    // TODO: this must be the new best solution
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> totalElapsed = end - start;
