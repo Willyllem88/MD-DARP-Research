@@ -11,10 +11,10 @@ struct ALNSParams {
     double worstRemovalPower = 3.0; // For destroyWorst
     
     // Penalties
-    double timeWindowPenalty = 100.0;            // per time unit
-    double vehicleMaxRouteTimePenalty = 100.0;   // per time unit
-    double capacityPenalty = 1000.0;             // per unit
-    double rideTimePenalty = 100.0;              // per time unit
+    double capacityPenalty = 1000.0;             // (alfa) per unit
+    double vehicleMaxRouteTimePenalty = 100.0;   // (beta) per time unit
+    double timeWindowPenalty = 100.0;            // (gamma) per time unit
+    double rideTimePenalty = 100.0;              // (tau) per time unit
     double unassignedPenalty = 100000.0; // per request
 
     // Punction for adaptive operator selection constants
