@@ -4,8 +4,15 @@
 #include <set>
 #include <chrono>
 
-CPLEXSoftSolver::CPLEXSoftSolver(const DARPMD_ProblemInstance& instance, std::optional<double> timeLimit) 
-    : data(instance), timeLimit(timeLimit), model(env), cplex(model) {
+CPLEXSoftSolver::CPLEXSoftSolver(DARPMD_ProblemInstance& instance, std::optional<double> timeLimit, bool verbose) 
+    : Solver(verbose), data(instance), timeLimit(timeLimit), model(env), cplex(model) {
+
+    // Mute CPLEX output if not verbose
+    if (!verbose) {
+        cplex.setOut(env.getNullStream());
+        cplex.setWarning(env.getNullStream());
+        cplex.setError(env.getNullStream());
+    }
         
     // Create Set V: P u D u StartNodes u EndNodes
     std::set<int> distinct_nodes;
@@ -32,11 +39,25 @@ CPLEXSoftSolver::CPLEXSoftSolver(const DARPMD_ProblemInstance& instance, std::op
             for (int j : nodes_k) {
                 if (i == j) continue;
                 if (i == ek) continue; // Does not leave the end
-                if (j == sk) continue; // Does not enter the start                
+                if (j == sk) continue; // Does not enter the start
+                if (data.isVehicleStart(i) && data.isDelivery(j)) continue; // No direct start-delivery
+                if (data.isPickup(i) && data.isVehicleEnd(j)) continue;     // No direct pickup-end
+                if (data.isDelivery(i) && i == j + data.N_requests) continue; // No direct delivery-pickup of same request
+
                 A_k.emplace_back(i, j, k);
             }
         }
     }
+
+    uint nb_a_k = A_k.size();
+    uint total_possible_arcs = V_nodes.size() * V_nodes.size() * data.K.size();
+    double ratio_pruned = 1.0 - ((double)nb_a_k / total_possible_arcs);
+    logger.log("Total arcs generated (A_k): " + std::to_string(nb_a_k));
+    logger.log("Total possible arcs: " + std::to_string(total_possible_arcs));
+    logger.log("Ratio pruned: " + std::to_string(ratio_pruned * 100) + "%");
+    logger.log("Number of variables: " + std::to_string(cplex.getNcols()));
+    logger.log("Number of constraints: " + std::to_string(cplex.getNrows()));
+    logger.log("\n\n");
 
     buildModel();
 }
@@ -50,7 +71,7 @@ bool CPLEXSoftSolver::varExists(int i, int j, int k) const {
 }
 
 void CPLEXSoftSolver::buildModel() {
-    std::cout << "Building CPLEX Model..." << std::endl;
+    logger.log("Building CPLEX Model");
 
     // --- 1. Create Variables ---
 
@@ -63,11 +84,11 @@ void CPLEXSoftSolver::buildModel() {
 
     // u[i, k] - Continuous (Time) and w[i, k] - Continuous (Load)
     for (int i : V_nodes) {
+        std::string u_name = "u_" + std::to_string(i);
+        u[i] = IloNumVar(env, 0, IloInfinity, ILOFLOAT, u_name.c_str());
+
         for (int k : data.K) {
-            std::string u_name = "u_" + std::to_string(i) + "_" + std::to_string(k);
             std::string w_name = "w_" + std::to_string(i) + "_" + std::to_string(k);
-            
-            u[{i, k}] = IloNumVar(env, 0, IloInfinity, ILOFLOAT, u_name.c_str());
             w[{i, k}] = IloNumVar(env, 0, IloInfinity, ILOFLOAT, w_name.c_str());
         }
     }
@@ -83,12 +104,12 @@ void CPLEXSoftSolver::buildModel() {
             std::string tw_name = "viol_tw_" + std::to_string(i) + "_" + std::to_string(k);
             std::string ride_name = "viol_ridetime_" + std::to_string(i) + "_" + std::to_string(k);
 
-            viol_tw[{i, k}] = IloNumVar(env, 0, IloInfinity, ILOFLOAT, tw_name.c_str());
+            viol_tw[i] = IloNumVar(env, 0, IloInfinity, ILOFLOAT, tw_name.c_str());
             viol_load[{i, k}] = IloNumVar(env, 0, IloInfinity, ILOFLOAT, load_name.c_str());
 
             // Ride time violations only for pickup nodes
             if (std::find(data.P.begin(), data.P.end(), i) != data.P.end()) {
-                viol_ridetime[{i, k}] = IloNumVar(env, 0, IloInfinity, ILOFLOAT, ride_name.c_str());
+                viol_ridetime[i] = IloNumVar(env, 0, IloInfinity, ILOFLOAT, ride_name.c_str());
             }
         }
     }
@@ -103,14 +124,14 @@ void CPLEXSoftSolver::buildModel() {
     }
     for (int k : data.K) {     
         for (int i : V_nodes) {
-            objExpr += alpha  * viol_load[{i, k}];  // alpha * q(s)
+            objExpr += alpha  * viol_load[{i, k}];  // alpha * viol_load(i, k)
         }
-        objExpr += beta * viol_duration[k];         // beta * d(s)
+        objExpr += beta * viol_duration[k];         // beta  * viol_duration(k)
         for (int i : V_nodes) {
-            objExpr += gamma * viol_tw[{i, k}];      // gamma  * v(i)
+            objExpr += gamma * viol_tw[i];          // gamma * viol_tw(i)
         }
         for (int i : data.P) {
-            objExpr += tau * viol_ridetime[{i, k}]; // tau   * t(p)
+            objExpr += tau * viol_ridetime[i];      // tau   * viol_ridetime(i)
         }
     }
     model.add(IloMinimize(env, objExpr));
@@ -209,25 +230,22 @@ void CPLEXSoftSolver::buildModel() {
         double l_i = data.getTimeWindowEnd(i);
         double e_j = data.getTimeWindowStart(j);
 
-        double M_ij = std::max(0.0, l_i + serv + trav - e_j);
+        double MAX_TIME_VIOLATION = 1000.0; // Arbitrary large number to allow violations
+        double M_ij = std::max(0.0, l_i + MAX_TIME_VIOLATION + serv +  trav - e_j);
         
         model.add(
-            u[{j, k}] >= u[{i, k}] + serv + trav - M_ij * (1 - x[arc])
+            u[j] >= u[i] + serv + trav - M_ij * (1 - x[arc])
         );
     }
 
     // c6: Time Windows (Relaxed)
     for (int i : V_nodes) {
-        for (int k : data.K) {
-            // Check limits. If vector indices match node IDs
-            double ei = data.getTimeWindowStart(i);
-            double li = data.getTimeWindowEnd(i);
-            
-            model.add(u[{i, k}] >= ei);
-
-            // Upper bound relaxed
-            model.add(u[{i, k}] <= li + viol_tw[{i, k}]);
-        }
+        // Check limits. If vector indices match node IDs
+        double ei = data.getTimeWindowStart(i);
+        double li = data.getTimeWindowEnd(i);
+        
+        model.add(u[i] >= ei);
+        model.add(u[i] <= li + viol_tw[i]);
     }
 
     // c7: Max Route Duration
@@ -236,7 +254,7 @@ void CPLEXSoftSolver::buildModel() {
         int ek = data.getVehicleEndNode(k);
         double Tmax = data.getVehicleMaxRouteTime(k);
         
-        model.add(u[{ek, k}] - u[{sk, k}] <= Tmax + viol_duration[k]);
+        model.add(u[ek] - u[sk] <= Tmax + viol_duration[k]);
     }
 
     // c8: Precedence
@@ -244,24 +262,10 @@ void CPLEXSoftSolver::buildModel() {
         int delivery_node = i + data.N_requests;
         double serv = data.getServiceTime(i);
         double trav = data.getTravelTime(i, delivery_node);
-        double l_pick = data.getTimeWindowEnd(i);
-        double e_del = data.getTimeWindowStart(delivery_node);
         
-        const double M_ik = std::max(0.0, l_pick + serv + trav - e_del);
-        
-        for (int k : data.K) {
-            IloExpr k_serves_i(env);
-            for (const auto& [ii, jj, kk] : A_k) {
-                if (ii == i && kk == k) {
-                    k_serves_i += x[{ii, jj, kk}];
-                }
-            }
-
-            model.add(
-                u[{delivery_node, k}] >= u[{i, k}] + serv + trav - M_ik * (1 - k_serves_i)
-            );
-            k_serves_i.end();
-        }
+        model.add(
+            u[delivery_node] >= u[i] + serv + trav
+        );
     }
 
     // c9: Ride Time Limit
@@ -270,27 +274,10 @@ void CPLEXSoftSolver::buildModel() {
         int delivery_node = i + data.N_requests;
         double serv = data.getServiceTime(i);
         double L = data.getMaxRideTime();
-        double l_del = data.getTimeWindowEnd(delivery_node);
-        double e_pick = data.getTimeWindowStart(i);
 
-        double max_possible_ride = l_del - (e_pick + serv);
-        double M_ik = std::max(0.0, max_possible_ride - L);
-
-        for (int k : data.K) {
-            IloExpr k_serves_i(env);
-            for (const auto& [ii, jj, kk] : A_k) {
-                if (ii == i && kk == k) {
-                    k_serves_i += x[{ii, jj, kk}];
-                }
-            }
-
-            model.add(
-                u[{delivery_node, k}] - (u[{i, k}] + serv) 
-                <= 
-                L + M_ik * (1 - k_serves_i) + viol_ridetime[{i, k}]
-            );
-            k_serves_i.end();
-        }
+        model.add(
+            u[delivery_node] - (u[i] + serv) <= L + viol_ridetime[i]
+        );
     }
     
     // c10: Load Consistency
@@ -299,7 +286,9 @@ void CPLEXSoftSolver::buildModel() {
         double q_j = data.getDemand(j);
         double Q_k = data.getVehicleCapacity(k);
 
-        double M_ijk = Q_k;
+        double MAX_LOAD_VIOLATION = 1000.0; // Arbitrary large number to allow violations
+
+        double M_ijk = Q_k + MAX_LOAD_VIOLATION;
         
         model.add(
             w[{j, k}] >= w[{i, k}] + q_j - M_ijk * (1 - x[{i, j, k}])
@@ -333,34 +322,57 @@ void CPLEXSoftSolver::solve() {
         cplex.setParam(IloCplex::Param::TimeLimit, timeLimit.value());
     }
     
-    std::cout << "Starting CPLEX solve..." << std::endl;
+    logger.log("Starting CPLEX solve");
 
     auto start = std::chrono::high_resolution_clock::now();
-
     bool solved = cplex.solve();
-
     auto end =  std::chrono::high_resolution_clock::now();
 
     std::chrono::duration<double> elapsed = end - start;
     this->solveTime = elapsed.count();
 
-    std::cout << "CPLEX Status: " << cplex.getStatus() << std::endl;
-    std::cout << "Objective Value: " << cplex.getObjValue() << std::endl;
-
     // Print solve results
     if (solved) {
-        std::cout << "CPLEX Status: " << cplex.getStatus() << std::endl;
-        std::cout << "Objective Value: " << cplex.getObjValue() << std::endl;
+        logger.log("CPLEX Status: " + std::to_string(cplex.getStatus()));
+        logger.log("Objective Value: " + std::to_string(cplex.getObjValue()));
         this->mipGap = cplex.getMIPRelativeGap();
         this->objectiveValue = cplex.getObjValue();
     } else {
-        std::cout << "No solution found or infeasible. Status: " << cplex.getStatus() << std::endl;
+        logger.log("No solution found or infeasible. Status: " + std::to_string(cplex.getStatus()));
     }
-    std::cout << "Total Solve Time: " << this->solveTime << " s" << std::endl;
+    logger.log("Total Solve Time: " + std::to_string(this->solveTime) + " s");
+}
+
+int CPLEXSoftSolver::getNumberOfConstraints() const {
+    return cplex.getNrows();
+}
+
+int CPLEXSoftSolver::getNumberOfVariables() const {
+    return cplex.getNcols();
+}
+
+void CPLEXSoftSolver::fixAllRoutingVariablesToZero() {
+    for (const auto& arc : A_k) {
+        x[arc].setBounds(0.0, 0.0);
+    }
+}
+
+void CPLEXSoftSolver::fixRoutingVariable(int i, int j, int k, double value) {
+    if (varExists(i, j, k)) {
+        x[{i, j, k}].setBounds(value, value);
+    } else {
+        std::cerr << "Warning: Attempting to fix non-existent variable x[" << i << "," << j << "," << k << "]\n";
+    }
+}
+
+void CPLEXSoftSolver::unfixAllRoutingVariables() {
+    for (const auto& arc : A_k) {
+        x[arc].setBounds(0.0, 1.0);
+    }
 }
 
 DARPMD_ResultInstance CPLEXSoftSolver::getResult() const {
-    DARPMD_ResultInstance result(data);
+    DARPMD_ResultInstance result(data); 
 
     // 1. General Solution Info
     try {
@@ -373,7 +385,7 @@ DARPMD_ResultInstance CPLEXSoftSolver::getResult() const {
         return result;
     }
 
-    // 2. Reconstruct routes (Logic similar to displayResults but storing data)
+    // 2. Reconstruct routes
     for (int k : data.K) {
         VehicleRoute vRoute;
         vRoute.vehicleId = k;
@@ -421,8 +433,8 @@ DARPMD_ResultInstance CPLEXSoftSolver::getResult() const {
             else step.type = "Node";
 
             // Extract continuous variable values u (time) and w (load)
-            if (u.count({current_node, k})) 
-                step.arrivalTime = cplex.getValue(u.at({current_node, k}));
+            if (u.count(current_node)) 
+                step.arrivalTime = cplex.getValue(u.at(current_node));
             else 
                 step.arrivalTime = 0.0;
 
@@ -445,4 +457,37 @@ DARPMD_ResultInstance CPLEXSoftSolver::getResult() const {
     }
 
     return result;
+}
+
+double CPLEXSoftSolver::solveLPRelaxation() {
+    IloNumVarArray binaryVars(env);
+    for (const auto& arc : A_k) {
+        binaryVars.add(x[arc]); 
+    }
+
+    IloConversion lpRelaxation(env, binaryVars, ILOFLOAT);
+
+    model.add(lpRelaxation);
+
+    auto start = std::chrono::high_resolution_clock::now();
+    bool solved = cplex.solve();
+    auto end = std::chrono::high_resolution_clock::now();
+
+    std::chrono::duration<double> elapsed = end - start;
+
+    double lpObjValue = cplex.getObjValue();
+
+    if (solved) {
+        logger.log("Status of the LP relaxation: " + std::to_string(cplex.getStatus()));
+        logger.log("LP Objective Value (Lower Bound): " + std::to_string(lpObjValue));
+    } else {
+        logger.log("No solution found or infeasible. Status: " + std::to_string(cplex.getStatus()));
+    }
+    logger.log("LP Solving Time: " + std::to_string(elapsed.count()) + " s\n");
+
+    model.remove(lpRelaxation);
+    lpRelaxation.end();
+    binaryVars.end();
+
+    return lpObjValue;
 }

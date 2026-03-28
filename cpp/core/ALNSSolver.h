@@ -26,7 +26,7 @@ class ALNSEvaluator; // Forward declaration to avoid circular dependency
 class ALNSSolver : public Solver {
 public:
     ALNSSolver(
-        const DARPMD_ProblemInstance& instance, 
+        DARPMD_ProblemInstance& instance, 
         std::optional<double> timeLimit = std::nullopt, 
         int seed = 42, 
         bool verbose = false);
@@ -45,7 +45,7 @@ public:
     void addRouteToPool(const ALNSRoute& route);
 
 private:
-    const DARPMD_ProblemInstance& data;
+    DARPMD_ProblemInstance& data;
     std::optional<double> timeLimit;
     
     std::unique_ptr<ALNSParams> params;
@@ -108,6 +108,8 @@ private:
     // --- CPLEX Integration (Set Partitioning) ---
     // Solves a Set Partitioning problem using the accumulated routePool
     void solveSetPartitioning(); 
+    // Solve schedule later
+    void solveScheduleLater(ALNSSolution& sol);
 
     void runSimpleLocalSearch(ALNSSolution& sol);
 };

@@ -44,8 +44,6 @@ bool DARPMD_ProblemInstance::loadFromJSON(const std::string& path) {
     try {
         file >> j;
 
-        std::cout << "Loading instance..." << std::endl;
-
         // 1. Load Requests and basic Sets
         auto& req = j.at("requests");
         P = req.at("pickup_ids").get<std::vector<int>>();

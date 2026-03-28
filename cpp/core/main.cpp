@@ -95,7 +95,7 @@ int main(int argc, char** argv) {
     if (args.method == "ILP") {
         solver = std::make_unique<CPLEXSolver>(instance, args.time_limit, args.verbose);
     } else if (args.method == "ILPSoft") {
-        solver = std::make_unique<CPLEXSoftSolver>(instance, args.time_limit);
+        solver = std::make_unique<CPLEXSoftSolver>(instance, args.time_limit, args.verbose);
     } else if (args.method == "ALNS") {
         solver = std::make_unique<ALNSSolver>(instance, args.time_limit, args.seed, args.verbose);
     } else {
