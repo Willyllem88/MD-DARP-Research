@@ -8,7 +8,6 @@ struct ALNSParams {
     double w = 0.1; // How much worse can a solution be to still be accepted in the first iterations (relative to the initial solution)
     double coolingRate = 0.9995;
     double destroyFraction = 0.4; // Fraction of requests to remove in destroy phase
-    double worstRemovalPower = 3.0; // For destroyWorst
     
     // Penalties
     double capacityPenalty = 1000.0;             // (alfa) per unit
@@ -16,6 +15,14 @@ struct ALNSParams {
     double timeWindowPenalty = 100.0;            // (gamma) per time unit
     double rideTimePenalty = 100.0;              // (tau) per time unit
     double unassignedPenalty = 100000.0; // per request
+
+    // Similarity weights for Shaw removal
+    double shawDistWeight = 9.0;        // (phi) weight for distance in relatedness calculation
+    double shawTimeWeight = 3.0;        // (chi) weight for time window similarity in relatedness calculation
+    double shawDemandWeight = 1.0;      // (psi) weight for demand similarity in relatedness calculation
+
+    // Power for random selection in destroyWorst and destroyShaw
+    double worstRemovalPower = 3.0;
 
     // Punction for adaptive operator selection constants
     const double sigma1 = 33.0; // For new best global

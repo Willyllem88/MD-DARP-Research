@@ -133,15 +133,17 @@ void ALNSOperators::destroyWorst(ALNSSolution& sol, int q) {
 
 double ALNSOperators::calculateRelatedness(int i, int j) {
     // Heurístic weights
-    double w_dist = 9.0;
-    double w_time = 3.0;
-    double w_demand = 1.0;
+    double w_dist = params.shawDistWeight;
+    double w_time = params.shawTimeWeight;
+    double w_demand = params.shawDemandWeight;
 
     // Distancia normalizada (aprox) entre orígenes
     double dist = data.getTravelTime(i, j); 
     
     // Diferencia temporal (Start Time Window)
-    double timeDiff = std::abs(data.getTimeWindowStart(i) - data.getTimeWindowStart(j));
+    double mu_i = (data.getTimeWindowStart(i) + data.getTimeWindowEnd(i)) / 2.0;
+    double mu_j = (data.getTimeWindowStart(j) + data.getTimeWindowEnd(j)) / 2.0;
+    double timeDiff = std::abs(mu_i - mu_j);
     
     // Diferencia de demanda
     double demandDiff = std::abs(data.getDemand(i) - data.getDemand(j));
@@ -152,15 +154,7 @@ double ALNSOperators::calculateRelatedness(int i, int j) {
 
 void ALNSOperators::destroyShaw(ALNSSolution& sol, int q) {
     // 1. Choose a random seed request that is currently assigned
-    std::vector<int> assigned;
-    for (const auto& r : sol.routes) {
-        for (int node : r.sequence) {
-            if (data.isPickup(node)) 
-                assigned.push_back(node);
-        }
-    }
-    
-    if (assigned.empty()) return;
+    const std::vector<int>& assigned = data.P;
     std::uniform_int_distribution<> dis(0, assigned.size() - 1);
     int seedRequest = assigned[dis(rng)];
 
