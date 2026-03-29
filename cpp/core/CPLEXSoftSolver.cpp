@@ -122,18 +122,16 @@ void CPLEXSoftSolver::buildModel() {
         double cost = data.getCost(i, j, k);
         objExpr += cost * x[{i, j, k}];
     }
-    for (int k : data.K) {     
-        for (int i : V_nodes) {
+    for (int k : data.K) 
+        for (int i : V_nodes)
             objExpr += alpha  * viol_load[{i, k}];  // alpha * viol_load(i, k)
-        }
+    for (int k : data.K)
         objExpr += beta * viol_duration[k];         // beta  * viol_duration(k)
-        for (int i : V_nodes) {
-            objExpr += gamma * viol_tw[i];          // gamma * viol_tw(i)
-        }
-        for (int i : data.P) {
-            objExpr += tau * viol_ridetime[i];      // tau   * viol_ridetime(i)
-        }
-    }
+    for (int i : V_nodes)
+        objExpr += gamma * viol_tw[i];              // gamma * viol_tw(i)
+    for (int i : data.P)
+        objExpr += tau * viol_ridetime[i];          // tau   * viol_ridetime(i)
+    
     model.add(IloMinimize(env, objExpr));
     objExpr.end();
 
@@ -380,6 +378,42 @@ DARPMD_ResultInstance CPLEXSoftSolver::getResult() const {
         result.solveTime = this->solveTime;
         result.mipGap = this->mipGap;
         result.solverStatus = (cplex.getStatus() == IloAlgorithm::Optimal) ? "Optimal" : "Feasible";
+
+        // DEBUG only, print the sum of the violations to check if they are being used
+        double totalLoadViolation = 0.0;
+        double totalDurationViolation = 0.0;
+        double totalTWViolation = 0.0;
+        double totalRideTimeViolation = 0.0;
+        for (const auto& [key, var] : viol_load) {
+            totalLoadViolation += cplex.getValue(var);
+        }
+        for (const auto& [key, var] : viol_duration) {
+            totalDurationViolation += cplex.getValue(var);
+        }
+        for (const auto& [key, var] : viol_tw) {
+            totalTWViolation += cplex.getValue(var);
+        }
+        for (const auto& [key, var] : viol_ridetime) {
+            totalRideTimeViolation += cplex.getValue(var);
+        }
+        logger.log("Total Load Violation: " + std::to_string(totalLoadViolation));
+        logger.log("Total Duration Violation: " + std::to_string(totalDurationViolation));
+        logger.log("Total Time Window Violation: " + std::to_string(totalTWViolation));
+        logger.log("Total Ride Time Violation: " + std::to_string(totalRideTimeViolation));
+
+        double totalViolationCost = alpha * totalLoadViolation + beta * totalDurationViolation + gamma * totalTWViolation + tau * totalRideTimeViolation;
+        logger.log("Total Violation Cost: " + std::to_string(totalViolationCost));
+
+        //DEBUG: print the cost of the routes without the violations to check if the objective is being driven by the cost or the violations
+        double totalRouteCost = 0.0;
+        for (const auto& arc : A_k) {
+            if (cplex.isExtracted(x.at(arc)) && cplex.getValue(x.at(arc)) > 0.5) {
+                auto [i, j, k] = arc;
+                totalRouteCost += data.getCost(i, j, k);
+            }
+        }
+        logger.log("Total Route Cost (without violations): " + std::to_string(totalRouteCost));
+        logger.log("Objective Value: " + std::to_string(result.objectiveValue));
     } catch (...) {
         result.solverStatus = "No Solution";
         return result;

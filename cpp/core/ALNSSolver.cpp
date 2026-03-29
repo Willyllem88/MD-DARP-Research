@@ -60,8 +60,8 @@ void ALNSSolver::solveSetPartitioning() {
 }
 
 void ALNSSolver::solveScheduleLater(ALNSSolution& sol) {
-    logger.log("[Schedule Later] Starting Schedule Later phase with CPLEX. Current solution objective: " + std::to_string(sol.objectiveValue));
-    CPLEXSoftSolver softSolver(data, std::nullopt, verbose);
+    logger.log("[Schedule Later] Starting... Current solution objective: " + std::to_string(sol.objectiveValue));
+    CPLEXSoftSolver softSolver(data, std::nullopt, false);
 
     softSolver.fixAllRoutingVariablesToZero();
 
