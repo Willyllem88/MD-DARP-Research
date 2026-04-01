@@ -61,6 +61,8 @@ private:
     double bestObjective;
     double solveTime;
 
+    double currentTemperature;
+
     // --- The Route Pool for Set Partitioning ---
     // Stores unique feasible routes found during search
     // Key: VehicleID (since depots differ), Value: List of routes
@@ -70,7 +72,7 @@ private:
     // --- Core Logic Methods ---
 
     bool stoppingCriteria(int iter, double elapsedSeconds);
-    bool acceptanceCriteria(double candidateObj, double currentObj, double temperature, double& score);
+    bool acceptanceCriteria(double candidateObj, double currentObj, double temperature, bool isNew, double& score);
 
     void applyDestroy(ALNSSolution& sol, int destroyOpIdx);
     void applyRepair(ALNSSolution& sol, int repairOpIdx);
@@ -97,10 +99,7 @@ private:
 
     int selectOperator(const std::vector<double>& weights);
     void updateWeights(OperatorStats& stats);
-
-    // Helper: Check if a request (pickup p, delivery d) can be inserted into route at pos i, j
-    // Returns incremental cost (or infinity if impossible/too expensive)
-    double calculateInsertionCost(const ALNSRoute& route, int requestIdx, int pIdx, int dIdx);
+    void initializeStatsAndTemperature(const ALNSSolution& initialSolution);
 
     // Helper: Check if any delivery appears before its pickup in the solution (should never happen)
     void checkPickupAfterDelivery(const ALNSSolution& sol, const DARPMD_ProblemInstance& data) const;

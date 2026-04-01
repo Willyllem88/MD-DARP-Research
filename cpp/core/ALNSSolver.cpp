@@ -155,31 +155,32 @@ bool ALNSSolver::stoppingCriteria(int iter, double elapsedSeconds) {
         return true;
     }
 
-    // 3. TODO: No improvement for X iterations
-
     return false;
 }
 
-bool ALNSSolver::acceptanceCriteria(double neighborObj, double currentObj, double temperature, double& score) {
+bool ALNSSolver::acceptanceCriteria(double neighborObj, double currentObj, double temperature, bool isNew, double& score) {
     double delta = neighborObj - currentObj;
 
-    // Caso 1: Mejora la solución actual
+    // Caso 1: Improves the current solution
     if (delta < 0) {
-        // Si además mejora la mejor global
-        if (neighborObj < bestObjective) {
-            score = params->sigma1; // Nueva mejor global
-        } else {
-            score = params->sigma2; // Mejora actual pero no global
-        }
+        // If also improves the global best
+        if (neighborObj < bestObjective) score = params->sigma1; 
+        // Improves the current but not the global best, but is a new solution (not visited before)
+        else if (isNew) score = params->sigma2;
+        // Improves the current but is not a new solution (already visited)
+        else score = 0.0;
         return true;
     } 
     
-    // Caso 2: Solución peor (Criterio de Simulated Annealing)
+    // Caso 2: Worse solution (Simulated Annealing acceptance)
     double prob = std::exp(-delta / temperature);
     std::uniform_real_distribution<> dis(0.0, 1.0);
     
     if (dis(rng) < prob) {
-        score = params->sigma3; // Aceptada siendo peor
+        // Acceoted although worse
+        if (isNew) score = params->sigma3;
+        // Accepted but already visited, so no score
+        else score = 0.0;
         return true;
     }
 
@@ -219,6 +220,19 @@ void ALNSSolver::applyRepair(ALNSSolution& sol, int repairOpIdx) {
     }
 }
 
+void ALNSSolver::initializeStatsAndTemperature(const ALNSSolution& initialSolution) {
+    destroyStats.init((int)DestroyMethod::COUNT);
+    repairStats.init((int)RepairMethod::COUNT);
+
+    // Accept 10% worst solution at the beggining with probability of 50%
+    double z0 = initialSolution.objectiveValue;
+    double initialTemperature = (params->w * z0) / std::log(2.0);
+    currentTemperature = initialTemperature;
+
+    logger.log("Initial solution created. Objective: " + std::to_string(bestObjective) 
+        + " (Violations: " + (evaluator->solutionHasViolations(initialSolution) ? "Yes" : "No") + ")");
+}
+
 // ------------------------------------------------------------------
 // Main Solve Loop
 // ------------------------------------------------------------------
@@ -231,20 +245,13 @@ void ALNSSolver::solve() {
     bestSolution = currentSol;
     bestObjective = currentSol.objectiveValue;
 
-    destroyStats.init((int)DestroyMethod::COUNT);
-    repairStats.init((int)RepairMethod::COUNT);
+    std::unordered_set<std::size_t> visitedSolutionsHashes;
+    visitedSolutionsHashes.insert(SolutionHash{}(currentSol));
 
-    double z0 = currentSol.objectiveValue;
-    double initialTemperature = (params->w * z0) / std::log(2.0); // Accept 10% worst solution at the beggining with probability of 50%
-    double temperature = initialTemperature;
-
-    logger.log("Initial solution created. Objective: " + std::to_string(bestObjective) 
-        + " (Violations: " + (evaluator->solutionHasViolations(currentSol) ? "Yes" : "No") + ")");
+    initializeStatsAndTemperature(currentSol);
 
     // 2. Main Loop
     for (int iter = 0; ; ++iter) {
-        
-        // Check time limit
         auto now = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> elapsed = now - start;
         if (stoppingCriteria(iter, elapsed.count())) break;
@@ -254,12 +261,15 @@ void ALNSSolver::solve() {
         int repairOpIdx = selectOperator(repairStats.weights);
         ALNSSolution neighbor = currentSol;
 
-        // --- Destroy ---
+        // --- Destroy and Repair ---
         applyDestroy(neighbor, destroyOpIdx);
-        // --- Repair ---
         applyRepair(neighbor, repairOpIdx);
-
         evaluator->evaluateSolution(neighbor);
+
+        std::size_t neighborHash = SolutionHash{}(neighbor);
+        bool isNew = (visitedSolutionsHashes.find(neighborHash) == visitedSolutionsHashes.end());
+        if (isNew)  visitedSolutionsHashes.insert(neighborHash);
+
         for (const auto& route : neighbor.routes) {
             if (!route.sequence.empty()) {
                 addRouteToPool(route);
@@ -268,7 +278,7 @@ void ALNSSolver::solve() {
 
         // --- Acceptance Criterion ---
         double iterScore = 0.0;
-        bool accept = acceptanceCriteria(neighbor.objectiveValue, currentSol.objectiveValue, temperature, iterScore);
+        bool accept = acceptanceCriteria(neighbor.objectiveValue, currentSol.objectiveValue, currentTemperature, isNew, iterScore);
 
         if (accept) {
             currentSol = neighbor;
@@ -296,7 +306,7 @@ void ALNSSolver::solve() {
         }
 
         // --- Cooling ---
-        temperature *= params->coolingRate;
+        currentTemperature *= params->coolingRate;
 
         // --- Matheuristic Integration ---
         if (iter > 0 && iter % params->setPartitioningInterval == 0) {
