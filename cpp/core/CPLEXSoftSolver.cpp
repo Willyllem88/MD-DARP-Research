@@ -467,9 +467,9 @@ DARPMD_ResultInstance CPLEXSoftSolver::getResult() const {
             else step.type = "Node";
 
             // Extract continuous variable values u (time) and w (load)
-            if (u.count(current_node)) 
+            if (u.count(current_node))
                 step.arrivalTime = cplex.getValue(u.at(current_node));
-            else 
+            else
                 step.arrivalTime = 0.0;
 
             if (w.count({current_node, k}))

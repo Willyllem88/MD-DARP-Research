@@ -59,7 +59,7 @@ void ALNSSolver::solveSetPartitioning() {
     }
 }
 
-void ALNSSolver::solveScheduleLater(ALNSSolution& sol) {
+DARPMD_ResultInstance ALNSSolver::solveScheduleLater(ALNSSolution& sol) {
     logger.log("[Schedule Later] Starting... Current solution objective: " + std::to_string(sol.objectiveValue));
     CPLEXSoftSolver softSolver(data, std::nullopt, false);
 
@@ -84,6 +84,9 @@ void ALNSSolver::solveScheduleLater(ALNSSolution& sol) {
     } else {
         logger.log("[Schedule Later] CPLEX found solution with objective: " + std::to_string(result.objectiveValue) + " (No improvement)");
     }
+    
+    // NRVO: the compiler optimize this copy
+    return result;
 }
 
 ALNSSolution ALNSSolver::createInitialSolution() {
@@ -161,7 +164,7 @@ bool ALNSSolver::stoppingCriteria(int iter, double elapsedSeconds) {
 bool ALNSSolver::acceptanceCriteria(double neighborObj, double currentObj, double temperature, bool isNew, double& score) {
     double delta = neighborObj - currentObj;
 
-    // Caso 1: Improves the current solution
+    // Case 1: Improves the current solution
     if (delta < 0) {
         // If also improves the global best
         if (neighborObj < bestObjective) score = params->sigma1; 
@@ -172,19 +175,19 @@ bool ALNSSolver::acceptanceCriteria(double neighborObj, double currentObj, doubl
         return true;
     } 
     
-    // Caso 2: Worse solution (Simulated Annealing acceptance)
+    // Case 2: Worse solution (Simulated Annealing acceptance)
     double prob = std::exp(-delta / temperature);
     std::uniform_real_distribution<> dis(0.0, 1.0);
     
     if (dis(rng) < prob) {
-        // Acceoted although worse
+        // Accepted although worse
         if (isNew) score = params->sigma3;
         // Accepted but already visited, so no score
         else score = 0.0;
         return true;
     }
 
-    // Caso 3: Rechazada
+    // Case 3: Not accepted
     score = 0.0; 
     return false;
 }
@@ -288,10 +291,7 @@ void ALNSSolver::solve() {
                 bestObjective = neighbor.objectiveValue;
                 logger.log("* Iter " + std::to_string(iter) + ": New Best = " + std::to_string(bestObjective) 
                     + " (Violations: " + (evaluator->solutionHasViolations(neighbor) ? "Yes" : "No") + ")");
-                //solutionDetails(bestSolution);
             }
-
-            checkPickupAfterDelivery(currentSol, data);
         }
         
         // -- Update Operator Stats ---
@@ -320,22 +320,14 @@ void ALNSSolver::solve() {
     solveSetPartitioning();
 
     // Solve the schedule later
-    solveScheduleLater(bestSolution);
-    // TODO: this must be the new best solution
-
+    result = solveScheduleLater(bestSolution);
+    
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> totalElapsed = end - start;
     this->solveTime = totalElapsed.count();
 
     std::cout << std::endl << std::string(50, '=') << std::endl 
-              << "ALNS Finished. Best Objective: " << bestObjective << std::endl;
-    // Print the objective value of the arcs used (distance cost only, without penalties)
-    double totalDistanceCost = 0.0;
-    for (const auto& r : bestSolution.routes) {
-        totalDistanceCost += r.distanceCost;
-    }
-    std::cout << "Objective (without penalties): " << totalDistanceCost << std::endl;
-    std::cout << "Total Solve Time: " << this->solveTime << " seconds." << std::endl;
+              << "ALNS Finished" << std::endl;
 
     // Print operator stats
     std::cout << std::endl << "Operator Usage Stats:" << std::endl;
@@ -355,20 +347,6 @@ void ALNSSolver::solve() {
                   << ", Avg Score=" << avgScore << std::endl;
     }
 
-    //Print violation
-    std::cout << std::endl << "Violations in Best Solution:" << std::endl;
-    for (const auto& r : bestSolution.routes) {
-        std::cout << "  Vehicle " << r.vehicleId << " Violations: TimeWindows: " << r.timeWindowViolation
-                  << ", MaxRouteTime: " << r.vehicleMaxRouteTimeViolation << ", Load: " << r.loadViolation 
-                  << ", RideTime: " << r.rideTimeViolation << std::endl;
-    }
-    // Print unassigned requests
-    std::cout << "Unassigned Requests: ";
-    if (bestSolution.unassignedRequests.empty()) std::cout << "NONE";
-    for (int req : bestSolution.unassignedRequests) {
-        std::cout << req << " ";
-    }
-    std::cout << std::endl;
 }
 
 void ALNSSolver::checkPickupAfterDelivery(const ALNSSolution& sol, const DARPMD_ProblemInstance& data) const {
@@ -395,36 +373,9 @@ void ALNSSolver::checkPickupAfterDelivery(const ALNSSolution& sol, const DARPMD_
 }
 
 DARPMD_ResultInstance ALNSSolver::getResult() const {
-    DARPMD_ResultInstance result(data);
-    result.solveTime = this->solveTime;
-    result.objectiveValue = this->bestObjective;
-    
-    // If we have violations, mark as Feasible only (or Infeasible)
-    // But since this is heuristic result, we return what we have.
-    result.solverStatus = (bestSolution.unassignedRequests.empty()) ? "Feasible" : "Partial/Infeasible";
-
-    for (const auto& r : bestSolution.routes) {
-        VehicleRoute vRoute;
-        vRoute.vehicleId = r.vehicleId;
-
-        for (int nodeId : r.sequence) {
-            RouteStep step;
-            step.nodeId = nodeId;
-            
-            // Types
-            if (data.isVehicleStart(nodeId)) step.type = "DepotStart";
-            else if (data.isVehicleEnd(nodeId)) step.type = "DepotEnd";
-            else if (data.isPickup(nodeId)) step.type = "Pickup";
-            else step.type = "Delivery";
-
-            // Timing info from evaluation
-            step.arrivalTime = (nodeId < (int)r.arrivalTimes.size()) ? r.arrivalTimes[nodeId] : 0.0;
-            step.loadAfter   = (nodeId < (int)r.loads.size())        ? r.loads[nodeId]        : 0.0;
-
-            vRoute.steps.push_back(step);
-        }
-        result.addRoute(r.vehicleId, vRoute);
+    if (result.has_value()) {
+        return result.value();
+    } else {
+        throw std::runtime_error("Result is not available yet. Call solve() first.");
     }
-
-    return result;
 }

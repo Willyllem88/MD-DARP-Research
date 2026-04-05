@@ -6,6 +6,7 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
+#include <optional>
 
 #include "DARPMD_ProblemInstance.h"
 #include "Metadata.h"
@@ -18,9 +19,7 @@ struct RouteStep {
     int nodeId;             // ID of the node
     std::string type;       // "DepotStart", "DepotEnd", "Pickup", "Delivery"
     double arrivalTime;     // Value of the variable u
-    double startServiceTime;// When the service actually starts
     double loadAfter;       // Load of the vehicle after visiting the node (variable w)
-    double distanceTraveled;// Accumulated distance up to this point (optional)
 };
 
 // Structure for representing the complete route of a vehicle
@@ -48,6 +47,26 @@ public:
     Metadata metadata; // Additional information (city, coordinates, etc.)
     DARPMD_ProblemInstance problemInstance;
 
+        struct SolutionViolations {
+        double totalTravelCost = 0.0;
+        double totalCost = 0.0;
+        
+        std::map<int, double> timeWindowsViolation;     // nodeId -> violation amount
+        double sumTimeWindows = 0.0;
+        std::map<int, double> rideTimeViolations;       // requestId -> violation amount
+        double sumRideTime = 0.0;
+        std::map<int, double> capacitiesViolation;      // vehicleId -> violation amount
+        double sumCapacities = 0.0;
+        std::map<int, double> routeDurationViolations;  // vehicleId -> violation amount
+        double sumRouteDuration = 0.0;
+        
+        std::vector<int> unassignedRequests;
+
+        bool hasViolations = false;
+    };
+
+    std::optional<SolutionViolations> violations;
+
     // --- Constructor ---
     DARPMD_ResultInstance() = delete;
     DARPMD_ResultInstance(const DARPMD_ProblemInstance& problem):
@@ -62,8 +81,10 @@ public:
     // --- Management Methods ---
     void addRoute(int vehicleId, const VehicleRoute& route);
 
+    void calculateViolations();
+
     // --- Visualization Methods ---
-    void displaySummary() const;
+    void displaySummary();
     
     // --- Export Methods ---
     

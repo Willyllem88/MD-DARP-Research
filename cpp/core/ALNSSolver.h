@@ -46,6 +46,7 @@ public:
 
 private:
     DARPMD_ProblemInstance& data;
+    std::optional<DARPMD_ResultInstance> result;
     std::optional<double> timeLimit;
     
     std::unique_ptr<ALNSParams> params;
@@ -108,7 +109,8 @@ private:
     // Solves a Set Partitioning problem using the accumulated routePool
     void solveSetPartitioning(); 
     // Solve schedule later
-    void solveScheduleLater(ALNSSolution& sol);
+    DARPMD_ResultInstance solveScheduleLater(ALNSSolution& sol);
 
+    // TODO: future improvements
     void runSimpleLocalSearch(ALNSSolution& sol);
 };

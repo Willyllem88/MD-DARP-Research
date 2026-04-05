@@ -244,17 +244,11 @@ void ALNSOperators::repairGreedy(ALNSSolution& sol) {
             }
         }
 
-        // Apply best move if reasonable
-        if (bestVehicle != -1 && bestCostIncrease < params.unassignedPenalty) {
-            auto& r = sol.routes[bestVehicle];
-            r.sequence.insert(r.sequence.begin() + bestPIdx, reqId);
-            r.sequence.insert(r.sequence.begin() + bestDIdx, deliveryId);
-            // Don't need to eval full solution yet, loop handles local delta
-            // But we should update the route cost locally for next comparison
-            evaluator.evaluateRoute(r);
-        } else {
-            sol.unassignedRequests.insert(reqId);
-        }
+        auto& r = sol.routes[bestVehicle];
+        r.sequence.insert(r.sequence.begin() + bestPIdx, reqId);
+        r.sequence.insert(r.sequence.begin() + bestDIdx, deliveryId);
+
+        evaluator.evaluateRoute(r);
     }
 }
 
@@ -299,7 +293,6 @@ void ALNSOperators::repairRegret2(ALNSSolution& sol) {
                         temp.sequence.insert(temp.sequence.begin() + j + 1, deliveryId);
                         evaluator.evaluateRoute(temp);
                         
-                        if (!temp.isFeasible) continue; // Si viola Hard Constraints, ignorar
                         
                         double increase = temp.totalCost - currentRouteCost;
                         if (increase < bestCostForVehicle) {
@@ -311,14 +304,9 @@ void ALNSOperators::repairRegret2(ALNSSolution& sol) {
                 }
                 
                 // Guardamos el mejor coste encontrado para este vehículo
-                if (bestP != -1) {
-                    moves.push_back({(int)v, bestP, bestD, bestCostForVehicle});
-                }
+                // There will always be at least one possible insertion
+                moves.push_back({(int)v, bestP, bestD, bestCostForVehicle});
             }
-
-            // CALCULAR REGRET
-            // Si no cabe en ningún sitio
-            if (moves.empty()) continue; 
             
             // Ordenar movimientos por coste (ascendente)
             std::sort(moves.begin(), moves.end(), [](const Move& a, const Move& b){
@@ -329,6 +317,7 @@ void ALNSOperators::repairRegret2(ALNSSolution& sol) {
             if (moves.size() == 1) {
                 // Si solo cabe en un sitio, el arrepentimiento es infinito (o muy alto)
                 // porque si no lo metemos ahí, lo perdemos.
+                //TODO mirar aixo amb mes calma
                 regret = 100000.0; // Valor alto arbitrario
             } else {
                 // Regret-2: Diferencia entre mejor y segundo mejor
@@ -344,9 +333,6 @@ void ALNSOperators::repairRegret2(ALNSSolution& sol) {
                 winDIdx = moves[0].dIdx;
             }
         }
-
-        // Si no encontramos candidato factible para ninguna petición, paramos
-        if (bestReqId == -1) break;
 
         // APLICAR EL MOVIMIENTO
         auto& r = sol.routes[winVehicle];
