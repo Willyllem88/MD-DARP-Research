@@ -26,7 +26,7 @@ void printUsage(const char* program_name) {
     std::cout << "  -i, --instance   Path to problem instance JSON file" << std::endl;
     std::cout << "  -t, --time       Time limit in seconds (optional)" << std::endl;
     std::cout << "  -o, --output     Path to output solution file" << std::endl;
-    std::cout << "  -m, --method     Solver method: 'ILP', 'ILPSoft', 'ALNS'" << std::endl;
+    std::cout << "  -m, --method     Solver method: 'ILP', 'ILPSoft', 'ALNS', 'ALNS_SP', 'ALNS_SC'" << std::endl;
     std::cout << "  -s, --seed       Random seed for reproducibility" << std::endl;
     std::cout << "  -v, --verbose     Enable verbose output" << std::endl;
     std::cout << "  -h, --help       Show this help message" << std::endl;
@@ -54,8 +54,8 @@ Args parseArgs(int argc, char** argv) {
         }
         else if ((a == "-m" || a == "--method") && i + 1 < argc) {
             std::string method = argv[++i];
-            if (method != "ILP" && method != "ILPSoft" && method != "ALNS") {
-                std::cerr << "Unknown method: " << method << ". Use 'ILP', 'ILPSoft', or 'ALNS'." << std::endl;
+            if (method != "ILP" && method != "ILPSoft" && method != "ALNS" && method != "ALNS_SP" && method != "ALNS_SC") {
+                std::cerr << "Unknown method: " << method << ". Use 'ILP', 'ILPSoft', and 'ALNS[_SP/_SC]'." << std::endl;
                 exit(1);
             }
             args.method = method;
@@ -96,8 +96,12 @@ int main(int argc, char** argv) {
         solver = std::make_unique<CPLEXSolver>(instance, args.time_limit, args.verbose);
     } else if (args.method == "ILPSoft") {
         solver = std::make_unique<CPLEXSoftSolver>(instance, args.time_limit, args.verbose);
-    } else if (args.method == "ALNS") {
-        solver = std::make_unique<ALNSSolver>(instance, args.time_limit, args.seed, args.verbose);
+    } else if (args.method == "ALNS" || args.method == "ALNS_SP" || args.method == "ALNS_SC") {
+        ALNSSolver::HybridMethod hybridMethod = ALNSSolver::HybridMethod::NONE;
+        if (args.method == "ALNS_SP") hybridMethod = ALNSSolver::HybridMethod::SET_PARTITIONING;
+        else if (args.method == "ALNS_SC") hybridMethod = ALNSSolver::HybridMethod::SET_COVERING;
+
+        solver = std::make_unique<ALNSSolver>(instance, args.time_limit, hybridMethod, args.seed, args.verbose);
     } else {
         std::cerr << "Invalid method selected." << std::endl;
         return 1;

@@ -9,15 +9,17 @@
 
 ALNSSolver::ALNSSolver(DARPMD_ProblemInstance& instance,
                        std::optional<double> timeLimit,
+                       HybridMethod hybridMethod,
                        int seed,
                        bool verbose)
-    : Solver(verbose), data(instance), timeLimit(timeLimit) {
+    : Solver(verbose), data(instance), timeLimit(timeLimit), hybridMethod(hybridMethod) {
 
     rng = std::mt19937(seed);
 
     params = std::make_unique<ALNSParams>();
     evaluator = std::make_unique<ALNSEvaluator>(data, *params);
     spSolver = std::make_unique<SetPartitioningSolver>(data, *params, *evaluator, logger);
+    // scSolver = std::make_unique<SetCoveringSolver>(data, *params, *evaluator, logger);
     operators = std::make_unique<ALNSOperators>(data, *params, *evaluator, rng);
 
     bestObjective = std::numeric_limits<double>::infinity();
@@ -41,6 +43,8 @@ void ALNSSolver::addRouteToPool(const ALNSRoute& route) {
 }
 
 void ALNSSolver::solveMatheuristic() {
+    if (hybridMethod == HybridMethod::NONE) return;
+
     ALNSSolution spSol = spSolver->solve(routePool);
 
     if (spSol.routes.empty() && spSol.unassignedRequests.empty() && spSol.objectiveValue == 0) {
@@ -309,10 +313,8 @@ void ALNSSolver::solve() {
         currentTemperature *= params->coolingRate;
 
         // --- Matheuristic Integration ---
-        if (iter > 0 && iter % params->setPartitioningInterval == 0) {
-            logger.log("Iter " + std::to_string(iter) + " [Matheuristic] Running Set Partitioning on Pool...");
+        if (iter > 0 && iter % params->setPartitioningInterval == 0)
             solveMatheuristic();
-        }
     }
 
     // Final clean run of SP
