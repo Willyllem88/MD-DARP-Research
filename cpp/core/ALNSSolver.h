@@ -105,9 +105,9 @@ private:
     // Helper: Check if any delivery appears before its pickup in the solution (should never happen)
     void checkPickupAfterDelivery(const ALNSSolution& sol, const DARPMD_ProblemInstance& data) const;
 
-    // --- CPLEX Integration (Set Partitioning) ---
-    // Solves a Set Partitioning problem using the accumulated routePool
-    void solveSetPartitioning(); 
+    // --- CPLEX Integration (Set Partitioning / Covering) ---
+    // Solves a Set Partitioning/Covering problem using the accumulated routePool
+    void solveMatheuristic(); 
     // Solve schedule later
     DARPMD_ResultInstance solveScheduleLater(ALNSSolution& sol);
 

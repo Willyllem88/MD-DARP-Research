@@ -40,7 +40,7 @@ void ALNSSolver::addRouteToPool(const ALNSRoute& route) {
 
 }
 
-void ALNSSolver::solveSetPartitioning() {
+void ALNSSolver::solveMatheuristic() {
     ALNSSolution spSol = spSolver->solve(routePool);
 
     if (spSol.routes.empty() && spSol.unassignedRequests.empty() && spSol.objectiveValue == 0) {
@@ -311,13 +311,13 @@ void ALNSSolver::solve() {
         // --- Matheuristic Integration ---
         if (iter > 0 && iter % params->setPartitioningInterval == 0) {
             logger.log("Iter " + std::to_string(iter) + " [Matheuristic] Running Set Partitioning on Pool...");
-            solveSetPartitioning();
+            solveMatheuristic();
         }
     }
 
     // Final clean run of SP
-    logger.log("Final Set Partitioning to polish solution...");
-    solveSetPartitioning();
+    logger.log("Final matheuristic run to polish solution...");
+    solveMatheuristic();
 
     // Solve the schedule later
     result = solveScheduleLater(bestSolution);
