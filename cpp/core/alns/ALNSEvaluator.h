@@ -8,10 +8,15 @@ class ALNSEvaluator {
 public:
     ALNSEvaluator(
         const DARPMD_ProblemInstance& data,
-        const ALNSParams& params);
+        const ALNSParams& params
+    );
 
     void evaluateRoute(ALNSRoute& route);
     void evaluateSolution(ALNSSolution& sol);
+
+    // This methods only priorize time window feasibility
+    void evaluateRouteGreedy(ALNSRoute& route);
+    void evaluateSolutionGreedy(ALNSSolution& sol);
 
     bool solutionHasViolations(const ALNSSolution&) const;
 
