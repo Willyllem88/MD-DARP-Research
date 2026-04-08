@@ -49,6 +49,8 @@ CPLEXSoftSolver::CPLEXSoftSolver(DARPMD_ProblemInstance& instance, std::optional
         }
     }
 
+    buildModel();
+
     uint nb_a_k = A_k.size();
     uint total_possible_arcs = V_nodes.size() * V_nodes.size() * data.K.size();
     double ratio_pruned = 1.0 - ((double)nb_a_k / total_possible_arcs);
@@ -58,8 +60,6 @@ CPLEXSoftSolver::CPLEXSoftSolver(DARPMD_ProblemInstance& instance, std::optional
     logger.log("Number of variables: " + std::to_string(cplex.getNcols()));
     logger.log("Number of constraints: " + std::to_string(cplex.getNrows()));
     logger.log("\n\n");
-
-    buildModel();
 }
 
 CPLEXSoftSolver::~CPLEXSoftSolver() {
