@@ -258,36 +258,36 @@ void ALNSOperators::repairRegret2(ALNSSolution& sol) {
         int bestReqId = -1;
         double maxRegretValue = -1.0;
         
-        // Estructura para guardar el mejor movimiento de la petición ganadora
+        // Structure to store the winning move for the best request
         int winVehicle = -1; 
         int winPIdx = -1; 
         int winDIdx = -1;
 
-        // Iterar sobre todas las peticiones pendientes
+        // Iterate over all unassigned requests
         std::vector<int> pending(sol.unassignedRequests.begin(), sol.unassignedRequests.end());
         
         for (int reqId : pending) {
             int deliveryId = reqId + data.N_requests;
             
-            // Guardar los costes de inserción de esta petición en cada ruta
+            // Store the insertion costs of this request in each route
             std::vector<double> insertionCosts; 
             
-            // Estructuras temporales para guardar la posición exacta en cada ruta
+            // Temporary structures to store the exact position in each route
             struct Move { int v; int pIdx; int dIdx; double cost; };
             std::vector<Move> moves;
 
-            // Evaluar inserción en CADA vehículo
+            // Evaluate insertion in EACH vehicle
             for (size_t v = 0; v < sol.routes.size(); ++v) {
                 double bestCostForVehicle = std::numeric_limits<double>::max();
                 int bestP = -1, bestD = -1;
                 
-                // Lógica de búsqueda de posición (igual que en Greedy)
+                // LLogic for position search (same as in Greedy)
                 const auto& seq = sol.routes[v].sequence;
                 double currentRouteCost = sol.routes[v].totalCost;
 
                 for (size_t i = 1; i < seq.size(); ++i) {
                     for (size_t j = i; j < seq.size(); ++j) {
-                        // Delta Evaluation rápida o clonación completa (Usamos clonación por simplicidad actual)
+                        // TODO: delta evaluation to avoid full route evaluation every time
                         ALNSRoute temp = sol.routes[v];
                         temp.sequence.insert(temp.sequence.begin() + i, reqId);
                         temp.sequence.insert(temp.sequence.begin() + j + 1, deliveryId);
@@ -303,28 +303,26 @@ void ALNSOperators::repairRegret2(ALNSSolution& sol) {
                     }
                 }
                 
-                // Guardamos el mejor coste encontrado para este vehículo
                 // There will always be at least one possible insertion
                 moves.push_back({(int)v, bestP, bestD, bestCostForVehicle});
             }
             
-            // Ordenar movimientos por coste (ascendente)
+            // Sort moves by cost (ascending)
             std::sort(moves.begin(), moves.end(), [](const Move& a, const Move& b){
                 return a.cost < b.cost;
             });
 
             double regret = 0;
             if (moves.size() == 1) {
-                // Si solo cabe en un sitio, el arrepentimiento es infinito (o muy alto)
-                // porque si no lo metemos ahí, lo perdemos.
-                //TODO mirar aixo amb mes calma
-                regret = 100000.0; // Valor alto arbitrario
+                // If it only fits in one place, the regret is infinite (or very high)
+                // because if we don't put it there, we lose it.
+                regret = 100000.0; // High arbitrary value to prioritize this request
             } else {
-                // Regret-2: Diferencia entre mejor y segundo mejor
+                // Regret-2: the difference between the best and second-best insertion cost
                 regret = moves[1].cost - moves[0].cost;
             }
 
-            // ¿Es este el "peor" caso que hemos visto?
+            // Is this the "worst" case we have seen?
             if (regret > maxRegretValue) {
                 maxRegretValue = regret;
                 bestReqId = reqId;
@@ -334,7 +332,7 @@ void ALNSOperators::repairRegret2(ALNSSolution& sol) {
             }
         }
 
-        // APLICAR EL MOVIMIENTO
+        // Apply the winning move for the request with the highest regret
         auto& r = sol.routes[winVehicle];
         r.sequence.insert(r.sequence.begin() + winPIdx, bestReqId);
         int deliveryId = bestReqId + data.N_requests;
