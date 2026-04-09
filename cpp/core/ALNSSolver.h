@@ -109,6 +109,7 @@ private:
     int selectOperator(const std::vector<double>& weights);
     void updateWeights(OperatorStats& stats);
     void initializeStatsAndTemperature(const ALNSSolution& initialSolution);
+    void initializeRoutePool(); // Initializes the route pool with empty routes for each vehicle
 
     // Helper: Check if any delivery appears before its pickup in the solution (should never happen)
     void checkPickupAfterDelivery(const ALNSSolution& sol, const DARPMD_ProblemInstance& data) const;

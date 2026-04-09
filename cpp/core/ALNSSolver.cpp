@@ -240,6 +240,22 @@ void ALNSSolver::initializeStatsAndTemperature(const ALNSSolution& initialSoluti
         + " (Violations: " + (evaluator->solutionHasViolations(initialSolution) ? "Yes" : "No") + ")");
 }
 
+void ALNSSolver::initializeRoutePool() {
+    ALNSSolution emptySol;
+    for (int k : data.K) {
+        ALNSRoute r;
+        r.vehicleId = k;
+        r.sequence.push_back(data.getVehicleStartNode(k));
+        r.sequence.push_back(data.getVehicleEndNode(k));
+        evaluator->evaluateRoute(r);
+        emptySol.routes.push_back(r);
+    }
+    emptySol.print();
+    for (const auto& route : emptySol.routes) {
+        addRouteToPool(route);
+    }
+}
+
 // ------------------------------------------------------------------
 // Main Solve Loop
 // ------------------------------------------------------------------
@@ -256,6 +272,7 @@ void ALNSSolver::solve() {
     visitedSolutionsHashes.insert(SolutionHash{}(currentSol));
 
     initializeStatsAndTemperature(currentSol);
+    initializeRoutePool();
 
     // 2. Main Loop
     for (int iter = 0; ; ++iter) {
