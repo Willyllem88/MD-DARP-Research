@@ -52,14 +52,14 @@ ALNSSolution SetPartitioningSolver::solve(const std::map<int, std::vector<ALNSRo
         IloRangeArray requestConstraints(env, data.P.size(), 1.0, 1.0);
         model.add(requestConstraints);
 
-        // Constraint (b): Each vehicle used at most once
+        // Constraint (b): Each vehicle used exactly onece
         // Map Vehicle ID -> Constraint Index
         std::map<int, int> vehicleToIndex;
         int vIdx = 0;
         for (auto const& [k, routes] : routePool) {
             vehicleToIndex[k] = vIdx++;
         }
-        IloRangeArray vehicleConstraints(env, vehicleToIndex.size(), 0.0, 1.0);
+        IloRangeArray vehicleConstraints(env, vehicleToIndex.size(), 1.0, 1.0);
         model.add(vehicleConstraints);
 
         // --- 2. Create Variables (Column Generation) ---
@@ -109,20 +109,6 @@ ALNSSolution SetPartitioningSolver::solve(const std::map<int, std::vector<ALNSRo
                 // Important: Release the column object to prevent memory bloat
                 col.end(); 
             }
-        }
-
-        // B. Slack Variables (z_i) - For unassigned requests
-        for (int i : data.P) {
-            int rowIdx = requestToIndex.at(i);
-            
-            // Column: Penalty cost + Covers the specific request constraint
-            IloNumColumn col = obj(params.unassignedPenalty);
-            col += requestConstraints[rowIdx](1.0);
-            
-            vars.add(IloNumVar(col, 0.0, 1.0, ILOBOOL));
-            varMetadata.push_back({-1, -1, true, i});
-            
-            col.end();
         }
 
         // --- 3. Solve and Reconstruct ---
