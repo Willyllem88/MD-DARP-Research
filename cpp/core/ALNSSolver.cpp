@@ -344,6 +344,7 @@ void ALNSSolver::solve() {
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> totalElapsed = end - start;
     this->solveTime = totalElapsed.count();
+    result->solveTime = this->solveTime;
 
     std::cout << std::endl << std::string(50, '=') << std::endl 
               << "ALNS Finished" << std::endl;
