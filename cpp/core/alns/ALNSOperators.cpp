@@ -56,6 +56,8 @@ void ALNSOperators::destroyRandom(ALNSSolution& sol, int q) {
         sol.unassignedRequests.insert(loc.reqId);
         removed++;
     }
+
+    evaluator.evaluateSolution(sol);
 }
 
 void ALNSOperators::destroyWorst(ALNSSolution& sol, int q) {
@@ -129,6 +131,8 @@ void ALNSOperators::destroyWorst(ALNSSolution& sol, int q) {
         savingsMap.erase(savingsMap.begin() + idx);
         removedCount++;
     }
+
+    evaluator.evaluateSolution(sol);
 }
 
 double ALNSOperators::calculateRelatedness(int i, int j) {
@@ -199,6 +203,8 @@ void ALNSOperators::destroyShaw(ALNSSolution& sol, int q) {
         }
         sol.unassignedRequests.insert(req);
     }
+    
+    evaluator.evaluateSolution(sol);
 }
 
 void ALNSOperators::repairGreedy(ALNSSolution& sol) {
