@@ -8,7 +8,7 @@
 #include "alns/ALNSParams.h"
 #include "alns/ALNSEvaluator.h"
 #include "alns/SetPartitioningSolver.h"
-//#include "alns/SetCoveringSolver.h"
+#include "alns/SetCoveringSolver.h"
 #include "alns/ALNSOperators.h"
 
 #include <ilcplex/ilocplex.h>
@@ -59,7 +59,7 @@ private:
     std::unique_ptr<ALNSParams> params;
     std::unique_ptr<ALNSEvaluator> evaluator;
     std::unique_ptr<SetPartitioningSolver> spSolver;
-    // std::unique_ptr<SetCoveringSolver> scSolver;
+    std::unique_ptr<SetCoveringSolver> scSolver;
     std::unique_ptr<ALNSOperators> operators;
 
     // Random engine

@@ -26,6 +26,14 @@ struct ALNSRoute {
         arrivalTimes.assign(numNodes, 0.0);
         loads.assign(numNodes, 0.0);
     }
+
+    // Handled expulsively by the evaluator, but stored here for efficiency in move evaluations
+    std::vector<double> A; // Arrival times
+    std::vector<double> W; // Waiting times
+    std::vector<double> B; // Beginning of service times
+    std::vector<double> D; // Departure times
+    std::vector<double> Fi; // Forward time slack (F_i)
+    std::vector<double> id2pos; // Map from Node ID to position in the sequence for quick access
 };
 
 struct RouteSequenceHash {

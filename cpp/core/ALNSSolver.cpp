@@ -19,7 +19,7 @@ ALNSSolver::ALNSSolver(DARPMD_ProblemInstance& instance,
     params = std::make_unique<ALNSParams>();
     evaluator = std::make_unique<ALNSEvaluator>(data, *params);
     spSolver = std::make_unique<SetPartitioningSolver>(data, *params, *evaluator, logger);
-    // scSolver = std::make_unique<SetCoveringSolver>(data, *params, *evaluator, logger);
+    scSolver = std::make_unique<SetCoveringSolver>(data, *params, *evaluator, logger);
     operators = std::make_unique<ALNSOperators>(data, *params, *evaluator, rng);
 
     bestObjective = std::numeric_limits<double>::infinity();
@@ -45,21 +45,22 @@ void ALNSSolver::addRouteToPool(const ALNSRoute& route) {
 void ALNSSolver::solveMatheuristic() {
     if (hybridMethod == HybridMethod::NONE) return;
 
-    ALNSSolution spSol = spSolver->solve(routePool);
-
-    if (spSol.routes.empty() && spSol.unassignedRequests.empty() && spSol.objectiveValue == 0) {
-        return;
+    ALNSSolution matSol;
+    if (hybridMethod == HybridMethod::SET_PARTITIONING) {
+        matSol = spSolver->solve(routePool);
+    } else if (hybridMethod == HybridMethod::SET_COVERING) {
+        matSol = scSolver->solve(routePool);
     }
 
     // Handle the new solution from CPLEX
-    if (spSol.objectiveValue < bestObjective) {
-        logger.log("  [Matheuristic] CPLEX found new best solution! Objective: " + std::to_string(spSol.objectiveValue) + " (Improvement)");
+    if (matSol.objectiveValue < bestObjective) {
+        logger.log("  [Matheuristic] CPLEX found new best solution! Objective: " + std::to_string(matSol.objectiveValue) + " (Improvement)");
         
-        bestSolution = spSol;
-        bestObjective = spSol.objectiveValue;
+        bestSolution = matSol;
+        bestObjective = matSol.objectiveValue;
     }
     else {
-        logger.log("  [Matheuristic] CPLEX found solution with objective: " + std::to_string(spSol.objectiveValue) + " (No improvement)");
+        logger.log("  [Matheuristic] CPLEX found solution with objective: " + std::to_string(matSol.objectiveValue) + " (No improvement)");
     }
 }
 
@@ -341,6 +342,7 @@ void ALNSSolver::solve() {
     // Solve the schedule later
     result = solveScheduleLater(bestSolution);
     
+    // TODO: translate to ALNSSolution
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> totalElapsed = end - start;
     this->solveTime = totalElapsed.count();
