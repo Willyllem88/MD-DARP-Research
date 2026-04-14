@@ -27,7 +27,7 @@ void ALNSEvaluator::evaluateRoute(ALNSRoute& route) {
     std::vector<double>& B = route.B;
     std::vector<double>& D = route.D;
     std::vector<double>& Fi = route.Fi;
-    std::vector<double>& id2pos = route.id2pos;
+    std::vector<int>& id2pos = route.id2pos;
     if (route.sequence.size() != A.size()) {
         A.resize(route.sequence.size());
         W.resize(route.sequence.size());

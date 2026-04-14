@@ -33,7 +33,7 @@ struct ALNSRoute {
     std::vector<double> B; // Beginning of service times
     std::vector<double> D; // Departure times
     std::vector<double> Fi; // Forward time slack (F_i)
-    std::vector<double> id2pos; // Map from Node ID to position in the sequence for quick access
+    std::vector<int> id2pos; // Map from Node ID to position in the sequence for quick access
 };
 
 struct RouteSequenceHash {
