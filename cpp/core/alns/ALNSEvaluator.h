@@ -31,6 +31,4 @@ public:
 private:
     const DARPMD_ProblemInstance& data;
     const ALNSParams& params;
-
-    
 };
