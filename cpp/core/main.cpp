@@ -19,6 +19,7 @@ struct Args {
     int seed = 42;
     bool verbose = false;
     std::optional<double> time_limit;
+    std::vector<std::string> alnsParams;
 };
 
 void printUsage(const char* program_name) {
@@ -28,7 +29,8 @@ void printUsage(const char* program_name) {
     std::cout << "  -o, --output     Path to output solution file" << std::endl;
     std::cout << "  -m, --method     Solver method: 'ILP', 'ILPSoft', 'ALNS', 'ALNS_SP', 'ALNS_SC'" << std::endl;
     std::cout << "  -s, --seed       Random seed for reproducibility" << std::endl;
-    std::cout << "  -v, --verbose     Enable verbose output" << std::endl;
+    std::cout << "  -v, --verbose    Enable verbose output" << std::endl;
+    std::cout << "  --alnsParams     Additional parameters for ALNS (in order: maxIterations, coolingRate, destroyFraction, w)" << std::endl;
     std::cout << "  -h, --help       Show this help message" << std::endl;
     std::cout << "Example: " << program_name << " -i ./gracia-4R2V.json -t 300 -o ./solution.json -m ILP -s 42 -v" << std::endl;
 }
@@ -66,6 +68,11 @@ Args parseArgs(int argc, char** argv) {
         else if ((a == "-s" || a == "--seed") && i + 1 < argc) {
             args.seed = std::stoi(argv[++i]);
         }
+        else if (a == "--alnsParams") {
+            while (i + 1 < argc && argv[i + 1][0] != '-') {
+                args.alnsParams.push_back(argv[++i]);
+            }
+        }
         else if (a == "-h" || a == "--help") {
             printUsage(argv[0]);
             exit(0);
@@ -88,20 +95,29 @@ int main(int argc, char** argv) {
         return 1;
     }
     instance.checkAndFixTriangleInequality(true, args.verbose); // Check and fix triangle inequality if needed
-    instance.displayInfo();
+    if(args.verbose) instance.displayInfo();
 
     // Select Solver
     std::unique_ptr<Solver> solver;
     if (args.method == "ILP") {
         solver = std::make_unique<CPLEXSolver>(instance, args.time_limit, args.verbose);
+
     } else if (args.method == "ILPSoft") {
         solver = std::make_unique<CPLEXSoftSolver>(instance, args.time_limit, args.verbose);
+
     } else if (args.method == "ALNS" || args.method == "ALNS_SP" || args.method == "ALNS_SC") {
+        // Hybrid method selection
         ALNSSolver::HybridMethod hybridMethod = ALNSSolver::HybridMethod::NONE;
         if (args.method == "ALNS_SP") hybridMethod = ALNSSolver::HybridMethod::SET_PARTITIONING;
         else if (args.method == "ALNS_SC") hybridMethod = ALNSSolver::HybridMethod::SET_COVERING;
 
-        solver = std::make_unique<ALNSSolver>(instance, args.time_limit, hybridMethod, args.seed, args.verbose);
+        // Parse ALNS parameters from command line or use defaults
+        ALNSParams params = !args.alnsParams.empty() 
+            ? ALNSParams::fromArgs(args.alnsParams)
+            : ALNSParams();
+
+        solver = std::make_unique<ALNSSolver>(instance, args.time_limit, hybridMethod, args.seed, args.verbose, params);
+
     } else {
         std::cerr << "Invalid method selected." << std::endl;
         return 1;
@@ -110,8 +126,9 @@ int main(int argc, char** argv) {
     // Solve and Get Results
     solver->solve();
     DARPMD_ResultInstance result = solver->getResult();
-    result.displaySummary();
+    if(args.verbose) result.displaySummary();
     result.saveToJSON(args.output_path);
+    if(args.verbose) std::cout << "Solution saved to: " << args.output_path << std::endl;
 
     return 0;
 }

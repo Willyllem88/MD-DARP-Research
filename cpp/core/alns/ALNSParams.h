@@ -29,4 +29,17 @@ struct ALNSParams {
     const double sigma2 = 9.0;  // For better than current
     const double sigma3 = 13.0;  // For accepted (but not better)
     const double reactionFactor = 0.1; // How much to adjust weights based on performance
+
+    static ALNSParams fromArgs(const std::vector<std::string>& args) {
+        ALNSParams p;
+
+        int i = 0;
+        p.maxIterations = std::stoi(args[i++]);
+        p.coolingRate = std::stod(args[i++]);
+        p.destroyFraction = std::stod(args[i++]);
+        p.w = std::stod(args[i++]);
+
+        // Could add more parameters here as needed, following the same pattern
+        return p;
+    }
 };
