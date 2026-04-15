@@ -245,7 +245,6 @@ void DARPMD_ResultInstance::saveToJSON(const std::string& filename) const {
     std::ofstream file(filename);
     if (file.is_open()) {
         file << std::setw(4) << root << std::endl;
-        std::cout << "JSON saved to: " << filename << std::endl;
     } else {
         std::cerr << "Error: Could not open file for writing: " << filename << std::endl;
     }
