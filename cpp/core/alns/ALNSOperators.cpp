@@ -265,9 +265,7 @@ void ALNSOperators::repairRegret2(ALNSSolution& sol) {
         // Iterate over all unassigned requests
         std::vector<int> pending(sol.unassignedRequests.begin(), sol.unassignedRequests.end());
         
-        for (int reqId : pending) {
-            int deliveryId = reqId + data.N_requests;
-            
+        for (int reqId : pending) {            
             // Store the insertion costs of this request in each route
             std::vector<double> insertionCosts; 
             
@@ -282,7 +280,6 @@ void ALNSOperators::repairRegret2(ALNSSolution& sol) {
                 
                 // LLogic for position search (same as in Greedy)
                 const auto& seq = sol.routes[v].sequence;
-                double currentRouteCost = sol.routes[v].totalCost;
 
                 for (size_t i = 1; i < seq.size(); ++i) {
                     for (size_t j = i; j < seq.size(); ++j) {

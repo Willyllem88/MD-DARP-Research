@@ -35,7 +35,7 @@ void ALNSEvaluator::evaluateRoute(ALNSRoute& route) {
         D.resize(route.sequence.size());
         Fi.resize(route.sequence.size());
     }
-    if (route.id2pos.size() != data.max_node_id + 1) {
+    if (route.id2pos.size() != (size_t)data.max_node_id + 1) {
         route.id2pos.resize(data.max_node_id + 1, -1);
     }
 
