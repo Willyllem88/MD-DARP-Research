@@ -1,0 +1,6 @@
+maxExperiments = 200
+parallel = 1
+trainInstancesFile = "instances.txt"
+parameterFile = "parameters.txt"
+targetRunner = "run.sh"
+debugLevel = 2
