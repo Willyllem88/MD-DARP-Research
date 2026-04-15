@@ -1,0 +1,2 @@
+/home/guillem/TFG-Guillem/data/instances_static/cordeau-instances/a4-40.json
+/home/guillem/TFG-Guillem/data/instances_static/cordeau-instances/a3-24.json
