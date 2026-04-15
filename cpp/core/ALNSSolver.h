@@ -34,7 +34,9 @@ public:
         std::optional<double> timeLimit = std::nullopt, 
         HybridMethod hybridMethod = HybridMethod::NONE,
         int seed = 42, 
-        bool verbose = false);
+        bool verbose = false,
+        const ALNSParams& params = ALNSParams()
+    );
         
     ~ALNSSolver();
 

@@ -231,17 +231,10 @@ void ALNSOperators::repairGreedy(ALNSSolution& sol) {
             for (size_t i = 1; i < seq.size(); ++i) {
                 for (size_t j = i; j < seq.size(); ++j) {
                     
-                    // Construct temp route
-                    ALNSRoute temp = sol.routes[v];
-                    temp.sequence.insert(temp.sequence.begin() + i, reqId);
-                    temp.sequence.insert(temp.sequence.begin() + j + 1, deliveryId);
+                    double delta = evaluator.calculateGreedyDelta(sol.routes[v], reqId, i, j);
                     
-                    evaluator.evaluateRoute(temp);
-                    
-                    double increase = temp.totalCost - sol.routes[v].totalCost;
-                    
-                    if (increase < bestCostIncrease) {
-                        bestCostIncrease = increase;
+                    if (delta < bestCostIncrease) {
+                        bestCostIncrease = delta;
                         bestVehicle = v;
                         bestPIdx = i;
                         bestDIdx = j + 1;
@@ -293,16 +286,9 @@ void ALNSOperators::repairRegret2(ALNSSolution& sol) {
 
                 for (size_t i = 1; i < seq.size(); ++i) {
                     for (size_t j = i; j < seq.size(); ++j) {
-                        // TODO: delta evaluation to avoid full route evaluation every time
-                        ALNSRoute temp = sol.routes[v];
-                        temp.sequence.insert(temp.sequence.begin() + i, reqId);
-                        temp.sequence.insert(temp.sequence.begin() + j + 1, deliveryId);
-                        evaluator.evaluateRoute(temp);
-                        
-                        
-                        double increase = temp.totalCost - currentRouteCost;
-                        if (increase < bestCostForVehicle) {
-                            bestCostForVehicle = increase;
+                        double delta = evaluator.calculateGreedyDelta(sol.routes[v], reqId, i, j);
+                        if (delta < bestCostForVehicle) {
+                            bestCostForVehicle = delta;
                             bestP = i;
                             bestD = j + 1;
                         }

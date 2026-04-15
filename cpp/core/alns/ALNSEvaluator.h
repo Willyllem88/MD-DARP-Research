@@ -20,13 +20,9 @@ public:
 
     bool solutionHasViolations(const ALNSSolution&) const;
 
-    struct InsertionMove {
-        int pickupPos;
-        int deliveryPos;
-        double deltaCost; // Incremento total del coste
-    };
-    InsertionMove findBestInsertion(ALNSRoute& route, int requestId);
-    double calculateExactInsertionDelta(const ALNSRoute& route, int requestId, int i, int j);
+    double calculateExactDelta(const ALNSRoute& route, int requestId, int i, int j);
+    double calculateGreedyDelta(const ALNSRoute& route, int requestId, int i, int j);
+    double calculateGreedyDelta_2(const ALNSRoute& route, int requestId, int i, int j);
 
 private:
     const DARPMD_ProblemInstance& data;

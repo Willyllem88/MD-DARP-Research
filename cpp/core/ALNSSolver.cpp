@@ -11,12 +11,14 @@ ALNSSolver::ALNSSolver(DARPMD_ProblemInstance& instance,
                        std::optional<double> timeLimit,
                        HybridMethod hybridMethod,
                        int seed,
-                       bool verbose)
+                       bool verbose,
+                       const ALNSParams& alnsParams
+                       )
     : Solver(verbose), data(instance), timeLimit(timeLimit), hybridMethod(hybridMethod) {
 
     rng = std::mt19937(seed);
 
-    params = std::make_unique<ALNSParams>();
+    params = std::make_unique<ALNSParams>(alnsParams);
     evaluator = std::make_unique<ALNSEvaluator>(data, *params);
     spSolver = std::make_unique<SetPartitioningSolver>(data, *params, *evaluator, logger);
     scSolver = std::make_unique<SetCoveringSolver>(data, *params, *evaluator, logger);
@@ -251,7 +253,6 @@ void ALNSSolver::initializeRoutePool() {
         evaluator->evaluateRoute(r);
         emptySol.routes.push_back(r);
     }
-    emptySol.print();
     for (const auto& route : emptySol.routes) {
         addRouteToPool(route);
     }
@@ -348,27 +349,25 @@ void ALNSSolver::solve() {
     this->solveTime = totalElapsed.count();
     result->solveTime = this->solveTime;
 
-    std::cout << std::endl << std::string(50, '=') << std::endl 
-              << "ALNS Finished" << std::endl;
-
     // Print operator stats
-    std::cout << std::endl << "Operator Usage Stats:" << std::endl;
-    std::cout << "Destroy Operator Stats:" << std::endl;
-    for (size_t i = 0; i < destroyStats.weights.size(); ++i) {
-        double avgScore = (destroyStats.timesUsed[i] > 0) ? destroyStats.scores[i] / destroyStats.timesUsed[i] : 0.0;
-        std::cout << "  Destroy " << i << ": Weight=" << destroyStats.weights[i] 
-                  << ", Times Used=" << destroyStats.timesUsed[i] 
-                  << ", Avg Score=" << avgScore << std::endl;
-    }
+    if (verbose) {
+        std::cout << std::endl << "Operator Usage Stats:" << std::endl;
+        std::cout << "Destroy Operator Stats:" << std::endl;
+        for (size_t i = 0; i < destroyStats.weights.size(); ++i) {
+            double avgScore = (destroyStats.timesUsed[i] > 0) ? destroyStats.scores[i] / destroyStats.timesUsed[i] : 0.0;
+            std::cout << "  Destroy " << i << ": Weight=" << destroyStats.weights[i] 
+                    << ", Times Used=" << destroyStats.timesUsed[i] 
+                    << ", Avg Score=" << avgScore << std::endl;
+        }
 
-    std::cout << "Repair Operator Stats:" << std::endl;
-    for (size_t i = 0; i < repairStats.weights.size(); ++i) {
-        double avgScore = (repairStats.timesUsed[i] > 0) ? repairStats.scores[i] / repairStats.timesUsed[i] : 0.0;
-        std::cout << "  Repair " << i << ": Weight=" << repairStats.weights[i] 
-                  << ", Times Used=" << repairStats.timesUsed[i] 
-                  << ", Avg Score=" << avgScore << std::endl;
+        std::cout << "Repair Operator Stats:" << std::endl;
+        for (size_t i = 0; i < repairStats.weights.size(); ++i) {
+            double avgScore = (repairStats.timesUsed[i] > 0) ? repairStats.scores[i] / repairStats.timesUsed[i] : 0.0;
+            std::cout << "  Repair " << i << ": Weight=" << repairStats.weights[i] 
+                    << ", Times Used=" << repairStats.timesUsed[i] 
+                    << ", Avg Score=" << avgScore << std::endl;
+        }
     }
-
 }
 
 void ALNSSolver::checkPickupAfterDelivery(const ALNSSolution& sol, const DARPMD_ProblemInstance& data) const {
