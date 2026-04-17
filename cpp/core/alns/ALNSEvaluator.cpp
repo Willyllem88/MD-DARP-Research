@@ -259,7 +259,7 @@ void ALNSEvaluator::evaluateRouteGreedy(ALNSRoute& route) {
         double earlyTW = data.getTimeWindowStart(v);
         double lateTW = data.getTimeWindowEnd(v);
 
-        // If early, we wait (Time warp is not a violation usually, but waiting)
+        // If early, we wait
         if (arrivalAtV < earlyTW) {
             arrivalAtV = earlyTW;
         }
@@ -351,18 +351,18 @@ bool ALNSEvaluator::solutionHasViolations(const ALNSSolution& sol) const {
 }
 
 double ALNSEvaluator::calculateExactDelta(const ALNSRoute& route, int requestId, int i, int j) {
+    // Simulate a full evaluation of the route with the new request inserted at positions i (pickup) and j (delivery)
     ALNSRoute temp = route;
-    temp.sequence.insert(temp.sequence.begin() + i, requestId); // Insertar Pickup
-    temp.sequence.insert(temp.sequence.begin() + j + 1, requestId + data.N_requests); // Insertar Delivery
+    temp.sequence.insert(temp.sequence.begin() + i, requestId); 
+    temp.sequence.insert(temp.sequence.begin() + j + 1, requestId + data.N_requests);
     evaluateRoute(temp);
 
     double delta = temp.totalCost - route.totalCost;
 
-    // Evaluar la ruta temporal para obtener el coste exacto
-    return delta; // Placeholder - replace with actual evaluation logic
+    return delta;
 }
 
-double ALNSEvaluator::calculateGreedyDelta(const ALNSRoute& route, int requestId, int i, int j) {
+double ALNSEvaluator::calculateDelta(const ALNSRoute& route, int requestId, int i, int j) {
     // 1. Identificar nodos de Pickup y Delivery
     // Asumimos que requestId es el ID del Pickup, y D es requestId + N_requests
     int P_node = requestId; 
@@ -375,6 +375,7 @@ double ALNSEvaluator::calculateGreedyDelta(const ALNSRoute& route, int requestId
     // FASE A: Calcular las métricas "ANTIGUAS" desde i-1 hasta el final
     // (Para luego restarlas y obtener el delta neto)
     // ----------------------------------------------------------------------
+    // TODO: this coud bre precalculed.
     double old_distance = 0.0;
     double old_tw_viol = 0.0;
     double old_load_viol = 0.0;
