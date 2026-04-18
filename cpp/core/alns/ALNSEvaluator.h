@@ -28,7 +28,7 @@ public:
     double calculateExactDelta(const ALNSRoute& route, int requestId, int i, int j);
 
     // - Optimized but approximate: simulates a simplified evaluation O(n)
-    double calculateDelta(const ALNSRoute& route, int requestId, int i, int j);
+    double calculateDelta(const ALNSRoute& route, int requestId, int i, int j, double upper_bound);
 
     // - Unoptimized and greedy: simulates a simplified evaluation that only considers time windows, O(n)
     double calculateGreedyDelta_2(const ALNSRoute& route, int requestId, int i, int j);

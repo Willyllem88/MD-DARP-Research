@@ -323,7 +323,7 @@ void ALNSSolver::solve() {
         repairStats.scores[repairOpIdx] += iterScore;
         repairStats.timesUsed[repairOpIdx] += 1;
 
-        if (iter > 0 && iter % 100 == 0) {
+        if (iter > 0 && iter % params->segmentIterations == 0) {
             updateWeights(destroyStats);
             updateWeights(repairStats);
         }
