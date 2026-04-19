@@ -44,9 +44,3 @@ done
     -m ALNS \
     -s "$SEED" \
     --alnsParams "$MAX_ITER" "$COOLING" "$DESTROY" "$W_PARAM" "$SHAW_DIST" "$SHAW_TIME" "$SHAW_DEMAND" "$SIGMA1" "$SIGMA2" "$SIGMA3"
-
-# 5. Leer resultado del JSON con jq
-COST=$(jq '.summary.objective' /home/guillem/TFG-Guillem/tuning/solution_report.json)
-
-# 6. Imprimir SOLO el coste para irace
-echo "$COST"

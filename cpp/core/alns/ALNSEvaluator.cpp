@@ -362,145 +362,150 @@ double ALNSEvaluator::calculateExactDelta(const ALNSRoute& route, int requestId,
     return delta;
 }
 
-double ALNSEvaluator::calculateDelta(const ALNSRoute& route, int requestId, int i, int j) {
-    // 1. Identificar nodos de Pickup y Delivery
-    // Asumimos que requestId es el ID del Pickup, y D es requestId + N_requests
+double ALNSEvaluator::calculateDelta(const ALNSRoute& route, int requestId, int i, int j, double upper_bound) {
     int P_node = requestId; 
     int D_node = requestId + data.N_requests; 
     
     double capacity = data.getVehicleCapacity(route.vehicleId);
     int numNodes = route.sequence.size();
     
-    // ----------------------------------------------------------------------
-    // FASE A: Calcular las métricas "ANTIGUAS" desde i-1 hasta el final
-    // (Para luego restarlas y obtener el delta neto)
-    // ----------------------------------------------------------------------
-    // TODO: this coud bre precalculed.
-    double old_distance = 0.0;
-    double old_tw_viol = 0.0;
-    double old_load_viol = 0.0;
-    double old_ride_viol = 0.0;
+    // Acumuladores del segmento evaluado hasta el momento
+    double old_distance = 0.0, old_tw_viol = 0.0, old_load_viol = 0.0, old_ride_viol = 0.0;
+    double new_distance = 0.0, new_tw_viol = 0.0, new_load_viol = 0.0, new_ride_viol = 0.0;
     
-    for (int k = i; k < numNodes; ++k) {
-        int curr = route.sequence[k];
-        int prev = route.sequence[k - 1];
-        
-        old_distance += data.getCost(prev, curr, route.vehicleId);
-        
-        double l = route.loads[curr];
-        if (l > capacity) old_load_viol += (l - capacity);
-        
-        double lateTW = data.getTimeWindowEnd(curr);
-        if (route.B[k] > lateTW) old_tw_viol += (route.B[k] - lateTW);
-        
-        if (data.isDelivery(curr)) {
-            int p_id = curr - data.N_requests;
-            int p_pos = route.id2pos[p_id];
-            double rt = route.B[k] - route.D[p_pos];
-            if (rt > data.getMaxRideTime()) old_ride_viol += (rt - data.getMaxRideTime());
-        }
-    }
+    double prev_D_new = route.D[i - 1];
+    double current_load_new = route.loads[route.sequence[i - 1]];
+    int prev_node_new = route.sequence[i - 1];
     
-    double old_duration = route.A.back() - route.D[0];
-    double old_dur_viol = std::max(0.0, old_duration - data.getVehicleMaxRouteTime(route.vehicleId));
+    double D_P = -1.0; 
+    std::vector<double> new_D_times(numNodes, 0.0);
+    double final_arrival_time_new = 0.0;
+    double partial_delta = 0.0;
 
-    // ----------------------------------------------------------------------
-    // FASE B: Simular las métricas "NUEVAS" intercalando P_node y D_node
-    // ----------------------------------------------------------------------
-    double new_distance = 0.0;
-    double new_tw_viol = 0.0;
-    double new_load_viol = 0.0;
-    double new_ride_viol = 0.0;
-    
-    // Estado inicial en i-1 (Garantizado que es seguro acceder porque i >= 1)
-    double prev_D = route.D[i - 1];
-    double current_load = route.loads[route.sequence[i - 1]];
-    int prev_node = route.sequence[i - 1];
-    
-    double D_P = -1.0; // Guardar el departure time de P para calcular el Ride Time de D
-    std::vector<double> new_D_times(numNodes, 0.0); // Cache temporal de tiempos D desplazados
-    double final_arrival_time = 0.0;
-
-    // Lambda para evaluar y avanzar 1 nodo en nuestra secuencia virtual
-    auto simulateNode = [&](int curr_node, int original_idx) {
-        new_distance += data.getCost(prev_node, curr_node, route.vehicleId);
+    // Lambda para simular un nodo y acumular métricas "NUEVAS"
+    auto simulateNode = [&](int curr_node, int original_idx, bool is_inserted) {
+        new_distance += data.getCost(prev_node_new, curr_node, route.vehicleId);
         
-        // Tiempos
-        double A_curr = prev_D + data.getTravelTime(prev_node, curr_node);
+        double A_curr = prev_D_new + data.getTravelTime(prev_node_new, curr_node);
         double W_curr = std::max(0.0, data.getTimeWindowStart(curr_node) - A_curr);
-        double B_curr = A_curr + W_curr;
-        prev_D = B_curr + data.getServiceTime(curr_node);
-        final_arrival_time = A_curr; // Se sobreescribirá hasta quedar con la llegada al Depot final
         
-        // Penalizaciones TW
+        double B_curr = A_curr + W_curr;
+        prev_D_new = B_curr + data.getServiceTime(curr_node);
+        final_arrival_time_new = A_curr; 
+        
         double lateTW = data.getTimeWindowEnd(curr_node);
         if (B_curr > lateTW) new_tw_viol += (B_curr - lateTW);
         
-        // Penalizaciones Capacidad
-        current_load += data.getDemand(curr_node);
-        if (current_load > capacity) new_load_viol += (current_load - capacity);
+        current_load_new += data.getDemand(curr_node);
+        if (current_load_new > capacity) new_load_viol += (current_load_new - capacity);
         
-        // Penalizaciones Ride Time
         if (data.isDelivery(curr_node)) {
             double p_departure;
             if (curr_node == D_node) {
-                p_departure = D_P; // Es la petición que estamos insertando
+                p_departure = D_P; 
             } else {
                 int p_id = curr_node - data.N_requests;
                 int p_pos = route.id2pos[p_id];
-                if (p_pos < i) {
-                    p_departure = route.D[p_pos]; // Su pickup ocurrió antes de nuestra inserción, no cambió
+                if (p_pos < 0) {
+                    p_departure = 0.0; // Fallback
+                } else if (p_pos < i) {
+                    p_departure = route.D[p_pos]; 
+                } else if (p_pos <= original_idx) {
+                    p_departure = new_D_times[p_pos]; 
                 } else {
-                    p_departure = new_D_times[p_pos]; // Su pickup se desplazó, usamos el recalculado
+                    p_departure = route.D[p_pos];
                 }
             }
             double rt = B_curr - p_departure;
             if (rt > data.getMaxRideTime()) new_ride_viol += (rt - data.getMaxRideTime());
         }
         
-        // Guardar estado de salida
         if (curr_node == P_node) {
-            D_P = prev_D;
-        } else if (original_idx != -1) {
-            new_D_times[original_idx] = prev_D;
+            D_P = prev_D_new;
+        } else if (!is_inserted && original_idx != -1) {
+            new_D_times[original_idx] = prev_D_new;
         }
-        prev_node = curr_node;
+        prev_node_new = curr_node;
     };
 
-    // Recorrer la ruta desde 'i' hasta el final, inyectando P y D en los índices correctos
+    bool broke_early = false;
+
+    // Bucle unificado: Avanzamos nodo a nodo comparando realidades
     for (int k = i; k < numNodes; ++k) {
-        if (k == i && k == j) {
-            simulateNode(P_node, -1);
-            simulateNode(D_node, -1);
-        } else if (k == i) {
-            simulateNode(P_node, -1);
-        } else if (k == j) {
-            simulateNode(D_node, -1);
+        int curr_old = route.sequence[k];
+        int prev_old = route.sequence[k - 1];
+        
+        // 1. Acumular métricas ANTIGUAS para este paso k
+        old_distance += data.getCost(prev_old, curr_old, route.vehicleId);
+        
+        double l = route.loads[curr_old];
+        if (l > capacity) old_load_viol += (l - capacity);
+        
+        double lateTW = data.getTimeWindowEnd(curr_old);
+        if (route.B[k] > lateTW) old_tw_viol += (route.B[k] - lateTW);
+        
+        if (data.isDelivery(curr_old)) {
+            int p_id = curr_old - data.N_requests;
+            int p_pos = route.id2pos[p_id];
+            double rt = route.B[k] - route.D[p_pos];
+            if (rt > data.getMaxRideTime()) old_ride_viol += (rt - data.getMaxRideTime());
         }
         
-        // Simular el nodo original que ya estaba en la ruta
-        simulateNode(route.sequence[k], k);
-    }
-    
-    double new_duration = final_arrival_time - route.D[0];
-    double new_dur_viol = std::max(0.0, new_duration - data.getVehicleMaxRouteTime(route.vehicleId));
-
-    // ----------------------------------------------------------------------
-    // FASE C: Calcular el Delta final y aplicar Alfas
-    // ----------------------------------------------------------------------
-    double delta_dist = new_distance - old_distance;
-    double delta_tw   = new_tw_viol - old_tw_viol;
-    double delta_load = new_load_viol - old_load_viol;
-    double delta_ride = new_ride_viol - old_ride_viol;
-    double delta_dur  = new_dur_viol - old_dur_viol;
-
-    double delta_cost = delta_dist 
+        // 2. Simular métricas NUEVAS para este paso k
+        if (k == i && k == j) {
+            simulateNode(P_node, -1, true);
+            simulateNode(D_node, -1, true);
+        } else if (k == i) {
+            simulateNode(P_node, -1, true);
+        } else if (k == j) {
+            simulateNode(D_node, -1, true);
+        }
+        simulateNode(curr_old, k, false);
+        
+        // 3. Calcular Delta parcial
+        double delta_dist = new_distance - old_distance;
+        double delta_tw   = new_tw_viol - old_tw_viol;
+        double delta_load = new_load_viol - old_load_viol;
+        double delta_ride = new_ride_viol - old_ride_viol;
+        
+        partial_delta = delta_dist 
                       + params.timeWindowPenalty * delta_tw
                       + params.capacityPenalty * delta_load
-                      + params.rideTimePenalty * delta_ride
-                      + params.vehicleMaxRouteTimePenalty * delta_dur;
-
-    return delta_cost;
+                      + params.rideTimePenalty * delta_ride;
+                      
+        // MEJORA 1: Early Stopping
+        // Si ya superamos el coste de una inserción mejor encontrada previamente, abortamos.
+        if (partial_delta > upper_bound) {
+            return std::numeric_limits<double>::infinity();
+        }
+        
+        // MEJORA 2: Parada de propagación de tiempo (Δt ≈ 0)
+        // Si ya insertamos D, la capacidad está neutra. 
+        // Si el tiempo de salida cuadra con el antiguo, el resto de la ruta no cambia.
+        if (k >= j) {
+            // Usamos 1e-4 para prevenir problemas de precisión de punto flotante
+            if (std::abs(prev_D_new - route.D[k]) < 1e-4) {
+                broke_early = true;
+                break;
+            }
+        }
+    }
+    
+    // 4. Calcular Delta de Duración de Ruta
+    double old_duration = route.A.back() - route.D[0];
+    double old_dur_viol = std::max(0.0, old_duration - data.getVehicleMaxRouteTime(route.vehicleId));
+    double new_dur_viol = old_dur_viol; 
+    
+    // Si NO rompimos el bucle prematuramente, recalculamos la duración total
+    if (!broke_early) {
+        double new_duration = final_arrival_time_new - route.D[0];
+        new_dur_viol = std::max(0.0, new_duration - data.getVehicleMaxRouteTime(route.vehicleId));
+    }
+    
+    double delta_dur = new_dur_viol - old_dur_viol;
+    partial_delta += params.vehicleMaxRouteTimePenalty * delta_dur;
+    
+    return partial_delta;
 }
 
 double ALNSEvaluator::calculateGreedyDelta_2(const ALNSRoute& route, int requestId, int i, int j) {

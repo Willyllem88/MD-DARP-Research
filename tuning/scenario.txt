@@ -1,4 +1,4 @@
-maxExperiments = 300
+maxExperiments = 1000
 parallel = 10
 trainInstancesFile = "instances.txt"
 parameterFile = "parameters.txt"

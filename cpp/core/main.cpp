@@ -129,6 +129,7 @@ int main(int argc, char** argv) {
     if(args.verbose) result.displaySummary();
     result.saveToJSON(args.output_path);
     if(args.verbose) std::cout << "Solution saved to: " << args.output_path << std::endl;
+    std::cout << result.objectiveValue << std::endl;
 
     return 0;
 }
