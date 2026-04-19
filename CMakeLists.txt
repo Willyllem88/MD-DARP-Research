@@ -23,6 +23,7 @@ set(CONCERT_LIB_DIR "${CPLEX_ROOT}/concert/lib/x86-64_linux/static_pic")
 
 add_custom_target(install_cordeau_instances
     COMMAND bash ${CMAKE_SOURCE_DIR}/scripts/install_cordeau_instances.sh
+    COMMAND bash ${CMAKE_SOURCE_DIR}/scripts/install_cordeau_instances_tabu.sh
     COMMENT "Downloading and converting Cordeau instances (may take a while)..."
 )
 add_subdirectory(cpp)
