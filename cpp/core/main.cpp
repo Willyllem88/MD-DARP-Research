@@ -30,7 +30,7 @@ void printUsage(const char* program_name) {
     std::cout << "  -m, --method     Solver method: 'ILP', 'ILPSoft', 'ALNS', 'ALNS_SP', 'ALNS_SC'" << std::endl;
     std::cout << "  -s, --seed       Random seed for reproducibility" << std::endl;
     std::cout << "  -v, --verbose    Enable verbose output" << std::endl;
-    std::cout << "  --alnsParams     Additional parameters for ALNS (in order: maxIterations, coolingRate, destroyFraction, w)" << std::endl;
+    std::cout << "  --alnsParams     Additional parameters for ALNS (in order: see readme)" << std::endl;
     std::cout << "  -h, --help       Show this help message" << std::endl;
     std::cout << "Example: " << program_name << " -i ./gracia-4R2V.json -t 300 -o ./solution.json -m ILP -s 42 -v" << std::endl;
 }
