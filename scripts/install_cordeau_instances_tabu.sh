@@ -28,7 +28,7 @@ echo "Converting instances..."
 
 for f in "$DATA_DIR"/*.txt; do
   name=$(basename "$f" .txt)
-  python3 "$CONVERTER" --load "$f" --output "$DATA_DIR/$name.json" --silent
+  python3 "$CONVERTER" --load "$f" --output "$DATA_DIR/$name.json" --silent --tabu
 done
 
 echo ""
