@@ -1,5 +1,5 @@
-maxExperiments = 200
-parallel = 1
+maxExperiments = 1000
+parallel = 10
 trainInstancesFile = "instances.txt"
 parameterFile = "parameters.txt"
 targetRunner = "run.sh"

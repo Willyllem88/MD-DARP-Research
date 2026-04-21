@@ -6,7 +6,7 @@ import sys
 def parse_line(line):
     return [float(x) for x in line.split()]
 
-def read_cordeau_instance(filepath):
+def read_cordeau_instance(filepath, is_tabu=False):
     try:
         with open(filepath, 'r') as f:
             lines = [l.strip() for l in f if l.strip()]
@@ -17,7 +17,7 @@ def read_cordeau_instance(filepath):
     # 1. Parse Global Parameters
     header = parse_line(lines[0])
     num_vehicles = int(header[0])
-    num_requests = int(header[1])
+    num_requests = int(header[1]) if not is_tabu else int(header[1] / 2)
     max_route_time = header[2]
     capacity = int(header[3])
     max_ride_time = header[4]
@@ -183,12 +183,13 @@ def main():
     parser.add_argument("--load", required=True, help="Path to instance file (.txt/.dat)")
     parser.add_argument("--output", required=True, help="Path to output file (.json)")
     parser.add_argument("--silent", action='store_true', help="Run without printing progress messages")
+    parser.add_argument("--tabu", action='store_true', help="Convert Tabu Search instances")
     
     args = parser.parse_args()
 
     silent_print(f"Reading instance: {args.load}", args.silent)
 
-    data = read_cordeau_instance(args.load)
+    data = read_cordeau_instance(args.load, args.tabu)
     
     silent_print("Generating JSON structure...", args.silent)
 

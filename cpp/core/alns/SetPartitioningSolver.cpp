@@ -52,14 +52,14 @@ ALNSSolution SetPartitioningSolver::solve(const std::map<int, std::vector<ALNSRo
         IloRangeArray requestConstraints(env, data.P.size(), 1.0, 1.0);
         model.add(requestConstraints);
 
-        // Constraint (b): Each vehicle used at most once
+        // Constraint (b): Each vehicle used exactly once
         // Map Vehicle ID -> Constraint Index
         std::map<int, int> vehicleToIndex;
         int vIdx = 0;
         for (auto const& [k, routes] : routePool) {
             vehicleToIndex[k] = vIdx++;
         }
-        IloRangeArray vehicleConstraints(env, vehicleToIndex.size(), 0.0, 1.0);
+        IloRangeArray vehicleConstraints(env, vehicleToIndex.size(), 1.0, 1.0);
         model.add(vehicleConstraints);
 
         // --- 2. Create Variables (Column Generation) ---
@@ -71,8 +71,6 @@ ALNSSolution SetPartitioningSolver::solve(const std::map<int, std::vector<ALNSRo
         struct VarInfo { 
             int vehicleId; 
             int routeIdx; 
-            bool isSlack; 
-            int reqId; 
         };
         std::vector<VarInfo> varMetadata;
         // Optimization: Reserve memory to avoid reallocations
@@ -104,25 +102,11 @@ ALNSSolution SetPartitioningSolver::solve(const std::map<int, std::vector<ALNSRo
 
                 // Create the binary variable using the constructed column
                 vars.add(IloNumVar(col, 0.0, 1.0, ILOBOOL));
-                varMetadata.push_back({k, (int)rIdx, false, -1});
+                varMetadata.push_back({k, (int)rIdx});
                 
                 // Important: Release the column object to prevent memory bloat
                 col.end(); 
             }
-        }
-
-        // B. Slack Variables (z_i) - For unassigned requests
-        for (int i : data.P) {
-            int rowIdx = requestToIndex.at(i);
-            
-            // Column: Penalty cost + Covers the specific request constraint
-            IloNumColumn col = obj(params.unassignedPenalty);
-            col += requestConstraints[rowIdx](1.0);
-            
-            vars.add(IloNumVar(col, 0.0, 1.0, ILOBOOL));
-            varMetadata.push_back({-1, -1, true, i});
-            
-            col.end();
         }
 
         // --- 3. Solve and Reconstruct ---
@@ -140,33 +124,11 @@ ALNSSolution SetPartitioningSolver::solve(const std::map<int, std::vector<ALNSRo
                 // Check if variable is selected ( > 0.5 for binary tolerance)
                 if (vals[i] > 0.5) { 
                     const auto& info = varMetadata[i];
-                    
-                    if (info.isSlack) {
-                        newSol.unassignedRequests.insert(info.reqId);
-                    } else {
-                        // Retrieve the actual route from the pool
-                        newSol.routes.push_back(routePool.at(info.vehicleId)[info.routeIdx]);
-                    }
+                    newSol.routes.push_back(routePool.at(info.vehicleId)[info.routeIdx]);
                 }
             }
             vals.end(); // Release value array
 
-            // Logic to handle unused vehicles (fill with empty routes)
-            std::set<int> usedVehicles;
-            for(const auto& r : newSol.routes) {
-                usedVehicles.insert(r.vehicleId);
-            }
-            
-            for (int k : data.K) {
-                if (usedVehicles.find(k) == usedVehicles.end()) {
-                    ALNSRoute emptyR;
-                    emptyR.vehicleId = k;
-                    emptyR.sequence = {data.getVehicleStartNode(k), data.getVehicleEndNode(k)};
-                    evaluator.evaluateRoute(emptyR);
-                    newSol.routes.push_back(emptyR);
-                }
-            }
-            
             // Final evaluation of the assembled solution
             evaluator.evaluateSolution(newSol);
 

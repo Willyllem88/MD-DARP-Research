@@ -56,6 +56,8 @@ void ALNSOperators::destroyRandom(ALNSSolution& sol, int q) {
         sol.unassignedRequests.insert(loc.reqId);
         removed++;
     }
+
+    evaluator.evaluateSolution(sol);
 }
 
 void ALNSOperators::destroyWorst(ALNSSolution& sol, int q) {
@@ -129,19 +131,23 @@ void ALNSOperators::destroyWorst(ALNSSolution& sol, int q) {
         savingsMap.erase(savingsMap.begin() + idx);
         removedCount++;
     }
+
+    evaluator.evaluateSolution(sol);
 }
 
 double ALNSOperators::calculateRelatedness(int i, int j) {
     // Heurístic weights
-    double w_dist = 9.0;
-    double w_time = 3.0;
-    double w_demand = 1.0;
+    double w_dist = params.shawDistWeight;
+    double w_time = params.shawTimeWeight;
+    double w_demand = params.shawDemandWeight;
 
     // Distancia normalizada (aprox) entre orígenes
     double dist = data.getTravelTime(i, j); 
     
     // Diferencia temporal (Start Time Window)
-    double timeDiff = std::abs(data.getTimeWindowStart(i) - data.getTimeWindowStart(j));
+    double mu_i = (data.getTimeWindowStart(i) + data.getTimeWindowEnd(i)) / 2.0;
+    double mu_j = (data.getTimeWindowStart(j) + data.getTimeWindowEnd(j)) / 2.0;
+    double timeDiff = std::abs(mu_i - mu_j);
     
     // Diferencia de demanda
     double demandDiff = std::abs(data.getDemand(i) - data.getDemand(j));
@@ -152,15 +158,7 @@ double ALNSOperators::calculateRelatedness(int i, int j) {
 
 void ALNSOperators::destroyShaw(ALNSSolution& sol, int q) {
     // 1. Choose a random seed request that is currently assigned
-    std::vector<int> assigned;
-    for (const auto& r : sol.routes) {
-        for (int node : r.sequence) {
-            if (data.isPickup(node)) 
-                assigned.push_back(node);
-        }
-    }
-    
-    if (assigned.empty()) return;
+    const std::vector<int>& assigned = data.P;
     std::uniform_int_distribution<> dis(0, assigned.size() - 1);
     int seedRequest = assigned[dis(rng)];
 
@@ -205,6 +203,8 @@ void ALNSOperators::destroyShaw(ALNSSolution& sol, int q) {
         }
         sol.unassignedRequests.insert(req);
     }
+    
+    evaluator.evaluateSolution(sol);
 }
 
 void ALNSOperators::repairGreedy(ALNSSolution& sol) {
@@ -231,17 +231,10 @@ void ALNSOperators::repairGreedy(ALNSSolution& sol) {
             for (size_t i = 1; i < seq.size(); ++i) {
                 for (size_t j = i; j < seq.size(); ++j) {
                     
-                    // Construct temp route
-                    ALNSRoute temp = sol.routes[v];
-                    temp.sequence.insert(temp.sequence.begin() + i, reqId);
-                    temp.sequence.insert(temp.sequence.begin() + j + 1, deliveryId);
+                    double delta = evaluator.calculateDelta(sol.routes[v], reqId, i, j, bestCostIncrease);
                     
-                    evaluator.evaluateRoute(temp);
-                    
-                    double increase = temp.totalCost - sol.routes[v].totalCost;
-                    
-                    if (increase < bestCostIncrease) {
-                        bestCostIncrease = increase;
+                    if (delta < bestCostIncrease) {
+                        bestCostIncrease = delta;
                         bestVehicle = v;
                         bestPIdx = i;
                         bestDIdx = j + 1;
@@ -250,17 +243,11 @@ void ALNSOperators::repairGreedy(ALNSSolution& sol) {
             }
         }
 
-        // Apply best move if reasonable
-        if (bestVehicle != -1 && bestCostIncrease < params.unassignedPenalty) {
-            auto& r = sol.routes[bestVehicle];
-            r.sequence.insert(r.sequence.begin() + bestPIdx, reqId);
-            r.sequence.insert(r.sequence.begin() + bestDIdx, deliveryId);
-            // Don't need to eval full solution yet, loop handles local delta
-            // But we should update the route cost locally for next comparison
-            evaluator.evaluateRoute(r);
-        } else {
-            sol.unassignedRequests.insert(reqId);
-        }
+        auto& r = sol.routes[bestVehicle];
+        r.sequence.insert(r.sequence.begin() + bestPIdx, reqId);
+        r.sequence.insert(r.sequence.begin() + bestDIdx, deliveryId);
+
+        evaluator.evaluateRoute(r);
     }
 }
 
@@ -270,78 +257,61 @@ void ALNSOperators::repairRegret2(ALNSSolution& sol) {
         int bestReqId = -1;
         double maxRegretValue = -1.0;
         
-        // Estructura para guardar el mejor movimiento de la petición ganadora
+        // Structure to store the winning move for the best request
         int winVehicle = -1; 
         int winPIdx = -1; 
         int winDIdx = -1;
 
-        // Iterar sobre todas las peticiones pendientes
+        // Iterate over all unassigned requests
         std::vector<int> pending(sol.unassignedRequests.begin(), sol.unassignedRequests.end());
         
-        for (int reqId : pending) {
-            int deliveryId = reqId + data.N_requests;
-            
-            // Guardar los costes de inserción de esta petición en cada ruta
+        for (int reqId : pending) {            
+            // Store the insertion costs of this request in each route
             std::vector<double> insertionCosts; 
             
-            // Estructuras temporales para guardar la posición exacta en cada ruta
+            // Temporary structures to store the exact position in each route
             struct Move { int v; int pIdx; int dIdx; double cost; };
             std::vector<Move> moves;
 
-            // Evaluar inserción en CADA vehículo
+            // Evaluate insertion in EACH vehicle
             for (size_t v = 0; v < sol.routes.size(); ++v) {
                 double bestCostForVehicle = std::numeric_limits<double>::max();
                 int bestP = -1, bestD = -1;
                 
-                // Lógica de búsqueda de posición (igual que en Greedy)
+                // LLogic for position search (same as in Greedy)
                 const auto& seq = sol.routes[v].sequence;
-                double currentRouteCost = sol.routes[v].totalCost;
 
                 for (size_t i = 1; i < seq.size(); ++i) {
                     for (size_t j = i; j < seq.size(); ++j) {
-                        // Delta Evaluation rápida o clonación completa (Usamos clonación por simplicidad actual)
-                        ALNSRoute temp = sol.routes[v];
-                        temp.sequence.insert(temp.sequence.begin() + i, reqId);
-                        temp.sequence.insert(temp.sequence.begin() + j + 1, deliveryId);
-                        evaluator.evaluateRoute(temp);
-                        
-                        if (!temp.isFeasible) continue; // Si viola Hard Constraints, ignorar
-                        
-                        double increase = temp.totalCost - currentRouteCost;
-                        if (increase < bestCostForVehicle) {
-                            bestCostForVehicle = increase;
+                        double delta = evaluator.calculateDelta(sol.routes[v], reqId, i, j, bestCostForVehicle);
+                        if (delta < bestCostForVehicle) {
+                            bestCostForVehicle = delta;
                             bestP = i;
                             bestD = j + 1;
                         }
                     }
                 }
                 
-                // Guardamos el mejor coste encontrado para este vehículo
-                if (bestP != -1) {
-                    moves.push_back({(int)v, bestP, bestD, bestCostForVehicle});
-                }
+                // There will always be at least one possible insertion
+                moves.push_back({(int)v, bestP, bestD, bestCostForVehicle});
             }
-
-            // CALCULAR REGRET
-            // Si no cabe en ningún sitio
-            if (moves.empty()) continue; 
             
-            // Ordenar movimientos por coste (ascendente)
+            // Sort moves by cost (ascending)
             std::sort(moves.begin(), moves.end(), [](const Move& a, const Move& b){
                 return a.cost < b.cost;
             });
 
             double regret = 0;
             if (moves.size() == 1) {
-                // Si solo cabe en un sitio, el arrepentimiento es infinito (o muy alto)
-                // porque si no lo metemos ahí, lo perdemos.
-                regret = 100000.0; // Valor alto arbitrario
+                // If it only fits in one place, the regret is infinite (or very high)
+                // because if we don't put it there, we lose it.
+                regret = 100000.0; // High arbitrary value to prioritize this request
             } else {
-                // Regret-2: Diferencia entre mejor y segundo mejor
+                // Regret-2: the difference between the best and second-best insertion cost
                 regret = moves[1].cost - moves[0].cost;
             }
 
-            // ¿Es este el "peor" caso que hemos visto?
+            // Is this the "worst" case we have seen?
             if (regret > maxRegretValue) {
                 maxRegretValue = regret;
                 bestReqId = reqId;
@@ -351,10 +321,7 @@ void ALNSOperators::repairRegret2(ALNSSolution& sol) {
             }
         }
 
-        // Si no encontramos candidato factible para ninguna petición, paramos
-        if (bestReqId == -1) break;
-
-        // APLICAR EL MOVIMIENTO
+        // Apply the winning move for the request with the highest regret
         auto& r = sol.routes[winVehicle];
         r.sequence.insert(r.sequence.begin() + winPIdx, bestReqId);
         int deliveryId = bestReqId + data.N_requests;

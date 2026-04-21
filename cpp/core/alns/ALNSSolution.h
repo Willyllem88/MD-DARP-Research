@@ -32,3 +32,16 @@ struct ALNSSolution {
         std::cout << std::endl;
     };
 };
+
+struct SolutionHash {
+    std::size_t operator()(const ALNSSolution& sol) const {
+        std::size_t hash = 0;
+        RouteSequenceHash routeHasher;
+
+        for (const auto& route : sol.routes) {
+            hash ^= routeHasher(route.sequence) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+        }
+        
+        return hash;
+    }
+};

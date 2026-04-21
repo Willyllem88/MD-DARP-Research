@@ -8,6 +8,7 @@
 #include "alns/ALNSParams.h"
 #include "alns/ALNSEvaluator.h"
 #include "alns/SetPartitioningSolver.h"
+#include "alns/SetCoveringSolver.h"
 #include "alns/ALNSOperators.h"
 
 #include <ilcplex/ilocplex.h>
@@ -25,11 +26,17 @@ class ALNSEvaluator; // Forward declaration to avoid circular dependency
 
 class ALNSSolver : public Solver {
 public:
+    enum class HybridMethod {NONE, SET_PARTITIONING, SET_COVERING};
+
+
     ALNSSolver(
         DARPMD_ProblemInstance& instance, 
         std::optional<double> timeLimit = std::nullopt, 
+        HybridMethod hybridMethod = HybridMethod::NONE,
         int seed = 42, 
-        bool verbose = false);
+        bool verbose = false,
+        const ALNSParams& params = ALNSParams()
+    );
         
     ~ALNSSolver();
 
@@ -46,11 +53,15 @@ public:
 
 private:
     DARPMD_ProblemInstance& data;
+    std::optional<DARPMD_ResultInstance> result;
     std::optional<double> timeLimit;
+
+    HybridMethod hybridMethod;
     
     std::unique_ptr<ALNSParams> params;
     std::unique_ptr<ALNSEvaluator> evaluator;
     std::unique_ptr<SetPartitioningSolver> spSolver;
+    std::unique_ptr<SetCoveringSolver> scSolver;
     std::unique_ptr<ALNSOperators> operators;
 
     // Random engine
@@ -61,6 +72,8 @@ private:
     double bestObjective;
     double solveTime;
 
+    double currentTemperature;
+
     // --- The Route Pool for Set Partitioning ---
     // Stores unique feasible routes found during search
     // Key: VehicleID (since depots differ), Value: List of routes
@@ -70,7 +83,7 @@ private:
     // --- Core Logic Methods ---
 
     bool stoppingCriteria(int iter, double elapsedSeconds);
-    bool acceptanceCriteria(double candidateObj, double currentObj, double temperature, double& score);
+    bool acceptanceCriteria(double candidateObj, double currentObj, double temperature, bool isNew, double& score);
 
     void applyDestroy(ALNSSolution& sol, int destroyOpIdx);
     void applyRepair(ALNSSolution& sol, int repairOpIdx);
@@ -87,7 +100,7 @@ private:
         std::vector<int> timesUsed;
 
         void init(int size) {
-            weights.assign(size, 1.0); // Todos empiezan con igual probabilidad
+            weights.assign(size, 1.0); // All operators start with equal weight
             scores.assign(size, 0.0);
             timesUsed.assign(size, 0);
         }
@@ -97,19 +110,18 @@ private:
 
     int selectOperator(const std::vector<double>& weights);
     void updateWeights(OperatorStats& stats);
-
-    // Helper: Check if a request (pickup p, delivery d) can be inserted into route at pos i, j
-    // Returns incremental cost (or infinity if impossible/too expensive)
-    double calculateInsertionCost(const ALNSRoute& route, int requestIdx, int pIdx, int dIdx);
+    void initializeStatsAndTemperature(const ALNSSolution& initialSolution);
+    void initializeRoutePool(); // Initializes the route pool with empty routes for each vehicle
 
     // Helper: Check if any delivery appears before its pickup in the solution (should never happen)
     void checkPickupAfterDelivery(const ALNSSolution& sol, const DARPMD_ProblemInstance& data) const;
 
-    // --- CPLEX Integration (Set Partitioning) ---
-    // Solves a Set Partitioning problem using the accumulated routePool
-    void solveSetPartitioning(); 
+    // --- CPLEX Integration (Set Partitioning / Covering) ---
+    // Solves a Set Partitioning/Covering problem using the accumulated routePool
+    void solveMatheuristic(); 
     // Solve schedule later
-    void solveScheduleLater(ALNSSolution& sol);
+    DARPMD_ResultInstance solveScheduleLater(ALNSSolution& sol);
 
+    // TODO: future improvements
     void runSimpleLocalSearch(ALNSSolution& sol);
 };

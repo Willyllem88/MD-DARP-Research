@@ -9,15 +9,19 @@
 
 ALNSSolver::ALNSSolver(DARPMD_ProblemInstance& instance,
                        std::optional<double> timeLimit,
+                       HybridMethod hybridMethod,
                        int seed,
-                       bool verbose)
-    : Solver(verbose), data(instance), timeLimit(timeLimit) {
+                       bool verbose,
+                       const ALNSParams& alnsParams
+                       )
+    : Solver(verbose), data(instance), timeLimit(timeLimit), hybridMethod(hybridMethod) {
 
     rng = std::mt19937(seed);
 
-    params = std::make_unique<ALNSParams>();
+    params = std::make_unique<ALNSParams>(alnsParams);
     evaluator = std::make_unique<ALNSEvaluator>(data, *params);
     spSolver = std::make_unique<SetPartitioningSolver>(data, *params, *evaluator, logger);
+    scSolver = std::make_unique<SetCoveringSolver>(data, *params, *evaluator, logger);
     operators = std::make_unique<ALNSOperators>(data, *params, *evaluator, rng);
 
     bestObjective = std::numeric_limits<double>::infinity();
@@ -40,28 +44,31 @@ void ALNSSolver::addRouteToPool(const ALNSRoute& route) {
 
 }
 
-void ALNSSolver::solveSetPartitioning() {
-    ALNSSolution spSol = spSolver->solve(routePool);
+void ALNSSolver::solveMatheuristic() {
+    if (hybridMethod == HybridMethod::NONE) return;
 
-    if (spSol.routes.empty() && spSol.unassignedRequests.empty() && spSol.objectiveValue == 0) {
-        return;
+    ALNSSolution matSol;
+    if (hybridMethod == HybridMethod::SET_PARTITIONING) {
+        matSol = spSolver->solve(routePool);
+    } else if (hybridMethod == HybridMethod::SET_COVERING) {
+        matSol = scSolver->solve(routePool);
     }
 
     // Handle the new solution from CPLEX
-    if (spSol.objectiveValue < bestObjective) {
-        logger.log("  [Matheuristic] CPLEX found new best solution! Objective: " + std::to_string(spSol.objectiveValue) + " (Improvement)");
+    if (matSol.objectiveValue < bestObjective) {
+        logger.log("  [Matheuristic] CPLEX found new best solution! Objective: " + std::to_string(matSol.objectiveValue) + " (Improvement)");
         
-        bestSolution = spSol;
-        bestObjective = spSol.objectiveValue;
+        bestSolution = matSol;
+        bestObjective = matSol.objectiveValue;
     }
     else {
-        logger.log("  [Matheuristic] CPLEX found solution with objective: " + std::to_string(spSol.objectiveValue) + " (No improvement)");
+        logger.log("  [Matheuristic] CPLEX found solution with objective: " + std::to_string(matSol.objectiveValue) + " (No improvement)");
     }
 }
 
-void ALNSSolver::solveScheduleLater(ALNSSolution& sol) {
-    logger.log("[Schedule Later] Starting Schedule Later phase with CPLEX. Current solution objective: " + std::to_string(sol.objectiveValue));
-    CPLEXSoftSolver softSolver(data, std::nullopt, verbose);
+DARPMD_ResultInstance ALNSSolver::solveScheduleLater(ALNSSolution& sol) {
+    logger.log("[Schedule Later] Starting... Current solution objective: " + std::to_string(sol.objectiveValue));
+    CPLEXSoftSolver softSolver(data, std::nullopt, false);
 
     softSolver.fixAllRoutingVariablesToZero();
 
@@ -84,6 +91,9 @@ void ALNSSolver::solveScheduleLater(ALNSSolution& sol) {
     } else {
         logger.log("[Schedule Later] CPLEX found solution with objective: " + std::to_string(result.objectiveValue) + " (No improvement)");
     }
+    
+    // NRVO: the compiler optimize this copy
+    return result;
 }
 
 ALNSSolution ALNSSolver::createInitialSolution() {
@@ -155,35 +165,36 @@ bool ALNSSolver::stoppingCriteria(int iter, double elapsedSeconds) {
         return true;
     }
 
-    // 3. TODO: No improvement for X iterations
-
     return false;
 }
 
-bool ALNSSolver::acceptanceCriteria(double neighborObj, double currentObj, double temperature, double& score) {
+bool ALNSSolver::acceptanceCriteria(double neighborObj, double currentObj, double temperature, bool isNew, double& score) {
     double delta = neighborObj - currentObj;
 
-    // Caso 1: Mejora la solución actual
+    // Case 1: Improves the current solution
     if (delta < 0) {
-        // Si además mejora la mejor global
-        if (neighborObj < bestObjective) {
-            score = params->sigma1; // Nueva mejor global
-        } else {
-            score = params->sigma2; // Mejora actual pero no global
-        }
+        // If also improves the global best
+        if (neighborObj < bestObjective) score = params->sigma1; 
+        // Improves the current but not the global best, but is a new solution (not visited before)
+        else if (isNew) score = params->sigma2;
+        // Improves the current but is not a new solution (already visited)
+        else score = 0.0;
         return true;
     } 
     
-    // Caso 2: Solución peor (Criterio de Simulated Annealing)
+    // Case 2: Worse solution (Simulated Annealing acceptance)
     double prob = std::exp(-delta / temperature);
     std::uniform_real_distribution<> dis(0.0, 1.0);
     
     if (dis(rng) < prob) {
-        score = params->sigma3; // Aceptada siendo peor
+        // Accepted although worse
+        if (isNew) score = params->sigma3;
+        // Accepted but already visited, so no score
+        else score = 0.0;
         return true;
     }
 
-    // Caso 3: Rechazada
+    // Case 3: Not accepted
     score = 0.0; 
     return false;
 }
@@ -219,6 +230,34 @@ void ALNSSolver::applyRepair(ALNSSolution& sol, int repairOpIdx) {
     }
 }
 
+void ALNSSolver::initializeStatsAndTemperature(const ALNSSolution& initialSolution) {
+    destroyStats.init((int)DestroyMethod::COUNT);
+    repairStats.init((int)RepairMethod::COUNT);
+
+    // Accept 10% worst solution at the beggining with probability of 50%
+    double z0 = initialSolution.objectiveValue;
+    double initialTemperature = (params->w * z0) / std::log(2.0);
+    currentTemperature = initialTemperature;
+
+    logger.log("Initial solution created. Objective: " + std::to_string(bestObjective) 
+        + " (Violations: " + (evaluator->solutionHasViolations(initialSolution) ? "Yes" : "No") + ")");
+}
+
+void ALNSSolver::initializeRoutePool() {
+    ALNSSolution emptySol;
+    for (int k : data.K) {
+        ALNSRoute r;
+        r.vehicleId = k;
+        r.sequence.push_back(data.getVehicleStartNode(k));
+        r.sequence.push_back(data.getVehicleEndNode(k));
+        evaluator->evaluateRoute(r);
+        emptySol.routes.push_back(r);
+    }
+    for (const auto& route : emptySol.routes) {
+        addRouteToPool(route);
+    }
+}
+
 // ------------------------------------------------------------------
 // Main Solve Loop
 // ------------------------------------------------------------------
@@ -231,17 +270,14 @@ void ALNSSolver::solve() {
     bestSolution = currentSol;
     bestObjective = currentSol.objectiveValue;
 
-    destroyStats.init((int)DestroyMethod::COUNT);
-    repairStats.init((int)RepairMethod::COUNT);
-    double temperature = params->initialTemperature;
+    std::unordered_set<std::size_t> visitedSolutionsHashes;
+    visitedSolutionsHashes.insert(SolutionHash{}(currentSol));
 
-    logger.log("Initial solution created. Objective: " + std::to_string(bestObjective) 
-        + " (Violations: " + (evaluator->solutionHasViolations(currentSol) ? "Yes" : "No") + ")");
+    initializeStatsAndTemperature(currentSol);
+    initializeRoutePool();
 
     // 2. Main Loop
     for (int iter = 0; ; ++iter) {
-        
-        // Check time limit
         auto now = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> elapsed = now - start;
         if (stoppingCriteria(iter, elapsed.count())) break;
@@ -251,12 +287,15 @@ void ALNSSolver::solve() {
         int repairOpIdx = selectOperator(repairStats.weights);
         ALNSSolution neighbor = currentSol;
 
-        // --- Destroy ---
+        // --- Destroy and Repair ---
         applyDestroy(neighbor, destroyOpIdx);
-        // --- Repair ---
         applyRepair(neighbor, repairOpIdx);
-
         evaluator->evaluateSolution(neighbor);
+
+        std::size_t neighborHash = SolutionHash{}(neighbor);
+        bool isNew = (visitedSolutionsHashes.find(neighborHash) == visitedSolutionsHashes.end());
+        if (isNew)  visitedSolutionsHashes.insert(neighborHash);
+
         for (const auto& route : neighbor.routes) {
             if (!route.sequence.empty()) {
                 addRouteToPool(route);
@@ -265,7 +304,7 @@ void ALNSSolver::solve() {
 
         // --- Acceptance Criterion ---
         double iterScore = 0.0;
-        bool accept = acceptanceCriteria(neighbor.objectiveValue, currentSol.objectiveValue, temperature, iterScore);
+        bool accept = acceptanceCriteria(neighbor.objectiveValue, currentSol.objectiveValue, currentTemperature, isNew, iterScore);
 
         if (accept) {
             currentSol = neighbor;
@@ -275,10 +314,7 @@ void ALNSSolver::solve() {
                 bestObjective = neighbor.objectiveValue;
                 logger.log("* Iter " + std::to_string(iter) + ": New Best = " + std::to_string(bestObjective) 
                     + " (Violations: " + (evaluator->solutionHasViolations(neighbor) ? "Yes" : "No") + ")");
-                //solutionDetails(bestSolution);
             }
-
-            checkPickupAfterDelivery(currentSol, data);
         }
         
         // -- Update Operator Stats ---
@@ -287,74 +323,51 @@ void ALNSSolver::solve() {
         repairStats.scores[repairOpIdx] += iterScore;
         repairStats.timesUsed[repairOpIdx] += 1;
 
-        if (iter > 0 && iter % 100 == 0) {
+        if (iter > 0 && iter % params->segmentIterations == 0) {
             updateWeights(destroyStats);
             updateWeights(repairStats);
         }
 
         // --- Cooling ---
-        temperature *= params->coolingRate;
+        currentTemperature *= params->coolingRate;
 
         // --- Matheuristic Integration ---
-        if (iter > 0 && iter % params->setPartitioningInterval == 0) {
-            logger.log("Iter " + std::to_string(iter) + " [Matheuristic] Running Set Partitioning on Pool...");
-            solveSetPartitioning();
-        }
+        if (iter > 0 && iter % params->setPartitioningInterval == 0)
+            solveMatheuristic();
     }
 
     // Final clean run of SP
-    logger.log("Final Set Partitioning to polish solution...");
-    solveSetPartitioning();
+    logger.log("Final matheuristic run to polish solution...");
+    solveMatheuristic();
 
     // Solve the schedule later
-    solveScheduleLater(bestSolution);
-
+    result = solveScheduleLater(bestSolution);
+    
+    // TODO: translate to ALNSSolution
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> totalElapsed = end - start;
     this->solveTime = totalElapsed.count();
-
-    std::cout << std::endl << std::string(50, '=') << std::endl 
-              << "ALNS Finished. Best Objective: " << bestObjective << std::endl;
-    // Print the objective value of the arcs used (distance cost only, without penalties)
-    double totalDistanceCost = 0.0;
-    for (const auto& r : bestSolution.routes) {
-        totalDistanceCost += r.distanceCost;
-    }
-    std::cout << "Objective (without penalties): " << totalDistanceCost << std::endl;
-    std::cout << "Total Solve Time: " << this->solveTime << " seconds." << std::endl;
+    result->solveTime = this->solveTime;
 
     // Print operator stats
-    std::cout << std::endl << "Operator Usage Stats:" << std::endl;
-    std::cout << "Destroy Operator Stats:" << std::endl;
-    for (size_t i = 0; i < destroyStats.weights.size(); ++i) {
-        double avgScore = (destroyStats.timesUsed[i] > 0) ? destroyStats.scores[i] / destroyStats.timesUsed[i] : 0.0;
-        std::cout << "  Destroy " << i << ": Weight=" << destroyStats.weights[i] 
-                  << ", Times Used=" << destroyStats.timesUsed[i] 
-                  << ", Avg Score=" << avgScore << std::endl;
-    }
+    if (verbose) {
+        std::cout << std::endl << "Operator Usage Stats:" << std::endl;
+        std::cout << "Destroy Operator Stats:" << std::endl;
+        for (size_t i = 0; i < destroyStats.weights.size(); ++i) {
+            double avgScore = (destroyStats.timesUsed[i] > 0) ? destroyStats.scores[i] / destroyStats.timesUsed[i] : 0.0;
+            std::cout << "  Destroy " << i << ": Weight=" << destroyStats.weights[i] 
+                    << ", Times Used=" << destroyStats.timesUsed[i] 
+                    << ", Avg Score=" << avgScore << std::endl;
+        }
 
-    std::cout << "Repair Operator Stats:" << std::endl;
-    for (size_t i = 0; i < repairStats.weights.size(); ++i) {
-        double avgScore = (repairStats.timesUsed[i] > 0) ? repairStats.scores[i] / repairStats.timesUsed[i] : 0.0;
-        std::cout << "  Repair " << i << ": Weight=" << repairStats.weights[i] 
-                  << ", Times Used=" << repairStats.timesUsed[i] 
-                  << ", Avg Score=" << avgScore << std::endl;
+        std::cout << "Repair Operator Stats:" << std::endl;
+        for (size_t i = 0; i < repairStats.weights.size(); ++i) {
+            double avgScore = (repairStats.timesUsed[i] > 0) ? repairStats.scores[i] / repairStats.timesUsed[i] : 0.0;
+            std::cout << "  Repair " << i << ": Weight=" << repairStats.weights[i] 
+                    << ", Times Used=" << repairStats.timesUsed[i] 
+                    << ", Avg Score=" << avgScore << std::endl;
+        }
     }
-
-    //Print violation
-    std::cout << std::endl << "Violations in Best Solution:" << std::endl;
-    for (const auto& r : bestSolution.routes) {
-        std::cout << "  Vehicle " << r.vehicleId << " Violations: TimeWindows: " << r.timeWindowViolation
-                  << ", MaxRouteTime: " << r.vehicleMaxRouteTimeViolation << ", Load: " << r.loadViolation 
-                  << ", RideTime: " << r.rideTimeViolation << std::endl;
-    }
-    // Print unassigned requests
-    std::cout << "Unassigned Requests: ";
-    if (bestSolution.unassignedRequests.empty()) std::cout << "NONE";
-    for (int req : bestSolution.unassignedRequests) {
-        std::cout << req << " ";
-    }
-    std::cout << std::endl;
 }
 
 void ALNSSolver::checkPickupAfterDelivery(const ALNSSolution& sol, const DARPMD_ProblemInstance& data) const {
@@ -381,36 +394,9 @@ void ALNSSolver::checkPickupAfterDelivery(const ALNSSolution& sol, const DARPMD_
 }
 
 DARPMD_ResultInstance ALNSSolver::getResult() const {
-    DARPMD_ResultInstance result(data);
-    result.solveTime = this->solveTime;
-    result.objectiveValue = this->bestObjective;
-    
-    // If we have violations, mark as Feasible only (or Infeasible)
-    // But since this is heuristic result, we return what we have.
-    result.solverStatus = (bestSolution.unassignedRequests.empty()) ? "Feasible" : "Partial/Infeasible";
-
-    for (const auto& r : bestSolution.routes) {
-        VehicleRoute vRoute;
-        vRoute.vehicleId = r.vehicleId;
-
-        for (int nodeId : r.sequence) {
-            RouteStep step;
-            step.nodeId = nodeId;
-            
-            // Types
-            if (data.isVehicleStart(nodeId)) step.type = "DepotStart";
-            else if (data.isVehicleEnd(nodeId)) step.type = "DepotEnd";
-            else if (data.isPickup(nodeId)) step.type = "Pickup";
-            else step.type = "Delivery";
-
-            // Timing info from evaluation
-            step.arrivalTime = (nodeId < (int)r.arrivalTimes.size()) ? r.arrivalTimes[nodeId] : 0.0;
-            step.loadAfter   = (nodeId < (int)r.loads.size())        ? r.loads[nodeId]        : 0.0;
-
-            vRoute.steps.push_back(step);
-        }
-        result.addRoute(r.vehicleId, vRoute);
+    if (result.has_value()) {
+        return result.value();
+    } else {
+        throw std::runtime_error("Result is not available yet. Call solve() first.");
     }
-
-    return result;
 }

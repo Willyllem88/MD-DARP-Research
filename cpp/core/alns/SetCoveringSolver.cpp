@@ -9,8 +9,9 @@
 // Constructor: Initializes the persistent environment and pre-calculates indices
 SetCoveringSolver::SetCoveringSolver(const DARPMD_ProblemInstance& data, 
                                              const ALNSParams& params, 
-                                             ALNSEvaluator& evaluator) 
-    : data(data), params(params), evaluator(evaluator), env() 
+                                             ALNSEvaluator& evaluator,
+                                             Logger& logger)
+    : data(data), params(params), evaluator(evaluator), logger(logger), env() 
 {
     // Pre-calculate requestToIndex mapping for O(1) access during column generation
     int idx = 0;
@@ -50,14 +51,14 @@ ALNSSolution SetCoveringSolver::solve(const std::map<int, std::vector<ALNSRoute>
         IloRangeArray requestConstraints(env, data.P.size(), 1.0, IloInfinity);
         model.add(requestConstraints);
 
-        // Constraint (b): Each vehicle used at most once
+        // Constraint (b): Each vehicle used exactly once
         // Map Vehicle ID -> Constraint Index
         std::map<int, int> vehicleToIndex;
         int vIdx = 0;
         for (auto const& [k, routes] : routePool) {
             vehicleToIndex[k] = vIdx++;
         }
-        IloRangeArray vehicleConstraints(env, vehicleToIndex.size(), 0.0, 1.0);
+        IloRangeArray vehicleConstraints(env, vehicleToIndex.size(), 1.0, 1.0);
         model.add(vehicleConstraints);
 
         // --- 2. Create Variables (Column Generation) ---
@@ -69,8 +70,6 @@ ALNSSolution SetCoveringSolver::solve(const std::map<int, std::vector<ALNSRoute>
         struct VarInfo { 
             int vehicleId; 
             int routeIdx; 
-            bool isSlack; 
-            int reqId; 
         };
         std::vector<VarInfo> varMetadata;
         // Optimization: Reserve memory to avoid reallocations
@@ -102,25 +101,11 @@ ALNSSolution SetCoveringSolver::solve(const std::map<int, std::vector<ALNSRoute>
 
                 // Create the binary variable using the constructed column
                 vars.add(IloNumVar(col, 0.0, 1.0, ILOBOOL));
-                varMetadata.push_back({k, (int)rIdx, false, -1});
+                varMetadata.push_back({k, (int)rIdx});
                 
                 // Important: Release the column object to prevent memory bloat
                 col.end(); 
             }
-        }
-
-        // B. Slack Variables (z_i) - For unassigned requests
-        for (int i : data.P) {
-            int rowIdx = requestToIndex.at(i);
-            
-            // Column: Penalty cost + Covers the specific request constraint
-            IloNumColumn col = obj(params.unassignedPenalty);
-            col += requestConstraints[rowIdx](1.0);
-            
-            vars.add(IloNumVar(col, 0.0, 1.0, ILOBOOL));
-            varMetadata.push_back({-1, -1, true, i});
-            
-            col.end();
         }
 
         // --- 3. Solve and Reconstruct ---
@@ -138,41 +123,14 @@ ALNSSolution SetCoveringSolver::solve(const std::map<int, std::vector<ALNSRoute>
                 // Check if variable is selected ( > 0.5 for binary tolerance)
                 if (vals[i] > 0.5) { 
                     const auto& info = varMetadata[i];
-                    
-                    if (info.isSlack) {
-                        newSol.unassignedRequests.insert(info.reqId);
-                    } else {
-                        // Retrieve the actual route from the pool
-                        newSol.routes.push_back(routePool.at(info.vehicleId)[info.routeIdx]);
-                    }
+                    newSol.routes.push_back(routePool.at(info.vehicleId)[info.routeIdx]);
                 }
             }
             vals.end(); // Release value array
-
-            // Logic to handle unused vehicles (fill with empty routes)
-            std::set<int> usedVehicles;
-            for(const auto& r : newSol.routes) {
-                usedVehicles.insert(r.vehicleId);
-            }
-            
-            for(int k : data.K) {
-                if(usedVehicles.find(k) == usedVehicles.end()) {
-                     ALNSRoute emptyR;
-                     emptyR.vehicleId = k;
-                     // Ensure vehicle start/end nodes exist
-                     if (data.StartNode.count(k)) {
-                        emptyR.sequence = {data.StartNode.at(k), data.EndNode.at(k)};
-                        evaluator.evaluateRoute(emptyR);
-                        newSol.routes.push_back(emptyR);
-                     }
-                }
-            }
             
             // Final evaluation of the assembled solution
-            warnIfDuplicateRequests(newSol);
+            evaluator.evaluateSolution(newSol);
             repairSolution(newSol);
-            warnIfDuplicateRequests(newSol);
-            std::cout << "  [SetCovering] Solution assembled. Evaluating final solution..." << std::endl;
             evaluator.evaluateSolution(newSol);
 
             // Logs informativos del proceso de CPLEX (Status)
@@ -227,89 +185,82 @@ void SetCoveringSolver::warnIfDuplicateRequests(const ALNSSolution& sol) const {
 void SetCoveringSolver::repairSolution(ALNSSolution& sol) {
     if (sol.routes.empty()) return;
 
-    // 1. Ordenar por coste (Greedy preference)
-    std::sort(sol.routes.begin(), sol.routes.end(), [](const ALNSRoute& a, const ALNSRoute& b) {
-        return a.totalCost < b.totalCost;
-    });
+    // Mapping of RequestID -> List of routes covering it with associated savings if removed
+    struct RemovalOption {
+        size_t routeIdx;
+        double savings; 
+    };
+    std::map<int, std::vector<RemovalOption>> requestPresence;
 
-    std::set<int> visitedRequests;
-    std::vector<ALNSRoute> cleanedRoutes;
-    bool solutionModified = false;
-    cleanedRoutes.reserve(sol.routes.size());
-
-    for (const auto& route : sol.routes) {
-        ALNSRoute cleanRoute = route;
-        std::vector<int> newSequence;
-        bool routeModified = false;
-
-        for (int nodeId : route.sequence) {
-            // LÓGICA DARP CORREGIDA
-            // Debemos identificar si el nodo es Pickup o Delivery y a qué Request pertenece.
-            
-            int reqId = -1;
-            bool isNodeRequest = false;
-
-            // CASO 1: Es un Pickup (asumiendo que requestToIndex tiene los pickups)
-            if (requestToIndex.count(nodeId)) {
-                reqId = nodeId; // O el ID real de la request si nodeId es diferente
-                isNodeRequest = true;
-            } 
-            // CASO 2: Es un Delivery
-            // data.nRequests es el número total de peticiones. 
-            // En DARP estándar: Delivery ID = Pickup ID + nRequests
-            // Si tu estructura es diferente, ajusta esta lógica.
-            else {
-                // Intento inverso: Si nodeId es delivery, su pickup sería (nodeId - n)
-                // Esto depende de tu estructura de datos 'data'. 
-                // Asumiré la convención estándar de Cordeau (1..n pickups, n+1..2n deliveries)
-                int potentialPickupId = nodeId - data.N_requests; // O data.P.size()
-                if (potentialPickupId > 0 && requestToIndex.count(potentialPickupId)) {
-                     reqId = potentialPickupId;
-                     isNodeRequest = true;
-                }
-            }
-
-            if (isNodeRequest) {
-                // Si el cliente (la Request) ya fue servida por una ruta mejor
-                if (visitedRequests.count(reqId)) {
-                    // Eliminamos tanto el Pickup como el Delivery repetido
-                    routeModified = true;
-                    solutionModified = true;
-                    // NO lo añadimos a newSequence
-                } else {
-                    // Cliente nuevo: lo marcamos como visitado y lo mantenemos
-                    // Nota: Solo marcamos 'visited' una vez (generalmente al ver el Pickup)
-                    visitedRequests.insert(reqId);
-                    newSequence.push_back(nodeId);
-                }
-            } else {
-                // Depósitos (Start/End) se mantienen siempre
-                newSequence.push_back(nodeId);
-            }
-        }
-
-        if (routeModified) {
-            // Si la ruta queda vacía (solo Start->End), la reseteamos
-            if (newSequence.size() <= 2) {
-                cleanRoute.sequence = newSequence;
-                cleanRoute.arrivalTimes.clear();
-                cleanRoute.loads.clear();
-                cleanRoute.totalCost = 0; // Coste 0 explícito
-                // No hace falta llamar a evaluator si sabemos que es vacía
-            } else {
-                cleanRoute.sequence = newSequence;
-                // Importante: Recalcular tiempos y factibilidad
-                evaluator.evaluateRoute(cleanRoute); 
-            }
-        }
+    for (size_t i = 0; i < sol.routes.size(); ++i) {
+        const auto& route = sol.routes[i];
+        std::set<int> uniqueRequestsInRoute;
         
-        cleanedRoutes.push_back(cleanRoute);
+        // Identify unique requests in this route
+        for (int nodeId : route.sequence) {
+            if (requestToIndex.count(nodeId)) {
+                uniqueRequestsInRoute.insert(nodeId);
+            }
+        }
+
+        for (int reqId : uniqueRequestsInRoute) {
+            // Calculate the savings of removing this request from the route
+            ALNSRoute routeWithoutReq = route;
+            removeRequestFromRoute(routeWithoutReq, reqId);
+            
+            double savings = route.totalCost - routeWithoutReq.totalCost;
+            requestPresence[reqId].push_back({i, savings});
+        }
     }
 
-    sol.routes = cleanedRoutes;
+    // Decide for each request if it has duplicates, which one to keep (the one with 
+    // the least savings) and mark the others for removal
+    // Save in a set pairs {routeIndex, reqIdToRemove}
+    std::set<std::pair<size_t, int>> toRemove;
 
-    if (solutionModified) {
+    for (auto const& [reqId, options] : requestPresence) {
+        if (options.size() > 1) {
+            // We search for the option with least saving
+            auto bestOptionIt = std::min_element(options.begin(), options.end(), 
+                [](const RemovalOption& a, const RemovalOption& b) {
+                    return a.savings < b.savings; 
+                });
+
+            // Mark all other options for removal
+            for (const auto& opt : options) {
+                if (opt.routeIdx != bestOptionIt->routeIdx) {
+                    toRemove.insert({opt.routeIdx, reqId});
+                }
+            }
+        }
+    }
+
+    // Apply removals and re-evaluate affected routes and total solution cost
+    if (!toRemove.empty()) {
+        for (auto const& [rIdx, reqId] : toRemove) {
+            removeRequestFromRoute(sol.routes[rIdx], reqId);
+        }
+
+        // Re-evaluate routes and solution after modifications
+        for (auto& route : sol.routes) {
+            if (route.sequence.size() <= 2) {
+                route.totalCost = 0;
+                route.arrivalTimes.clear();
+            } else {
+                evaluator.evaluateRoute(route);
+            }
+        }
         evaluator.evaluateSolution(sol);
     }
 }
-     
+
+void SetCoveringSolver::removeRequestFromRoute(ALNSRoute& route, int reqId) const {
+    int deliveryId = reqId + data.N_requests;
+    
+    auto it = std::remove_if(route.sequence.begin(), route.sequence.end(), 
+        [reqId, deliveryId](int nodeId) {
+            return nodeId == reqId || nodeId == deliveryId;
+        });
+    
+    route.sequence.erase(it, route.sequence.end());
+}

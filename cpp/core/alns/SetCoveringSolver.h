@@ -3,6 +3,7 @@
 #pragma once
 
 #include "../DARPMD_ProblemInstance.h"
+#include "../logger.h"
 #include "ALNSSolution.h"
 #include "ALNSParams.h"
 #include "ALNSEvaluator.h"
@@ -16,7 +17,8 @@ public:
     SetCoveringSolver(
         const DARPMD_ProblemInstance& data, 
         const ALNSParams& params, 
-        ALNSEvaluator& evaluator
+        ALNSEvaluator& evaluator,
+        Logger& logger
     );
     ~SetCoveringSolver();
 
@@ -26,6 +28,7 @@ private:
     const DARPMD_ProblemInstance& data;
     const ALNSParams& params;
     ALNSEvaluator& evaluator;
+    Logger& logger;
 
     IloEnv env;
 
@@ -35,4 +38,5 @@ private:
     // As set covering can produce solutions with duplicates, we need a repair function to clean them up
     void repairSolution(ALNSSolution& sol);
     void warnIfDuplicateRequests(const ALNSSolution& sol) const;
+    void removeRequestFromRoute(ALNSRoute& route, int reqId) const;
 };

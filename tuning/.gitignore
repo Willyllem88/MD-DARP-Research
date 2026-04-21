@@ -1,0 +1,9 @@
+.RData
+.Rhistory
+configurations.txt
+gmon.out
+instances-list.txt
+irace.Rdata
+iracedump.rda
+solution_report.json
+target-runner

@@ -6,6 +6,7 @@ add_library(darpmd_core
     DARPMD_ResultInstance.cpp
     alns/ALNSEvaluator.cpp
     alns/SetPartitioningSolver.cpp
+    alns/SetCoveringSolver.cpp
     alns/ALNSOperators.cpp
 )
 
