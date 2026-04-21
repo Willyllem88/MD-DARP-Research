@@ -369,7 +369,7 @@ double ALNSEvaluator::calculateDelta(const ALNSRoute& route, int requestId, int 
     double capacity = data.getVehicleCapacity(route.vehicleId);
     int numNodes = route.sequence.size();
     
-    // Acumuladores del segmento evaluado hasta el momento
+    // Accumulators of the evaluated segment
     double old_distance = 0.0, old_tw_viol = 0.0, old_load_viol = 0.0, old_ride_viol = 0.0;
     double new_distance = 0.0, new_tw_viol = 0.0, new_load_viol = 0.0, new_ride_viol = 0.0;
     
@@ -382,7 +382,7 @@ double ALNSEvaluator::calculateDelta(const ALNSRoute& route, int requestId, int 
     double final_arrival_time_new = 0.0;
     double partial_delta = 0.0;
 
-    // Lambda para simular un nodo y acumular métricas "NUEVAS"
+    // Lambda to simulate a node and accumulate metrics, with early stopping if we exceed upper_bound
     auto simulateNode = [&](int curr_node, int original_idx, bool is_inserted) {
         new_distance += data.getCost(prev_node_new, curr_node, route.vehicleId);
         
@@ -430,12 +430,12 @@ double ALNSEvaluator::calculateDelta(const ALNSRoute& route, int requestId, int 
 
     bool broke_early = false;
 
-    // Bucle unificado: Avanzamos nodo a nodo comparando realidades
+    // Unified loop: we advance node by node comparing old and new realities
     for (int k = i; k < numNodes; ++k) {
         int curr_old = route.sequence[k];
         int prev_old = route.sequence[k - 1];
         
-        // 1. Acumular métricas ANTIGUAS para este paso k
+        // 1. Accumulate old metrics for this step k
         old_distance += data.getCost(prev_old, curr_old, route.vehicleId);
         
         double l = route.loads[curr_old];
@@ -451,7 +451,7 @@ double ALNSEvaluator::calculateDelta(const ALNSRoute& route, int requestId, int 
             if (rt > data.getMaxRideTime()) old_ride_viol += (rt - data.getMaxRideTime());
         }
         
-        // 2. Simular métricas NUEVAS para este paso k
+        // 2. Simulate the new metrics for this step k
         if (k == i && k == j) {
             simulateNode(P_node, -1, true);
             simulateNode(D_node, -1, true);
@@ -462,7 +462,7 @@ double ALNSEvaluator::calculateDelta(const ALNSRoute& route, int requestId, int 
         }
         simulateNode(curr_old, k, false);
         
-        // 3. Calcular Delta parcial
+        // 3. Calculate partial delta
         double delta_dist = new_distance - old_distance;
         double delta_tw   = new_tw_viol - old_tw_viol;
         double delta_load = new_load_viol - old_load_viol;
@@ -473,17 +473,19 @@ double ALNSEvaluator::calculateDelta(const ALNSRoute& route, int requestId, int 
                       + params.capacityPenalty * delta_load
                       + params.rideTimePenalty * delta_ride;
                       
-        // MEJORA 1: Early Stopping
-        // Si ya superamos el coste de una inserción mejor encontrada previamente, abortamos.
+        // Early Stopping:
+        // If at any point the partial delta exceeds the upper bound, we can stop the simulation 
+        // and return infinity (or a very large number) to indicate this move is not promising.
         if (partial_delta > upper_bound) {
             return std::numeric_limits<double>::infinity();
         }
         
-        // MEJORA 2: Parada de propagación de tiempo (Δt ≈ 0)
-        // Si ya insertamos D, la capacidad está neutra. 
-        // Si el tiempo de salida cuadra con el antiguo, el resto de la ruta no cambia.
+        // Propagation stop of time (Δt ≈ 0): 
+        // If we have already inserted the delivery and the departure time at this node matches 
+        // the old one, we can stop propagating further as the rest of the route will be unaffected
+        // in terms of timing.
         if (k >= j) {
-            // Usamos 1e-4 para prevenir problemas de precisión de punto flotante
+            // We use 1e-4 to prevent precision issues with floating-point arithmetic
             if (std::abs(prev_D_new - route.D[k]) < 1e-4) {
                 broke_early = true;
                 break;
@@ -491,12 +493,12 @@ double ALNSEvaluator::calculateDelta(const ALNSRoute& route, int requestId, int 
         }
     }
     
-    // 4. Calcular Delta de Duración de Ruta
+    // 4. Calculate Delta of Route Duration
     double old_duration = route.A.back() - route.D[0];
     double old_dur_viol = std::max(0.0, old_duration - data.getVehicleMaxRouteTime(route.vehicleId));
     double new_dur_viol = old_dur_viol; 
     
-    // Si NO rompimos el bucle prematuramente, recalculamos la duración total
+    // If we did not break the loop early, recalculate the total duration
     if (!broke_early) {
         double new_duration = final_arrival_time_new - route.D[0];
         new_dur_viol = std::max(0.0, new_duration - data.getVehicleMaxRouteTime(route.vehicleId));
@@ -510,12 +512,11 @@ double ALNSEvaluator::calculateDelta(const ALNSRoute& route, int requestId, int 
 
 double ALNSEvaluator::calculateGreedyDelta_2(const ALNSRoute& route, int requestId, int i, int j) {
     ALNSRoute temp = route;
-    temp.sequence.insert(temp.sequence.begin() + i, requestId); // Insertar Pickup
-    temp.sequence.insert(temp.sequence.begin() + j + 1, requestId + data.N_requests); // Insertar Delivery
+    temp.sequence.insert(temp.sequence.begin() + i, requestId); // Insert Pickup
+    temp.sequence.insert(temp.sequence.begin() + j + 1, requestId + data.N_requests); // Insert Delivery
     evaluateRouteGreedy(temp);
 
     double delta = temp.totalCost - route.totalCost;
 
-    // Evaluar la ruta temporal para obtener el coste exacto
-    return delta; // Placeholder - replace with actual evaluation logic
+    return delta;
 }
