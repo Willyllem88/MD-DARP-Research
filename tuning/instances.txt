@@ -1,4 +1,5 @@
-/home/guillem/TFG-Guillem/data/instances_static/cordeau-instances/a2-16.json
-/home/guillem/TFG-Guillem/data/instances_static/cordeau-instances/a3-30.json
-/home/guillem/TFG-Guillem/data/instances_static/cordeau-instances/a4-40.json
-/home/guillem/TFG-Guillem/data/instances_static/cordeau-instances/a6-48.json
+../data/instances_static/cordeau-instances/a2-16.json
+../data/instances_static/cordeau-instances/a3-30.json
+../data/instances_static/cordeau-instances/a4-40.json
+../data/instances_static/cordeau-instances/a5-40.json
+../data/instances_static/cordeau-instances/a6-48.json

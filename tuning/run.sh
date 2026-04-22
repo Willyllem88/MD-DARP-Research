@@ -39,7 +39,7 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 # 4. Ejecutar solver pasando todos los parámetros seguidos a --alnsParams
-/home/guillem/TFG-Guillem/build/cpp/core/darpmd_run \
+../build/cpp/core/darpmd_run \
     -i "$INSTANCE" \
     -m ALNS \
     -s "$SEED" \
