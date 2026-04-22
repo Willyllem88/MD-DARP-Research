@@ -231,7 +231,7 @@ void ALNSOperators::repairGreedy(ALNSSolution& sol) {
             for (size_t i = 1; i < seq.size(); ++i) {
                 for (size_t j = i; j < seq.size(); ++j) {
                     
-                    double delta = evaluator.calculateDelta(sol.routes[v], reqId, i, j, bestCostIncrease);
+                    double delta = evaluator.calculateExactDelta(sol.routes[v], reqId, i, j);
                     
                     if (delta < bestCostIncrease) {
                         bestCostIncrease = delta;
@@ -283,7 +283,7 @@ void ALNSOperators::repairRegret2(ALNSSolution& sol) {
 
                 for (size_t i = 1; i < seq.size(); ++i) {
                     for (size_t j = i; j < seq.size(); ++j) {
-                        double delta = evaluator.calculateDelta(sol.routes[v], reqId, i, j, bestCostForVehicle);
+                        double delta = evaluator.calculateExactDelta(sol.routes[v], reqId, i, j);
                         if (delta < bestCostForVehicle) {
                             bestCostForVehicle = delta;
                             bestP = i;

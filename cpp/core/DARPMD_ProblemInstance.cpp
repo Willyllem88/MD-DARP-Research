@@ -143,23 +143,17 @@ void DARPMD_ProblemInstance::displayInfo() const {
     // --- Global Parameters ---
     std::cout << "--- Global Parameters ---\n";
     std::cout << std::left << std::setw(25) << "Number of Requests:" << N_requests << "\n";
+    std::cout << std::left << std::setw(25) << "Number of Vehicles:" << K_vehicles << "\n";
     std::cout << std::left << std::setw(25) << "Max Node ID:" << max_node_id << "\n";
     std::cout << std::left << std::setw(25) << "Max Ride Time (L):" << max_ride_time << "\n";
     std::cout << "\n";
 
     // --- Sets ---
     std::cout << "--- Sets ---\n";
-    auto printVector = [](const std::string& name, const std::vector<int>& v) {
-        std::cout << name << ": [ ";
-        for (const auto& item : v) std::cout << item << " ";
-        std::cout << "] (Size: " << v.size() << ")\n";
-    };
-
-    printVector("Pickups (P)", P);
-    printVector("Deliveries (D)", D);
-    printVector("Vehicles (K)", K);
-    printVector("Start Depots (S)", S);
-    printVector("End Depots (E)", E);
+    std::cout << "Pickups (P): [ 1" <<  " .. " << N_requests << " ]\n";
+    std::cout << "Deliveries (D): [ " << N_requests + 1 << " .. " << 2 * N_requests << " ]\n";
+    std::cout << "Vehicle Starts (S): [ " << 2 * N_requests + 1 << " .. " << 2 * N_requests + K_vehicles << " ]\n";
+    std::cout << "Vehicle Ends (E): [ " << 2 * N_requests + K_vehicles + 1 << " .. " << 2 * N_requests + 2 * K_vehicles << " ]\n";
     std::cout << "\n";
 
     // --- Vehicle Details ---
@@ -221,9 +215,8 @@ void DARPMD_ProblemInstance::displayInfo() const {
         all_nodes.push_back(P[i]);
         all_nodes.push_back(D[i]);
     }
-
-    for(int n : all_nodes) {
-        printNodeRow(n);
+    for(int i = 1; i <= max_node_id; ++i) {
+        printNodeRow(i);
     }
     std::cout << "\n";
 
