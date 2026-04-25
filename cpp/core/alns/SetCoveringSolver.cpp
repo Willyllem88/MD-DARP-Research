@@ -11,8 +11,7 @@ SetCoveringSolver::SetCoveringSolver(const DARPMD_ProblemInstance& data,
                                              const ALNSParams& params, 
                                              ALNSEvaluator& evaluator,
                                              Logger& logger)
-    : data(data), params(params), evaluator(evaluator), logger(logger), env() 
-{
+    : SetBasedSolver(data, params, evaluator, logger) {
     // Pre-calculate requestToIndex mapping for O(1) access during column generation
     int idx = 0;
     for(int i : data.P) {
@@ -20,16 +19,11 @@ SetCoveringSolver::SetCoveringSolver(const DARPMD_ProblemInstance& data,
     }
 }
 
-// Destructor: clean up the CPLEX environment
-SetCoveringSolver::~SetCoveringSolver() {
-    env.end();
-}
-
-ALNSSolution SetCoveringSolver::solve(const std::map<int, std::vector<ALNSRoute>>& routePool) {
-    ALNSSolution newSol;
+bool SetCoveringSolver::solve(ALNSSolution& newSol) {
+    std::map<int, std::vector<ALNSRoute>> routePool = getRoutePool().getRoutes();
     
     // If no routes are available, return an empty solution
-    if (routePool.empty()) return newSol;
+    if (routePool.empty()) return false;
 
     // Create Model and Cplex objects locally linked to the persistent Env
     IloModel model(env);
@@ -145,6 +139,10 @@ ALNSSolution SetCoveringSolver::solve(const std::map<int, std::vector<ALNSRoute>
                           cplex.getStatus() == IloAlgorithm::Feasible ? "Feasible (Time Limit)" : "Unknown") << std::endl;
             std::cout << "  [SetCovering] CPLEX time: " << cplex.getTime() << " seconds" << std::endl;
         }
+        else {
+            std::cout << "  [SetCovering] CPLEX found no solution. Status: " << cplex.getStatus() << std::endl;
+            return false;
+        }
 
         // --- 4. Critical Memory Cleanup ---
         // Since 'env' is persistent, we MUST manually destroy the modeling objects
@@ -160,13 +158,12 @@ ALNSSolution SetCoveringSolver::solve(const std::map<int, std::vector<ALNSRoute>
 
     } catch (IloException& e) {
         std::cerr << "[SetCoveringSolver] CPLEX Exception: " << e << std::endl;
-        // Depending on requirements, you might want to throw or return an empty solution
-        throw; 
+        return false;
     }
 
     // 'model' and 'cplex' are destroyed here automatically (stack allocated),
     // but the objects inside 'env' were cleaned up above.
-    return newSol;
+    return true;
 }
 
 void SetCoveringSolver::warnIfDuplicateRequests(const ALNSSolution& sol) const {

@@ -8,6 +8,7 @@ add_library(darpmd_core
     alns/SetPartitioningSolver.cpp
     alns/SetCoveringSolver.cpp
     alns/ALNSOperators.cpp
+    alns/RoutePool.cpp
 )
 
 target_include_directories(darpmd_core PUBLIC

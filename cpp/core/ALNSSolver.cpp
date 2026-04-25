@@ -20,9 +20,13 @@ ALNSSolver::ALNSSolver(DARPMD_ProblemInstance& instance,
 
     params = std::make_unique<ALNSParams>(alnsParams);
     evaluator = std::make_unique<ALNSEvaluator>(data, *params);
-    spSolver = std::make_unique<SetPartitioningSolver>(data, *params, *evaluator, logger);
-    scSolver = std::make_unique<SetCoveringSolver>(data, *params, *evaluator, logger);
     operators = std::make_unique<ALNSOperators>(data, *params, *evaluator, rng);
+
+    if (hybridMethod == HybridMethod::SET_PARTITIONING) {
+        setSolver = std::make_unique<SetPartitioningSolver>(data, *params, *evaluator, logger);
+    } else if (hybridMethod == HybridMethod::SET_COVERING) {
+        setSolver = std::make_unique<SetCoveringSolver>(data, *params, *evaluator, logger);
+    }
 
     bestObjective = std::numeric_limits<double>::infinity();
 }
@@ -32,26 +36,21 @@ ALNSSolver::~ALNSSolver() {
 
 // Set Partitioning using CPLEX
 void ALNSSolver::addRouteToPool(const ALNSRoute& route) {
-    if (route.sequence.empty()) return;
-    auto &seen = seenRoutes[route.vehicleId];
-
-    // Try to insert the route sequence into the seen set for this vehicle,
-    // returns true if it was not already present
-    auto result = seen.insert(route.sequence);
-
-    if (result.second) // If this sequence was not seen before
-        routePool[route.vehicleId].push_back(route);
-
+    if (setSolver) {
+        setSolver->getRoutePool().addRoute(route);
+    }
 }
 
 void ALNSSolver::solveMatheuristic() {
     if (hybridMethod == HybridMethod::NONE) return;
 
     ALNSSolution matSol;
-    if (hybridMethod == HybridMethod::SET_PARTITIONING) {
-        matSol = spSolver->solve(routePool);
-    } else if (hybridMethod == HybridMethod::SET_COVERING) {
-        matSol = scSolver->solve(routePool);
+    setSolver->getRoutePool().purgeColumns();
+    bool solved = setSolver->solve(matSol);
+
+    if (!solved) {
+        logger.log("  [Matheuristic] Failed to solve with CPLEX.");
+        return;
     }
 
     // Handle the new solution from CPLEX
@@ -84,8 +83,8 @@ DARPMD_ResultInstance ALNSSolver::solveScheduleLater(ALNSSolution& sol) {
 
     softSolver.solve();
     DARPMD_ResultInstance result = softSolver.getResult();
- 
-    if (result.objectiveValue < bestObjective) {
+
+    if (result.objectiveValue < bestObjective - 1e-6) {
         logger.log("[Schedule Later] CPLEX improved the solution! Objective: " + std::to_string(result.objectiveValue) + " (Improvement)");
         bestObjective = result.objectiveValue;
     } else {
