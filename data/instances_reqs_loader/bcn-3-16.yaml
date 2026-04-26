@@ -201,10 +201,10 @@ vehicles:
     #end_address: "Carrer de Muntaner, 181, Barcelona, Spain"
     end_coords: [41.3923, 2.1517]
     capacity: 4
-    vstart_tw_start: 0          # empieza a las 0s
+    vstart_tw_start: 0          # starts at 0s
     vstart_tw_end: 900
     vend_tw_start: 0
-    vend_tw_end: 28800         # hasta 8h
+    vend_tw_end: 28800         # until 8h
     max_time: 28800
 
   - id: 2
@@ -212,11 +212,11 @@ vehicles:
     #end_address: "Centre Esportiu Municipal Olímpics, Barcelona, Spain"
     end_coords: [41.4265, 2.1421]
     capacity: 6
-    vstart_tw_start: 1800      # empieza más tarde (30 min)
+    vstart_tw_start: 1800      # starts later (30 min)
     vstart_tw_end: 3600
     vend_tw_start: 0
     vend_tw_end: 28800
-    max_time: 25200            # menor duración máxima (7h)
+    max_time: 25200            # shorter maximum duration (7h)
   
   - id: 3
     #start_address: "Hospital Universitari Dexeus, Barcelona, Spain"
