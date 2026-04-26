@@ -228,7 +228,7 @@ void CPLEXSoftSolver::buildModel() {
         double l_i = data.getTimeWindowEnd(i);
         double e_j = data.getTimeWindowStart(j);
 
-        double MAX_TIME_VIOLATION = 1000.0; // Arbitrary large number to allow violations
+        double MAX_TIME_VIOLATION = 1000000.0; // Arbitrary large number to allow violations
         double M_ij = std::max(0.0, l_i + MAX_TIME_VIOLATION + serv +  trav - e_j);
         
         model.add(
