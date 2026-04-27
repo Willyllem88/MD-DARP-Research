@@ -102,15 +102,16 @@ requests:
     d_service_time: 120
 
   - id: 9
-    pickup_address: "Plaça d'Espanya, Barcelona, Spain"
+    #pickup_address: "Plaça d'Espanya, Barcelona, Spain"
+    pickup_coords: [41.3743, 2.1482]
     delivery_address: "Hospital Sant Rafael, Barcelona, Spain"
     demand: 1
     p_tw_start: 0
     p_tw_end: 2200
-    p_service_time: 120
+    p_service_time: 60
     d_tw_start: 1200
     d_tw_end: 4000
-    d_service_time: 120
+    d_service_time: 60
 
   - id: 10
     #pickup_address: "El Born Centre de Cultura i Memòria, Barcelona, Spain"
@@ -221,9 +222,9 @@ vehicles:
   - id: 3
     #start_address: "Hospital Universitari Dexeus, Barcelona, Spain"
     start_coords: [41.3815, 2.1201]
-    #end_address: "Museu Nacional d'Art de Catalunya, Barcelona, Spain"
-    end_coords: [41.3681, 2.1475]
-    capacity: 4
+    #end_address: "Diagonal Mar, Barcelona, Spain"
+    end_coords: [41.4099, 2.2135]
+    capacity: 5
     vstart_tw_start: 0
     vstart_tw_end: 3600
     vend_tw_start: 0
