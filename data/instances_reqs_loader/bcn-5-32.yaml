@@ -63,17 +63,17 @@ requests:
     d_tw_end: 5000
     d_service_time: 60
 
-  - id: 6
-    #pickup_address: "Estació de França, Barcelona, Spain"
-    pickup_coords: [41.3840, 2.1865]
-    #delivery_address: "Montbau, Barcelona, Spain"
-    delivery_coords: [41.4297, 2.1418]
+  - id: 16
+    #pickup_address: "Plaça de les Glòries Catalanes, Barcelona, Spain"
+    pickup_coords: [41.4036, 2.1910]
+    delivery_address: "Jardins Baix Guinardó, Barcelona, Spain"
+    delivery_coords: [41.4099, 2.1688]
     demand: 1
-    p_tw_start: 600
-    p_tw_end: 2600
+    p_tw_start: 0
+    p_tw_end: 1800
     p_service_time: 60
-    d_tw_start: 2000
-    d_tw_end: 5200
+    d_tw_start: 600
+    d_tw_end: 3500
     d_service_time: 60
 
   - id: 7

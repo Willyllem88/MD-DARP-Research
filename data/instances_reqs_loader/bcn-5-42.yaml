@@ -187,7 +187,8 @@ requests:
   - id: 16
     #pickup_address: "Plaça de les Glòries Catalanes, Barcelona, Spain"
     pickup_coords: [41.4036, 2.1910]
-    delivery_address: "Hospital de Sant Pau, Barcelona, Spain"
+    delivery_address: "Jardins Baix Guinardó, Barcelona, Spain"
+    delivery_coords: [41.4099, 2.1688]
     demand: 1
     p_tw_start: 0
     p_tw_end: 1800
