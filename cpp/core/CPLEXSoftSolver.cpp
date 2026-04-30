@@ -377,7 +377,6 @@ DARPMD_ResultInstance CPLEXSoftSolver::getResult() const {
         result.objectiveValue = this->objectiveValue;
         result.solveTime = this->solveTime;
         result.mipGap = this->mipGap;
-        result.solverStatus = (cplex.getStatus() == IloAlgorithm::Optimal) ? "Optimal" : "Feasible";
 
         // DEBUG only, print the sum of the violations to check if they are being used
         double totalLoadViolation = 0.0;
@@ -396,6 +395,22 @@ DARPMD_ResultInstance CPLEXSoftSolver::getResult() const {
         for (const auto& [key, var] : viol_ridetime) {
             totalRideTimeViolation += cplex.getValue(var);
         }
+
+        // Check status
+        if (cplex.getStatus() == IloAlgorithm::Optimal) {
+            if (totalLoadViolation > 0.001 || totalDurationViolation > 0.001 || totalTWViolation > 0.001 || totalRideTimeViolation > 0.001) {
+                result.solverStatus = "Semi-feasible";
+            } else {
+                result.solverStatus = "Optimal";
+            }
+        }
+        else if (cplex.getStatus() == IloAlgorithm::Feasible) {
+            result.solverStatus = "Feasible";
+        }
+        else {
+            result.solverStatus = "No Solution";
+        }
+
         logger.log("Total Load Violation: " + std::to_string(totalLoadViolation));
         logger.log("Total Duration Violation: " + std::to_string(totalDurationViolation));
         logger.log("Total Time Window Violation: " + std::to_string(totalTWViolation));
