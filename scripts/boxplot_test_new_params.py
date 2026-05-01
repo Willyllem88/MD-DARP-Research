@@ -1,10 +1,19 @@
 import json
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+
+plt.rcParams.update({
+    "font.size": 14,          # general font size
+    "axes.titlesize": 16,     # plot title
+    "axes.labelsize": 14,     # label of axes
+    "xtick.labelsize": 12,    # numbers in X
+    "ytick.labelsize": 12,    # numbers in Y
+    "legend.fontsize": 12     # legend text            
+})
 
 
-def plot_relative_gap_boxplot(path_baseline, path_optimized,
-                             output="relative_gap_boxplot.png"):
+def plot_relative_gap_boxplot(path_baseline, path_optimized, title, output_file):
     """
     Create per-instance boxplots comparing baseline vs optimized solutions
     using relative gap: (opt - base) / base.
@@ -55,7 +64,11 @@ def plot_relative_gap_boxplot(path_baseline, path_optimized,
 
     # Plot
     plt.figure(figsize=(12, 5))
-    plt.boxplot(boxplot_data, positions=positions, widths=0.6)
+    bp = plt.boxplot(boxplot_data, positions=positions, widths=0.6, patch_artist=True)
+    colors = ["lightblue", "lightgreen"]  # baseline, optimized
+
+    for i, patch in enumerate(bp["boxes"]):
+        patch.set_facecolor(colors[i % 2])
 
     # Horizontal reference line (baseline)
     plt.axhline(0, linestyle="--")
@@ -68,16 +81,30 @@ def plot_relative_gap_boxplot(path_baseline, path_optimized,
         ha="right"
     )
 
-    plt.ylabel("Relative gap ( (obj - baseline_mean) / baseline_mean )")
-    plt.title("Baseline vs Optimized Performance per Instance")
+    baseline_patch = mpatches.Patch(color="lightblue", label="Baseline")
+    optimized_patch = mpatches.Patch(color="lightgreen", label="Optimized")
+
+    plt.legend(handles=[baseline_patch, optimized_patch])
+
+    plt.ylabel("Relative gap")
     plt.grid(axis="y", linestyle="--", alpha=0.6)
 
     plt.tight_layout()
+    plt.savefig(output_file, format="pdf", bbox_inches="tight")
     plt.show()
 
 
 if __name__ == "__main__":
     plot_relative_gap_boxplot(
         "/home/guillem/TFG-Guillem/scripts/results_0.json",
-        "/home/guillem/TFG-Guillem/scripts/results_1.json"
+        "/home/guillem/TFG-Guillem/scripts/results_1.json",
+        "Baseline vs Optimized Performance per Instance (A-series)",
+        "relative_gap_boxplot_A.pdf"
+    )
+
+    plot_relative_gap_boxplot(
+        "/home/guillem/TFG-Guillem/scripts/results_2.json",
+        "/home/guillem/TFG-Guillem/scripts/results_3.json",
+        "Baseline vs Optimized Performance per Instance (B-series)",
+        "relative_gap_boxplot_B.pdf"
     )
