@@ -362,7 +362,7 @@ double ALNSEvaluator::calculateExactDelta(const ALNSRoute& route, int requestId,
     return delta;
 }
 
-double ALNSEvaluator::calculateDelta(const ALNSRoute& route, int requestId, int i, int j, double upper_bound) {
+double ALNSEvaluator::calculateGreedyDelta(const ALNSRoute& route, int requestId, int i, int j, double upper_bound) {
     int P_node = requestId; 
     int D_node = requestId + data.N_requests; 
     
@@ -508,15 +508,4 @@ double ALNSEvaluator::calculateDelta(const ALNSRoute& route, int requestId, int 
     partial_delta += params.vehicleMaxRouteTimePenalty * delta_dur;
     
     return partial_delta;
-}
-
-double ALNSEvaluator::calculateGreedyDelta_2(const ALNSRoute& route, int requestId, int i, int j) {
-    ALNSRoute temp = route;
-    temp.sequence.insert(temp.sequence.begin() + i, requestId); // Insert Pickup
-    temp.sequence.insert(temp.sequence.begin() + j + 1, requestId + data.N_requests); // Insert Delivery
-    evaluateRouteGreedy(temp);
-
-    double delta = temp.totalCost - route.totalCost;
-
-    return delta;
 }

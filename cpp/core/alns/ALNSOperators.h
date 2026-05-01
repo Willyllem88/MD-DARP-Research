@@ -33,4 +33,17 @@ private:
 
     // Auxiliary for Shaw removal
     double calculateRelatedness(int i, int j);
+
+    // Insertion evaluation methods
+    struct LocalInsertion {
+        int pIdx = -1;
+        int dIdx = -1;
+        double deltaCost = std::numeric_limits<double>::max();
+    };
+    enum InsertionMethod { EXACT, DELTA };
+    InsertionMethod insertionMethod = DELTA;
+    LocalInsertion findBestInsertion(InsertionMethod method, const ALNSRoute& route, int reqId);
+    LocalInsertion findBestInsertionExact(const ALNSRoute& route, int reqId);
+    LocalInsertion findBestInsertionGreedy(const ALNSRoute& route, int reqId);
+     
 };

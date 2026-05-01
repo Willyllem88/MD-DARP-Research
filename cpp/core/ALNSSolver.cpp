@@ -45,23 +45,23 @@ void ALNSSolver::solveMatheuristic() {
     if (hybridMethod == HybridMethod::NONE) return;
 
     ALNSSolution matSol;
-    setSolver->getRoutePool().purgeColumns();
+    //setSolver->getRoutePool().purgeColumns();
     bool solved = setSolver->solve(matSol);
 
     if (!solved) {
-        logger.log("  [Matheuristic] Failed to solve with CPLEX.");
+        logger.log("Iter " + std::to_string(iteration) + "  [Matheuristic] Failed to solve with CPLEX.");
         return;
     }
 
     // Handle the new solution from CPLEX
     if (matSol.objectiveValue < bestObjective) {
-        logger.log("  [Matheuristic] CPLEX found new best solution! Objective: " + std::to_string(matSol.objectiveValue) + " (Improvement)");
+        logger.log("Iter " + std::to_string(iteration) + "  [Matheuristic] CPLEX found new best solution! Objective: " + std::to_string(matSol.objectiveValue) + " (Improvement)");
         
         bestSolution = matSol;
         bestObjective = matSol.objectiveValue;
     }
     else {
-        logger.log("  [Matheuristic] CPLEX found solution with objective: " + std::to_string(matSol.objectiveValue) + " (No improvement)");
+        logger.log("Iter " + std::to_string(iteration) + "  [Matheuristic] CPLEX found solution with objective: " + std::to_string(matSol.objectiveValue) + " (No improvement)");
     }
 }
 
@@ -276,10 +276,10 @@ void ALNSSolver::solve() {
     initializeRoutePool();
 
     // 2. Main Loop
-    for (int iter = 0; ; ++iter) {
+    for (iteration = 0; ; ++iteration) {
         auto now = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> elapsed = now - start;
-        if (stoppingCriteria(iter, elapsed.count())) break;
+        if (stoppingCriteria(iteration, elapsed.count())) break;
 
         // Adaptive Operator Selection
         int destroyOpIdx = selectOperator(destroyStats.weights);
@@ -311,7 +311,7 @@ void ALNSSolver::solve() {
             if (neighbor.objectiveValue < bestObjective) {
                 bestSolution = neighbor;
                 bestObjective = neighbor.objectiveValue;
-                logger.log("* Iter " + std::to_string(iter) + ": New Best = " + std::to_string(bestObjective) 
+                logger.log("* Iter " + std::to_string(iteration) + ": New Best = " + std::to_string(bestObjective) 
                     + " (Violations: " + (evaluator->solutionHasViolations(neighbor) ? "Yes" : "No") + ")");
             }
         }
@@ -322,7 +322,7 @@ void ALNSSolver::solve() {
         repairStats.scores[repairOpIdx] += iterScore;
         repairStats.timesUsed[repairOpIdx] += 1;
 
-        if (iter > 0 && iter % params->segmentIterations == 0) {
+        if (iteration > 0 && iteration % params->segmentIterations == 0) {
             updateWeights(destroyStats);
             updateWeights(repairStats);
         }
@@ -331,7 +331,7 @@ void ALNSSolver::solve() {
         currentTemperature *= params->coolingRate;
 
         // --- Matheuristic Integration ---
-        if (iter > 0 && iter % params->setPartitioningInterval == 0)
+        if (iteration > 0 && iteration % params->setPartitioningInterval == 0)
             solveMatheuristic();
     }
 

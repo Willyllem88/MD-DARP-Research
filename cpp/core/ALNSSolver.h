@@ -66,6 +66,9 @@ private:
     // Random engine
     std::mt19937 rng;
 
+    // ALNS iteration
+    int iteration;
+
     // Current global status
     ALNSSolution bestSolution;
     double bestObjective;

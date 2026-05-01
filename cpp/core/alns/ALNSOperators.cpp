@@ -207,6 +207,58 @@ void ALNSOperators::destroyShaw(ALNSSolution& sol, int q) {
     evaluator.evaluateSolution(sol);
 }
 
+ALNSOperators::LocalInsertion ALNSOperators::findBestInsertionExact(const ALNSRoute& route, int reqId) {
+    LocalInsertion best;
+    int n = route.sequence.size();
+
+    for (int i = 1; i < n; ++i) { // Pickup can be inserted between any two nodes
+        for (int j = i; j < n; ++j) { // Delivery must come after pickup
+            double delta = evaluator.calculateExactDelta(route, reqId, i, j);
+            if (delta < best.deltaCost) {
+                best.deltaCost = delta;
+                best.pIdx = i;
+                best.dIdx = j;
+            }
+        }
+    }
+    return best;
+}
+
+ALNSOperators::LocalInsertion ALNSOperators::findBestInsertionGreedy(const ALNSRoute& route, int reqId) {
+    ALNSOperators::LocalInsertion best;
+    int n = route.sequence.size();
+
+    for (int i = 1; i < n; ++i) { // Pickup can be inserted between any two nodes
+        for (int j = i; j < n; ++j) { // Delivery must come after pickup
+            double delta = evaluator.calculateGreedyDelta(route, reqId, i, j, best.deltaCost);
+            if (delta < best.deltaCost) {
+                best.deltaCost = delta;
+                best.pIdx = i;
+                best.dIdx = j;
+            }
+        }
+    }
+    return best;
+}
+
+
+ALNSOperators::LocalInsertion ALNSOperators::findBestInsertion(
+        ALNSOperators::InsertionMethod method,
+        const ALNSRoute& route,
+        int reqId
+    ) {
+    LocalInsertion best;
+
+    switch (method) {
+        case EXACT:
+            return findBestInsertionExact(route, reqId);
+        case DELTA:
+            return findBestInsertionGreedy(route, reqId);
+        default:
+            return findBestInsertionGreedy(route, reqId);
+    }
+}
+
 void ALNSOperators::repairGreedy(ALNSSolution& sol) {
     // Try to insert unassigned requests into best positions
     // Simple version: iterate unassigned, find best spot, insert, repeat
@@ -224,28 +276,19 @@ void ALNSOperators::repairGreedy(ALNSSolution& sol) {
 
         // Try all vehicles
         for (size_t v = 0; v < sol.routes.size(); ++v) {
-            const auto& seq = sol.routes[v].sequence;
-            
-            // Try all insertion pairs (i, j) where i < j
-            // sequence: 0 ... i ... j ... end
-            for (size_t i = 1; i < seq.size(); ++i) {
-                for (size_t j = i; j < seq.size(); ++j) {
-                    
-                    double delta = evaluator.calculateDelta(sol.routes[v], reqId, i, j, bestCostIncrease);
-                    
-                    if (delta < bestCostIncrease) {
-                        bestCostIncrease = delta;
-                        bestVehicle = v;
-                        bestPIdx = i;
-                        bestDIdx = j + 1;
-                    }
-                }
+            LocalInsertion insertion = findBestInsertion(insertionMethod, sol.routes[v], reqId);
+
+            if (insertion.deltaCost < bestCostIncrease) {
+                bestCostIncrease = insertion.deltaCost;
+                bestVehicle = (int)v;
+                bestPIdx = insertion.pIdx;
+                bestDIdx = insertion.dIdx;
             }
         }
 
         auto& r = sol.routes[bestVehicle];
         r.sequence.insert(r.sequence.begin() + bestPIdx, reqId);
-        r.sequence.insert(r.sequence.begin() + bestDIdx, deliveryId);
+        r.sequence.insert(r.sequence.begin() + bestDIdx + 1, deliveryId);
 
         evaluator.evaluateRoute(r);
     }
@@ -275,25 +318,10 @@ void ALNSOperators::repairRegret2(ALNSSolution& sol) {
 
             // Evaluate insertion in EACH vehicle
             for (size_t v = 0; v < sol.routes.size(); ++v) {
-                double bestCostForVehicle = std::numeric_limits<double>::max();
-                int bestP = -1, bestD = -1;
-                
-                // LLogic for position search (same as in Greedy)
-                const auto& seq = sol.routes[v].sequence;
+                LocalInsertion insertion = findBestInsertion(insertionMethod, sol.routes[v], reqId);
 
-                for (size_t i = 1; i < seq.size(); ++i) {
-                    for (size_t j = i; j < seq.size(); ++j) {
-                        double delta = evaluator.calculateDelta(sol.routes[v], reqId, i, j, bestCostForVehicle);
-                        if (delta < bestCostForVehicle) {
-                            bestCostForVehicle = delta;
-                            bestP = i;
-                            bestD = j + 1;
-                        }
-                    }
-                }
-                
                 // There will always be at least one possible insertion
-                moves.push_back({(int)v, bestP, bestD, bestCostForVehicle});
+                moves.push_back({(int)v, insertion.pIdx, insertion.dIdx, insertion.deltaCost});
             }
             
             // Sort moves by cost (ascending)
@@ -325,7 +353,7 @@ void ALNSOperators::repairRegret2(ALNSSolution& sol) {
         auto& r = sol.routes[winVehicle];
         r.sequence.insert(r.sequence.begin() + winPIdx, bestReqId);
         int deliveryId = bestReqId + data.N_requests;
-        r.sequence.insert(r.sequence.begin() + winDIdx, deliveryId);
+        r.sequence.insert(r.sequence.begin() + winDIdx + 1, deliveryId);
         evaluator.evaluateRoute(r);
         
         sol.unassignedRequests.erase(bestReqId);
