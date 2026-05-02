@@ -241,6 +241,135 @@ ALNSOperators::LocalInsertion ALNSOperators::findBestInsertionGreedy(const ALNSR
     return best;
 }
 
+ALNSOperators::LocalInsertion ALNSOperators::findBestInsertionExact_R(const ALNSRoute& route, int reqId) {
+    LocalInsertion best;
+    int n = route.sequence.size();
+
+    // 1. Determinar cuál es el vértice crítico.
+    // Según el documento de Cordeau & Laporte, un vértice es crítico si e_i != 0 o l_i != T.
+    bool pickupIsCritical = data.getTimeWindowStart(reqId) > 0 || data.getTimeWindowEnd(reqId) < data.getVehicleMaxRouteTime(route.vehicleId);
+
+    if (pickupIsCritical) {
+        // FASE 1: Encontrar la mejor posición para la Recogida (i)
+        int bestI = -1;
+        double bestDeltaI = std::numeric_limits<double>::infinity();
+
+        for (int i = 1; i < n; ++i) {
+            // Evaluamos la inserción poniendo la entrega justo después de la recogida (j = i)
+            // Esto sirve como estimación para encontrar la posición ideal de la recogida.
+            double delta = evaluator.calculateExactDelta(route, reqId, i, i);
+            if (delta < bestDeltaI) {
+                bestDeltaI = delta;
+                bestI = i;
+            }
+        }
+
+        // FASE 2: Manteniendo la Recogida fija (bestI), probar todas las posiciones válidas para la Entrega (j)
+        if (bestI != -1) {
+            for (int j = bestI; j < n; ++j) {
+                double delta = evaluator.calculateExactDelta(route, reqId, bestI, j);
+                if (delta < best.deltaCost) {
+                    best.deltaCost = delta;
+                    best.pIdx = bestI;
+                    best.dIdx = j;
+                }
+            }
+        }
+    } else {
+        // FASE 1: La Entrega es el vértice crítico. Encontrar la mejor posición (j)
+        int bestJ = -1;
+        double bestDeltaJ = std::numeric_limits<double>::infinity();
+
+        for (int j = 1; j < n; ++j) {
+            // Evaluamos la inserción poniendo la recogida justo antes de la entrega (i = j)
+            double delta = evaluator.calculateExactDelta(route, reqId, j, j);
+            if (delta < bestDeltaJ) {
+                bestDeltaJ = delta;
+                bestJ = j;
+            }
+        }
+
+        // FASE 2: Manteniendo la Entrega fija (bestJ), probar todas las posiciones válidas para la Recogida (i)
+        if (bestJ != -1) {
+            for (int i = 1; i <= bestJ; ++i) {
+                double delta = evaluator.calculateExactDelta(route, reqId, i, bestJ);
+                if (delta < best.deltaCost) {
+                    best.deltaCost = delta;
+                    best.pIdx = i;
+                    best.dIdx = bestJ;
+                }
+            }
+        }
+    }
+
+    return best;
+}
+
+
+ALNSOperators::LocalInsertion ALNSOperators::findBestInsertionGreedy_R(const ALNSRoute& route, int reqId) {
+    LocalInsertion best;
+    int n = route.sequence.size();
+
+    // 1. Determinar cuál es el vértice crítico.
+    // Según el documento de Cordeau & Laporte, un vértice es crítico si e_i != 0 o l_i != T.
+    bool pickupIsCritical = data.getTimeWindowStart(reqId) > 0 || data.getTimeWindowEnd(reqId) < data.getVehicleMaxRouteTime(route.vehicleId);
+
+    if (pickupIsCritical) {
+        // FASE 1: Encontrar la mejor posición para la Recogida (i)
+        int bestI = -1;
+        double bestDeltaI = std::numeric_limits<double>::infinity();
+
+        for (int i = 1; i < n; ++i) {
+            // Evaluamos la inserción poniendo la entrega justo después de la recogida (j = i)
+            // Esto sirve como estimación para encontrar la posición ideal de la recogida.
+            double delta = evaluator.calculateGreedyDelta(route, reqId, i, i, bestDeltaI);
+            if (delta < bestDeltaI) {
+                bestDeltaI = delta;
+                bestI = i;
+            }
+        }
+
+        // FASE 2: Manteniendo la Recogida fija (bestI), probar todas las posiciones válidas para la Entrega (j)
+        if (bestI != -1) {
+            for (int j = bestI; j < n; ++j) {
+                double delta = evaluator.calculateGreedyDelta(route, reqId, bestI, j, best.deltaCost);
+                if (delta < best.deltaCost) {
+                    best.deltaCost = delta;
+                    best.pIdx = bestI;
+                    best.dIdx = j;
+                }
+            }
+        }
+    } else {
+        // FASE 1: La Entrega es el vértice crítico. Encontrar la mejor posición (j)
+        int bestJ = -1;
+        double bestDeltaJ = std::numeric_limits<double>::infinity();
+
+        for (int j = 1; j < n; ++j) {
+            // Evaluamos la inserción poniendo la recogida justo antes de la entrega (i = j)
+            double delta = evaluator.calculateGreedyDelta(route, reqId, j, j, bestDeltaJ);
+            if (delta < bestDeltaJ) {
+                bestDeltaJ = delta;
+                bestJ = j;
+            }
+        }
+
+        // FASE 2: Manteniendo la Entrega fija (bestJ), probar todas las posiciones válidas para la Recogida (i)
+        if (bestJ != -1) {
+            for (int i = 1; i <= bestJ; ++i) {
+                double delta = evaluator.calculateGreedyDelta(route, reqId, i, bestJ, best.deltaCost);
+                if (delta < best.deltaCost) {
+                    best.deltaCost = delta;
+                    best.pIdx = i;
+                    best.dIdx = bestJ;
+                }
+            }
+        }
+    }
+
+    return best;
+}
+
 
 ALNSOperators::LocalInsertion ALNSOperators::findBestInsertion(
         ALNSOperators::InsertionMethod method,
@@ -248,14 +377,22 @@ ALNSOperators::LocalInsertion ALNSOperators::findBestInsertion(
         int reqId
     ) {
     LocalInsertion best;
-
-    switch (method) {
-        case EXACT:
-            return findBestInsertionExact(route, reqId);
-        case DELTA:
-            return findBestInsertionGreedy(route, reqId);
-        default:
-            return findBestInsertionGreedy(route, reqId);
+    
+    if (reductionMethod == REDUCTION) {
+        switch (method) {
+            case EXACT:
+                return findBestInsertionExact_R(route, reqId);
+            default: //case DELTA:
+                return findBestInsertionGreedy_R(route, reqId);
+        }
+    }
+    else {
+        switch (method) {
+            case EXACT:
+                return findBestInsertionExact(route, reqId);
+            default: //case DELTA:
+                return findBestInsertionGreedy(route, reqId);
+        }
     }
 }
 

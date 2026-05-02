@@ -41,9 +41,13 @@ private:
         double deltaCost = std::numeric_limits<double>::max();
     };
     enum InsertionMethod { EXACT, DELTA };
+    enum ReductionMethod { REDUCTION, NONE };
     InsertionMethod insertionMethod = DELTA;
+    ReductionMethod reductionMethod = REDUCTION;
     LocalInsertion findBestInsertion(InsertionMethod method, const ALNSRoute& route, int reqId);
     LocalInsertion findBestInsertionExact(const ALNSRoute& route, int reqId);
     LocalInsertion findBestInsertionGreedy(const ALNSRoute& route, int reqId);
+    LocalInsertion findBestInsertionExact_R(const ALNSRoute& route, int reqId);
+    LocalInsertion findBestInsertionGreedy_R(const ALNSRoute& route, int reqId);
      
 };

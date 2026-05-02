@@ -1,6 +1,19 @@
+"""
+Script to compare the convergence of different ALNS evaluators (e.g., greedy vs exact).
+"""
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+
+plt.rcParams.update({
+    "font.size": 14,          # general font size
+    "axes.titlesize": 16,     # plot title
+    "axes.labelsize": 14,     # label of axes
+    "xtick.labelsize": 12,    # numbers in X
+    "ytick.labelsize": 12,    # numbers in Y
+    "legend.fontsize": 12     # legend text            
+})
 
 def load_group(files):
     dfs = []
@@ -68,7 +81,6 @@ plt.plot(exact["iteration"], exact["current_mean"],
 # --- AXES ---
 plt.xlabel("Iteration")
 plt.ylabel("Objective value (log scale)")
-plt.title("ALNS convergence")
 
 plt.yscale("log")
 plt.ylim(bottom=500)
@@ -86,5 +98,5 @@ ax.grid(True, axis='x', linestyle="--", alpha=0.3)
 
 plt.legend()
 plt.tight_layout()
-plt.savefig("alns_comparison.pdf")
+plt.savefig("alns_evaluators_comparison.pdf", format="pdf", bbox_inches="tight")
 plt.show()
