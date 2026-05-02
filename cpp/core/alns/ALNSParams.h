@@ -2,7 +2,7 @@
 
 // Configuration for the ALNS
 struct ALNSParams {
-    int maxIterations = 10000;
+    int maxIterations = 2000;
     int segmentIterations = 100; // How many iterations before we consider a segment "completed" for adaptive operator selection
     int setPartitioningInterval = 2500; // Run CPLEX SP every X iterations
     double cplexTimeLimit = 100.0; // Time limit for CPLEX in seconds (per SP solve)
@@ -30,6 +30,8 @@ struct ALNSParams {
     double sigma2 = 11.1318;  // For better than current
     double sigma3 = 3.7313;  // For accepted (but not better)
     double reactionFactor = 0.1; // How much to adjust weights based on performance
+
+    // TODO: add an enum to decide if use exact evaluation o greedy insertion cost
 
     static ALNSParams fromArgs(const std::vector<std::string>& args) {
         ALNSParams p;
