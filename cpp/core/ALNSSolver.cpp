@@ -4,6 +4,7 @@
 #include <cmath>
 #include <chrono>
 #include <limits>
+#include <fstream>
 
 #include "CPLEXSoftSolver.h"
 
@@ -20,9 +21,13 @@ ALNSSolver::ALNSSolver(DARPMD_ProblemInstance& instance,
 
     params = std::make_unique<ALNSParams>(alnsParams);
     evaluator = std::make_unique<ALNSEvaluator>(data, *params);
-    spSolver = std::make_unique<SetPartitioningSolver>(data, *params, *evaluator, logger);
-    scSolver = std::make_unique<SetCoveringSolver>(data, *params, *evaluator, logger);
     operators = std::make_unique<ALNSOperators>(data, *params, *evaluator, rng);
+
+    if (hybridMethod == HybridMethod::SET_PARTITIONING) {
+        setSolver = std::make_unique<SetPartitioningSolver>(data, *params, *evaluator, logger);
+    } else if (hybridMethod == HybridMethod::SET_COVERING) {
+        setSolver = std::make_unique<SetCoveringSolver>(data, *params, *evaluator, logger);
+    }
 
     bestObjective = std::numeric_limits<double>::infinity();
 }
@@ -32,37 +37,32 @@ ALNSSolver::~ALNSSolver() {
 
 // Set Partitioning using CPLEX
 void ALNSSolver::addRouteToPool(const ALNSRoute& route) {
-    if (route.sequence.empty()) return;
-    auto &seen = seenRoutes[route.vehicleId];
-
-    // Try to insert the route sequence into the seen set for this vehicle,
-    // returns true if it was not already present
-    auto result = seen.insert(route.sequence);
-
-    if (result.second) // If this sequence was not seen before
-        routePool[route.vehicleId].push_back(route);
-
+    if (setSolver) {
+        setSolver->getRoutePool().addRoute(route);
+    }
 }
 
 void ALNSSolver::solveMatheuristic() {
     if (hybridMethod == HybridMethod::NONE) return;
 
     ALNSSolution matSol;
-    if (hybridMethod == HybridMethod::SET_PARTITIONING) {
-        matSol = spSolver->solve(routePool);
-    } else if (hybridMethod == HybridMethod::SET_COVERING) {
-        matSol = scSolver->solve(routePool);
+    //setSolver->getRoutePool().purgeColumns();
+    bool solved = setSolver->solve(matSol);
+
+    if (!solved) {
+        logger.log("Iter " + std::to_string(iteration) + "  [Matheuristic] Failed to solve with CPLEX.");
+        return;
     }
 
     // Handle the new solution from CPLEX
     if (matSol.objectiveValue < bestObjective) {
-        logger.log("  [Matheuristic] CPLEX found new best solution! Objective: " + std::to_string(matSol.objectiveValue) + " (Improvement)");
+        logger.log("Iter " + std::to_string(iteration) + "  [Matheuristic] CPLEX found new best solution! Objective: " + std::to_string(matSol.objectiveValue) + " (Improvement)");
         
         bestSolution = matSol;
         bestObjective = matSol.objectiveValue;
     }
     else {
-        logger.log("  [Matheuristic] CPLEX found solution with objective: " + std::to_string(matSol.objectiveValue) + " (No improvement)");
+        logger.log("Iter " + std::to_string(iteration) + "  [Matheuristic] CPLEX found solution with objective: " + std::to_string(matSol.objectiveValue) + " (No improvement)");
     }
 }
 
@@ -84,8 +84,8 @@ DARPMD_ResultInstance ALNSSolver::solveScheduleLater(ALNSSolution& sol) {
 
     softSolver.solve();
     DARPMD_ResultInstance result = softSolver.getResult();
- 
-    if (result.objectiveValue < bestObjective) {
+
+    if (result.objectiveValue < bestObjective - 1e-6) {
         logger.log("[Schedule Later] CPLEX improved the solution! Objective: " + std::to_string(result.objectiveValue) + " (Improvement)");
         bestObjective = result.objectiveValue;
     } else {
@@ -276,11 +276,15 @@ void ALNSSolver::solve() {
     initializeStatsAndTemperature(currentSol);
     initializeRoutePool();
 
+    std::vector<std::vector<double>> destroyWeightHistory;
+    std::vector<std::vector<double>> repairWeightHistory;
+    std::vector<int> weightHistoryIterations;
+
     // 2. Main Loop
-    for (int iter = 0; ; ++iter) {
+    for (iteration = 0; ; ++iteration) {
         auto now = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> elapsed = now - start;
-        if (stoppingCriteria(iter, elapsed.count())) break;
+        if (stoppingCriteria(iteration, elapsed.count())) break;
 
         // Adaptive Operator Selection
         int destroyOpIdx = selectOperator(destroyStats.weights);
@@ -312,7 +316,7 @@ void ALNSSolver::solve() {
             if (neighbor.objectiveValue < bestObjective) {
                 bestSolution = neighbor;
                 bestObjective = neighbor.objectiveValue;
-                logger.log("* Iter " + std::to_string(iter) + ": New Best = " + std::to_string(bestObjective) 
+                logger.log("* Iter " + std::to_string(iteration) + ": New Best = " + std::to_string(bestObjective) 
                     + " (Violations: " + (evaluator->solutionHasViolations(neighbor) ? "Yes" : "No") + ")");
             }
         }
@@ -323,17 +327,25 @@ void ALNSSolver::solve() {
         repairStats.scores[repairOpIdx] += iterScore;
         repairStats.timesUsed[repairOpIdx] += 1;
 
-        if (iter > 0 && iter % params->segmentIterations == 0) {
+        if (iteration > 0 && iteration % params->segmentIterations == 0) {
             updateWeights(destroyStats);
             updateWeights(repairStats);
         }
+        destroyWeightHistory.push_back(destroyStats.weights);
+        repairWeightHistory.push_back(repairStats.weights);
+        weightHistoryIterations.push_back(iteration);
 
         // --- Cooling ---
         currentTemperature *= params->coolingRate;
 
         // --- Matheuristic Integration ---
-        if (iter > 0 && iter % params->setPartitioningInterval == 0)
+        if (iteration > 0 && iteration % params->setPartitioningInterval == 0)
             solveMatheuristic();
+
+        // Logging the evolution of the solution
+        if (hybridMethod == HybridMethod::NONE) {
+            evolution.emplace_back(iteration, currentSol.objectiveValue, bestObjective);
+        }
     }
 
     // Final clean run of SP
@@ -348,6 +360,36 @@ void ALNSSolver::solve() {
     std::chrono::duration<double> totalElapsed = end - start;
     this->solveTime = totalElapsed.count();
     result->solveTime = this->solveTime;
+
+    if (hybridMethod == HybridMethod::NONE) {
+        std::ofstream file("alns_evolution.csv");
+        file << "iteration,current_obj,best_obj\n";
+
+        for (const auto& [it, curr, best] : evolution) {
+            file << it << "," << curr << "," << best << "\n";
+        }
+
+        file.close();
+    }
+
+    std::ofstream file("alns_operator_weights.csv");
+    file << "iteration,type,operator_id,weight\n";
+
+    for (size_t t = 0; t < weightHistoryIterations.size(); ++t) {
+        int it = weightHistoryIterations[t];
+
+        // destroy
+        for (size_t i = 0; i < destroyWeightHistory[t].size(); ++i) {
+            file << it << ",destroy," << i << "," << destroyWeightHistory[t][i] << "\n";
+        }
+
+        // repair
+        for (size_t i = 0; i < repairWeightHistory[t].size(); ++i) {
+            file << it << ",repair," << i << "," << repairWeightHistory[t][i] << "\n";
+        }
+    }
+
+    file.close();
 
     // Print operator stats
     if (verbose) {

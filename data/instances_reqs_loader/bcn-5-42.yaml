@@ -1,0 +1,560 @@
+place: "Barcelona, Spain"
+
+global:
+  L_ride: 3200   # (1 hour) max ride time
+
+requests:
+  - id: 1
+    #pickup_address: "Plaça del centre, Barcelona, Spain"
+    pickup_coords: [41.3820, 2.1332]
+    delivery_address: "Hospital Clínic de Barcelona, Barcelona, Spain"
+    demand: 1
+    p_tw_start: 0
+    p_tw_end: 2000
+    p_service_time: 60
+    d_tw_start: 300
+    d_tw_end: 3600
+    d_service_time: 60
+
+  - id: 2
+    pickup_address: "Plaça de Catalunya, Barcelona, Spain"
+    #delivery_address: "Platja de la Barceloneta, Barcelona, Spain"
+    delivery_coords: [41.3771, 2.19099]
+    demand: 1
+    p_tw_start: 600
+    p_tw_end: 2400
+    p_service_time: 60
+    d_tw_start: 1200
+    d_tw_end: 4200
+    d_service_time: 60
+
+  - id: 3
+    pickup_address: "Sagrada Família, Barcelona, Spain"
+    #delivery_address: "Hospital de Sant Pau, Barcelona, Spain"
+    delivery_coords: [41.3882, 2.1436]
+    demand: 1
+    p_tw_start: 1100
+    p_tw_end: 2400
+    p_service_time: 60
+    d_tw_start: 300
+    d_tw_end: 3000
+    d_service_time: 60
+
+  - id: 4
+    pickup_address: "Passeig de Gràcia 92, Barcelona, Spain"
+    delivery_address: "Hospital Universitari Sagrat Cor, Barcelona, Spain"
+    demand: 1
+    p_tw_start: 900
+    p_tw_end: 3000
+    p_service_time: 60
+    d_tw_start: 1500
+    d_tw_end: 4500
+    d_service_time: 60
+
+  - id: 5
+    pickup_address: "Arc de Triomf, Barcelona, Spain"
+    #delivery_address: "Facultat d'Informàtica de Barcelona, Esplugues, Spain"
+    delivery_coords: [41.3894, 2.1099]
+    demand: 1
+    p_tw_start: 0
+    p_tw_end: 2500
+    p_service_time: 60
+    d_tw_start: 1800
+    d_tw_end: 5000
+    d_service_time: 60
+
+  - id: 6
+    #pickup_address: "Estació de França, Barcelona, Spain"
+    pickup_coords: [41.3840, 2.1865]
+    #delivery_address: "Montbau, Barcelona, Spain"
+    delivery_coords: [41.4297, 2.1418]
+    demand: 1
+    p_tw_start: 600
+    p_tw_end: 2600
+    p_service_time: 60
+    d_tw_start: 2000
+    d_tw_end: 5200
+    d_service_time: 60
+
+  - id: 7
+    #pickup_address: "Diagonal Mar Shopping Center, Barcelona, Spain"
+    pickup_coords: [41.4098, 2.2165]
+    #delivery_address: "Club Natacio Atletic Barceloneta, Barcelona, Spain"
+    delivery_coords: [41.3732, 2.1836]
+    demand: 1
+    p_tw_start: 0
+    p_tw_end: 2000
+    p_service_time: 60
+    d_tw_start: 600
+    d_tw_end: 3400
+    d_service_time: 60
+
+  - id: 8
+    pickup_address: "Camp Nou, Barcelona, Spain"
+    #delivery_address: "Mercat del Ninot, Barcelona, Spain"
+    delivery_coords: [41.3895, 2.1504]
+    demand: 1
+    p_tw_start: 1200
+    p_tw_end: 3600
+    p_service_time: 60
+    d_tw_start: 1800
+    d_tw_end: 4800
+    d_service_time: 60
+
+  - id: 9
+    #pickup_address: "Plaça d'Espanya, Barcelona, Spain"
+    pickup_coords: [41.3743, 2.1482]
+    delivery_address: "Hospital Sant Rafael, Barcelona, Spain"
+    demand: 1
+    p_tw_start: 0
+    p_tw_end: 2200
+    p_service_time: 60
+    d_tw_start: 1200
+    d_tw_end: 4000
+    d_service_time: 60
+
+  - id: 10
+    #pickup_address: "El Born Centre de Cultura i Memòria, Barcelona, Spain"
+    pickup_coords: [41.3856, 2.1836]
+    delivery_address: "Hospital de Sant Pau, Barcelona, Spain"
+    demand: 1
+    p_tw_start: 300
+    p_tw_end: 2100
+    p_service_time: 60
+    d_tw_start: 900
+    d_tw_end: 3600
+    d_service_time: 60
+
+  - id: 11
+    pickup_address: "Torre Glories, Barcelona, Spain"
+    #delivery_address: "Centre Civic Barceloneta, Barcelona, Spain"
+    delivery_coords: [41.3807, 2.1896]
+    demand: 1
+    p_tw_start: 0
+    p_tw_end: 3000
+    p_service_time: 60
+    d_tw_start: 600
+    d_tw_end: 3000
+    d_service_time: 60
+
+  - id: 12
+    pickup_address: "Parc Güell, Barcelona, Spain"
+    #delivery_address: "Parc de Bombers de Vall d'Hebron, Barcelona, Spain"
+    delivery_coords: [41.4237, 2.1418]
+    demand: 1
+    p_tw_start: 2200
+    p_tw_end: 3200
+    p_service_time: 60
+    d_tw_start: 1800
+    d_tw_end: 5000
+    d_service_time: 60
+
+  - id: 13
+    pickup_address: "Mercat de la Boqueria, Barcelona, Spain"
+    #delivery_address: "Carrer del Comte d'Urgell, 186, Barcelona, Spain"
+    delivery_coords: [41.3877, 2.1515]
+    demand: 1
+    p_tw_start: 0
+    p_tw_end: 2000
+    p_service_time: 60
+    d_tw_start: 600
+    d_tw_end: 3200
+    d_service_time: 60
+
+  - id: 14
+    pickup_address: "Port Olímpic, Barcelona, Spain"
+    delivery_address: "Hospital del Mar, Barcelona, Spain"
+    demand: 1
+    p_tw_start: 600
+    p_tw_end: 2400
+    p_service_time: 60
+    d_tw_start: 900
+    d_tw_end: 3600
+    d_service_time: 60
+
+  - id: 15
+    #pickup_address: "Parc de l'Espanya Industrial, Barcelona, Spain"
+    pickup_coords: [41.3765, 2.1397]
+    delivery_address: "Hospital Sant Joan de Déu, Esplugues, Spain"
+    demand: 1
+    p_tw_start: 1800
+    p_tw_end: 4000
+    p_service_time: 60
+    d_tw_start: 2400
+    d_tw_end: 6000
+    d_service_time: 60
+
+  - id: 16
+    #pickup_address: "Plaça de les Glòries Catalanes, Barcelona, Spain"
+    pickup_coords: [41.4036, 2.1910]
+    delivery_address: "Jardins Baix Guinardó, Barcelona, Spain"
+    delivery_coords: [41.4099, 2.1688]
+    demand: 1
+    p_tw_start: 0
+    p_tw_end: 1800
+    p_service_time: 60
+    d_tw_start: 600
+    d_tw_end: 3500
+    d_service_time: 60
+
+  - id: 17
+    #pickup_address: "Vall d'Hebron Hospital General, Barcelona, Spain"
+    pickup_coords: [41.4299, 2.1434]
+    delivery_address: "Parc del Laberint d'Horta, Barcelona, Spain"
+    demand: 1
+    p_tw_start: 300
+    p_tw_end: 2100
+    p_service_time: 60
+    d_tw_start: 900
+    d_tw_end: 3600
+    d_service_time: 60
+
+  - id: 18
+    pickup_address: "CAP Horta, Barcelona, Spain"
+    delivery_address: "Cementiri d'Horta, Barcelona, Spain"
+    demand: 1
+    p_tw_start: 0
+    p_tw_end: 1800
+    p_service_time: 60
+    d_tw_start: 600
+    d_tw_end: 3000
+    d_service_time: 60
+
+  - id: 19
+    pickup_address: "Mercat d'Horta, Barcelona, Spain"
+    delivery_address: "Parc del Guinardó, Barcelona, Spain"
+    demand: 1
+    p_tw_start: 600
+    p_tw_end: 2600
+    p_service_time: 60
+    d_tw_start: 1200
+    d_tw_end: 4200
+    d_service_time: 60
+
+  - id: 20
+    #pickup_address: "Hospital Sant Rafael, Barcelona, Spain"
+    pickup_coords: [41.4274, 2.1433]
+    delivery_address: "Turó de la Rovira, Barcelona, Spain"
+    demand: 1
+    p_tw_start: 900
+    p_tw_end: 3000
+    p_service_time: 60
+    d_tw_start: 1500
+    d_tw_end: 4800
+    d_service_time: 60
+
+  - id: 21
+    pickup_address: "Parc de les Aigües, Barcelona, Spain"
+    delivery_address: "CAP Guinardó, Barcelona, Spain"
+    demand: 1
+    p_tw_start: 0
+    p_tw_end: 2200
+    p_service_time: 60
+    d_tw_start: 600
+    d_tw_end: 3400
+    d_service_time: 60
+
+  - id: 22
+    #pickup_address: "La Maquinista Shopping Center, Barcelona, Spain"
+    pickup_coords: [41.4401, 2.1965]
+    #delivery_address: "Hospital de la Santa Creu i Sant Pau (Urgències), Barcelona, Spain"
+    delivery_coords: [41.4157, 2.1745]
+    demand: 1
+    p_tw_start: 1200
+    p_tw_end: 3600
+    p_service_time: 60
+    d_tw_start: 1800
+    d_tw_end: 5000
+    d_service_time: 60
+
+  - id: 23
+    #pickup_address: "Sant Andreu Arenal Station, Barcelona, Spain"
+    pickup_coords: [41.4309, 2.1831]
+    delivery_address: "CAP Sant Andreu, Barcelona, Spain"
+    demand: 1
+    p_tw_start: 300
+    p_tw_end: 2000
+    p_service_time: 60
+    d_tw_start: 900
+    d_tw_end: 3200
+    d_service_time: 60
+
+  - id: 24
+    pickup_address: "Parc de la Pegaso, Barcelona, Spain"
+    delivery_address: "Centre Cívic Sant Andreu, Barcelona, Spain"
+    demand: 1
+    p_tw_start: 0
+    p_tw_end: 2400
+    p_service_time: 60
+    d_tw_start: 600
+    d_tw_end: 3600
+    d_service_time: 60
+
+  - id: 25
+    #pickup_address: "Bon Pastor Metro Station, Barcelona, Spain"
+    pickup_coords: [41.4360, 2.2023]
+    #delivery_address: "Hospital Universitari Vall d'Hebron (Traumatologia), Barcelona, Spain"
+    delivery_coords: [41.4247, 2.1407]
+    demand: 1
+    p_tw_start: 1500
+    p_tw_end: 4000
+    p_service_time: 60
+    d_tw_start: 2400
+    d_tw_end: 6000
+    d_service_time: 60
+
+  - id: 26
+    #pickup_address: "Trinitat Vella Metro Station, Barcelona, Spain"
+    pickup_coords: [41.4487, 2.1913]
+    delivery_address: "Parc de la Creueta del Coll, Barcelona, Spain"
+    demand: 1
+    p_tw_start: 600
+    p_tw_end: 2600
+    p_service_time: 60
+    d_tw_start: 1200
+    d_tw_end: 4200
+    d_service_time: 60
+
+  - id: 27
+    pickup_address: "Plaça de Sarrià, Barcelona, Spain"
+    #delivery_address: "Hospital Universitari Quirónsalud Barcelona, Barcelona, Spain"
+    delivery_coords: [41.4160, 2.1384]
+    demand: 1
+    p_tw_start: 0
+    p_tw_end: 2000
+    p_service_time: 120
+    d_tw_start: 600
+    d_tw_end: 3200
+    d_service_time: 120
+
+  - id: 28
+    pickup_address: "Mercat de Sarrià, Barcelona, Spain"
+    #delivery_address: "Parc de l'Oreneta, Barcelona, Spain"
+    delivery_coords: [41.3995, 2.1109]
+    demand: 1
+    p_tw_start: 900
+    p_tw_end: 3000
+    p_service_time: 120
+    d_tw_start: 1500
+    d_tw_end: 4500
+    d_service_time: 120
+
+  - id: 29
+    pickup_address: "Funicular de Vallvidrera, Barcelona, Spain"
+    delivery_address: "Centre d'Atenció Primària Sarrià, Barcelona, Spain"
+    demand: 1
+    p_tw_start: 300
+    p_tw_end: 2100
+    p_service_time: 120
+    d_tw_start: 900
+    d_tw_end: 3600
+    d_service_time: 120
+
+  - id: 30
+    pickup_address: "CosmoCaixa Barcelona, Barcelona, Spain"
+    delivery_address: "Hospital Plató, Barcelona, Spain"
+    demand: 1
+    p_tw_start: 1200
+    p_tw_end: 3600
+    p_service_time: 120
+    d_tw_start: 1800
+    d_tw_end: 5000
+    d_service_time: 120
+
+  - id: 31
+    pickup_address: "Avinguda Tibidabo, Barcelona, Spain"
+    delivery_address: "Clínica Teknon, Barcelona, Spain"
+    demand: 1
+    p_tw_start: 600
+    p_tw_end: 2600
+    p_service_time: 120
+    d_tw_start: 1200
+    d_tw_end: 4200
+    d_service_time: 120
+  
+  - id: 32
+    #pickup_address: "Casa Vicens Gaudí, Barcelona, Spain"
+    pickup_coords: [41.4035, 2.1505]
+    #delivery_address: "Jardins de Menéndez i Pelayo, Barcelona, Spain"
+    delivery_coords: [41.4096, 2.1538]
+    demand: 1
+    p_tw_start: 600
+    p_tw_end: 2600
+    p_service_time: 120
+    d_tw_start: 1200
+    d_tw_end: 4200
+    d_service_time: 120
+
+  - id: 33
+    pickup_address: "Plaça de la Vila de Gràcia, Barcelona, Spain"
+    #delivery_address: "Carrer de Gran de Gràcia, Barcelona, Spain"
+    delivery_coords: [41.4015, 2.1534]
+    demand: 1
+    p_tw_start: 0
+    p_tw_end: 2000
+    p_service_time: 60
+    d_tw_start: 600
+    d_tw_end: 3200
+    d_service_time: 60
+
+  - id: 34
+    #pickup_address: "Carrer de l'Astúries, Barcelona, Spain"
+    pickup_coords: [41.4039, 2.1552]
+    delivery_address: "Plaça del Diamant, Barcelona, Spain"
+    demand: 1
+    p_tw_start: 600
+    p_tw_end: 2600
+    p_service_time: 60
+    d_tw_start: 1200
+    d_tw_end: 4200
+    d_service_time: 60
+
+  - id: 35
+    pickup_address: "Travessera de Gràcia, Barcelona, Spain"
+    delivery_address: "Carrer de Sant Pere Màrtir, Barcelona, Spain"
+    demand: 1
+    p_tw_start: 900
+    p_tw_end: 3000
+    p_service_time: 60
+    d_tw_start: 1500
+    d_tw_end: 4500
+    d_service_time: 60
+
+  - id: 36
+    pickup_address: "Plaça de la Virreina, Barcelona, Spain"
+    delivery_address: "Carrer del Torrent de l'Olla, Barcelona, Spain"
+    demand: 1
+    p_tw_start: 0
+    p_tw_end: 2200
+    p_service_time: 60
+    d_tw_start: 600
+    d_tw_end: 3400
+    d_service_time: 60
+
+  - id: 37
+    pickup_address: "Carrer de Mozart, Barcelona, Spain"
+    delivery_address: "Carrer de Bailèn (Gràcia), Barcelona, Spain"
+    demand: 1
+    p_tw_start: 1200
+    p_tw_end: 3600
+    p_service_time: 60
+    d_tw_start: 1800
+    d_tw_end: 4800
+    d_service_time: 60
+
+  - id: 38
+    pickup_address: "Plaça de Rovira i Trias, Barcelona, Spain"
+    delivery_address: "Carrer de Massens, Barcelona, Spain"
+    demand: 1
+    p_tw_start: 300
+    p_tw_end: 2100
+    p_service_time: 60
+    d_tw_start: 900
+    d_tw_end: 3600
+    d_service_time: 60
+
+  - id: 39
+    #pickup_address: "Carrer del Perill, Barcelona, Spain"
+    pickup_coords: [41.3998, 2.1620]
+    #delivery_address: "Carrer de Montseny, Barcelona, Spain"
+    delivery_coords: [41.4020, 2.1549]
+    demand: 1
+    p_tw_start: 600
+    p_tw_end: 2600
+    p_service_time: 60
+    d_tw_start: 1200
+    d_tw_end: 4200
+    d_service_time: 60
+
+  - id: 40
+    pickup_address: "Carrer de Puigmartí, Barcelona, Spain"
+    delivery_address: "Carrer de Rabassa, Barcelona, Spain"
+    demand: 1
+    p_tw_start: 0
+    p_tw_end: 2000
+    p_service_time: 60
+    d_tw_start: 600
+    d_tw_end: 3200
+    d_service_time: 60
+
+  - id: 41
+    pickup_address: "Carrer de Topazi, Barcelona, Spain"
+    delivery_address: "Carrer de la Providència, Barcelona, Spain"
+    demand: 1
+    p_tw_start: 900
+    p_tw_end: 3000
+    p_service_time: 60
+    d_tw_start: 1500
+    d_tw_end: 4500
+    d_service_time: 60
+
+  - id: 42
+    pickup_address: "Plaça del Sol, Barcelona, Spain"
+    #delivery_address: "Carrer de Verdi, Barcelona, Spain"
+    delivery_coords: [41.4078, 2.1528]
+    demand: 1
+    p_tw_start: 300
+    p_tw_end: 2400
+    p_service_time: 60
+    d_tw_start: 900
+    d_tw_end: 3600
+    d_service_time: 60
+
+vehicles:
+  - id: 1
+    start_address: "Estació de Sants, Barcelona, Spain"
+    #end_address: "Carrer de Muntaner, 181, Barcelona, Spain"
+    end_coords: [41.3923, 2.1517]
+    capacity: 5
+    vstart_tw_start: 0          # starts at 0s
+    vstart_tw_end: 900
+    vend_tw_start: 0
+    vend_tw_end: 28800         # until 8h
+    max_time: 28800
+
+  - id: 2
+    start_address: "Estació del Nord, Barcelona, Spain"
+    #end_address: "Centre Esportiu Municipal Olímpics, Barcelona, Spain"
+    end_coords: [41.4265, 2.1421]
+    capacity: 6
+    vstart_tw_start: 1800      # starts later (30 min)
+    vstart_tw_end: 3600
+    vend_tw_start: 0
+    vend_tw_end: 28800
+    max_time: 25200            # shorter maximum duration (7h)
+  
+  - id: 3
+    #start_address: "Hospital Universitari Dexeus, Barcelona, Spain"
+    start_coords: [41.3815, 2.1201]
+    #end_address: "Diagonal Mar, Barcelona, Spain"
+    end_coords: [41.4099, 2.2135]
+    capacity: 5
+    vstart_tw_start: 0
+    vstart_tw_end: 3600
+    vend_tw_start: 0
+    vend_tw_end: 28800
+    max_time: 28800
+
+  - id: 4
+    #start_address: "Estació de busos Fabra i Puig, Barcelona, Spain"
+    start_coords: [41.4296, 2.1811  ]
+    #end_address: "Parc de La Pegaso, Barcelona, Spain"
+    end_coords: [41.4269, 2.1830]
+    capacity: 7
+    vstart_tw_start: 0          # starts at 0s
+    vstart_tw_end: 900
+    vend_tw_start: 0
+    vend_tw_end: 28800         # until 8h
+    max_time: 28800
+
+  - id: 5
+    #start_address: "Estació de busos Fabra i Puig, Barcelona, Spain"
+    start_coords: [41.4200, 2.1800]
+    #end_address: "Parc de La Pegaso, Barcelona, Spain"
+    end_coords: [41.4300, 2.1835]
+    capacity: 4
+    vstart_tw_start: 0          # starts at 0s
+    vstart_tw_end: 900
+    vend_tw_start: 0
+    vend_tw_end: 28800         # until 8h
+    max_time: 28800

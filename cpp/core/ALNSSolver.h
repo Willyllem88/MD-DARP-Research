@@ -7,6 +7,7 @@
 #include "alns/ALNSSolution.h"
 #include "alns/ALNSParams.h"
 #include "alns/ALNSEvaluator.h"
+#include "alns/SetBasedSolver.h"
 #include "alns/SetPartitioningSolver.h"
 #include "alns/SetCoveringSolver.h"
 #include "alns/ALNSOperators.h"
@@ -48,10 +49,14 @@ public:
     }
 
     // Utility to save a route to the pool if it's good/feasible
-    // TODO: this function will be declared in anothar place
     void addRouteToPool(const ALNSRoute& route);
 
 private:
+    //TODO: just for logging
+    // (iteration, currentObj, bestObj)
+    std::vector<std::tuple<int, double, double>> evolution; 
+
+
     DARPMD_ProblemInstance& data;
     std::optional<DARPMD_ResultInstance> result;
     std::optional<double> timeLimit;
@@ -60,12 +65,14 @@ private:
     
     std::unique_ptr<ALNSParams> params;
     std::unique_ptr<ALNSEvaluator> evaluator;
-    std::unique_ptr<SetPartitioningSolver> spSolver;
-    std::unique_ptr<SetCoveringSolver> scSolver;
+    std::unique_ptr<SetBasedSolver> setSolver;
     std::unique_ptr<ALNSOperators> operators;
 
     // Random engine
     std::mt19937 rng;
+
+    // ALNS iteration
+    int iteration;
 
     // Current global status
     ALNSSolution bestSolution;

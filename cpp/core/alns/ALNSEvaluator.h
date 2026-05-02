@@ -14,7 +14,7 @@ public:
     void evaluateRoute(ALNSRoute& route);
     void evaluateSolution(ALNSSolution& sol);
 
-    // This methods only priorize time window feasibility
+    // This methods only priorize time window feasibility (NOT USED)
     void evaluateRouteGreedy(ALNSRoute& route);
     void evaluateSolutionGreedy(ALNSSolution& sol);
 
@@ -28,10 +28,7 @@ public:
     double calculateExactDelta(const ALNSRoute& route, int requestId, int i, int j);
 
     // - Optimized but approximate: simulates a simplified evaluation O(n)
-    double calculateDelta(const ALNSRoute& route, int requestId, int i, int j, double upper_bound);
-
-    // - Unoptimized and greedy: simulates a simplified evaluation that only considers time windows, O(n)
-    double calculateGreedyDelta_2(const ALNSRoute& route, int requestId, int i, int j);
+    double calculateGreedyDelta(const ALNSRoute& route, int requestId, int i, int j, double upper_bound);
 
 private:
     const DARPMD_ProblemInstance& data;

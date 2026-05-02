@@ -19,7 +19,8 @@ struct ALNSSolution {
             for (int node : r.sequence) {
                 std::cout << node << " ";
             }
-            std::cout << "| Cost: " << r.totalCost 
+            std::cout << "| Cost: " << r.totalCost
+                    << " | Distance: " << r.distanceCost
                     << " | TW Violation: " << r.timeWindowViolation 
                     << " | Load Violation: " << r.loadViolation 
                     << " | Ride Time Violation: " << r.rideTimeViolation

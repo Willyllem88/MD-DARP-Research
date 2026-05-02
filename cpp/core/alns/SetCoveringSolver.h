@@ -7,12 +7,13 @@
 #include "ALNSSolution.h"
 #include "ALNSParams.h"
 #include "ALNSEvaluator.h"
+#include "SetBasedSolver.h"
 
 #include <ilcplex/ilocplex.h>
 
 #include <map>
 
-class SetCoveringSolver {
+class SetCoveringSolver : public SetBasedSolver {
 public:
     SetCoveringSolver(
         const DARPMD_ProblemInstance& data, 
@@ -20,18 +21,11 @@ public:
         ALNSEvaluator& evaluator,
         Logger& logger
     );
-    ~SetCoveringSolver();
+    ~SetCoveringSolver() {};
 
-    ALNSSolution solve(const std::map<int, std::vector<ALNSRoute>>& routePool);
+    bool solve(ALNSSolution& newSol) override;
 
 private:
-    const DARPMD_ProblemInstance& data;
-    const ALNSParams& params;
-    ALNSEvaluator& evaluator;
-    Logger& logger;
-
-    IloEnv env;
-
     // Map to quickly find which routes cover each request (built from routePool)
     std::map<int, int> requestToIndex;
 

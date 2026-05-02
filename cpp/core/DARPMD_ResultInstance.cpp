@@ -172,12 +172,18 @@ std::string DARPMD_ResultInstance::generateSummaryString() const {
 
         // Data rows
         for (const auto& step : route.steps) {
+            bool twViolation = violations.has_value() && violations->timeWindowsViolation.count(step.nodeId) > 0;
+            bool loadViolation = violations.has_value() && violations->capacitiesViolation.count(step.nodeId) > 0;
+
             ss << "  " // Slight indentation
                << std::left << std::setw(10) << step.nodeId
                << std::setw(15) << nodeName(step.nodeId, problemInstance.N_requests, problemInstance.K_vehicles)
                << std::setw(15) << step.type 
                << std::setw(12) << std::fixed << std::setprecision(2) << step.arrivalTime 
-               << std::setw(12) << std::setprecision(1) << step.loadAfter << "\n";
+               << std::setw(12) << std::setprecision(1) << step.loadAfter
+               << (twViolation ? "    [TW Violation]" : "")
+               << (loadViolation ? "    [Load Violation]" : "")
+               << "\n";
         }
         ss << "\n";
     }

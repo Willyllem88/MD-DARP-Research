@@ -9,8 +9,7 @@ SetPartitioningSolver::SetPartitioningSolver(const DARPMD_ProblemInstance& data,
                                              const ALNSParams& params, 
                                              ALNSEvaluator& evaluator,
                                              Logger& logger)
-    : data(data), params(params), evaluator(evaluator), logger(logger), env() 
-{
+    : SetBasedSolver(data, params, evaluator, logger) {
     // Pre-calculate requestToIndex mapping for O(1) access during column generation
     int idx = 0;
     for(int i : data.P) {
@@ -18,17 +17,12 @@ SetPartitioningSolver::SetPartitioningSolver(const DARPMD_ProblemInstance& data,
     }
 }
 
-// Destructor: clean up the CPLEX environment
-SetPartitioningSolver::~SetPartitioningSolver() {
-    env.end();
-}
-
-ALNSSolution SetPartitioningSolver::solve(const std::map<int, std::vector<ALNSRoute>>& routePool) {
-    ALNSSolution newSol;
+bool SetPartitioningSolver::solve(ALNSSolution& newSol) {
+    std::map<int, std::vector<ALNSRoute>> routePool = getRoutePool().getRoutes();
     
     // If no routes are available, return an empty solution
     if (routePool.empty()) {
-        return newSol;
+        return false;
     }
 
     // Create Model and Cplex objects locally linked to the persistent Env
@@ -144,6 +138,10 @@ ALNSSolution SetPartitioningSolver::solve(const std::map<int, std::vector<ALNSRo
                 cplex.getStatus() == IloAlgorithm::Feasible ? "Feasible (Time Limit)" : "Unknown"));
             logger.log("  [SetPartitioning] CPLEX time: " + std::to_string(cplex.getTime()) + " seconds");
         }
+        else {
+            logger.log("  [SetPartitioning] CPLEX found no solution. Status: " + std::to_string(cplex.getStatus()));
+            return false;
+        }
 
         // --- 4. Critical Memory Cleanup ---
         // Since 'env' is persistent, we MUST manually destroy the modeling objects
@@ -159,11 +157,10 @@ ALNSSolution SetPartitioningSolver::solve(const std::map<int, std::vector<ALNSRo
 
     } catch (IloException& e) {
         std::cerr << "[SetPartitioningSolver] CPLEX Exception: " << e << std::endl;
-        // Depending on requirements, you might want to throw or return an empty solution
-        throw; 
+        return false;
     }
 
     // 'model' and 'cplex' are destroyed here automatically (stack allocated),
     // but the objects inside 'env' were cleaned up above.
-    return newSol;
+    return true;
 }
