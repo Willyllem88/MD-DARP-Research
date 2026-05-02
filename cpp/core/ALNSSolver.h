@@ -52,6 +52,11 @@ public:
     void addRouteToPool(const ALNSRoute& route);
 
 private:
+    //TODO: just for logging
+    // (iteration, currentObj, bestObj)
+    std::vector<std::tuple<int, double, double>> evolution; 
+
+
     DARPMD_ProblemInstance& data;
     std::optional<DARPMD_ResultInstance> result;
     std::optional<double> timeLimit;

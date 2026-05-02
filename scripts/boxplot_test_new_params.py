@@ -1,3 +1,7 @@
+"""
+Boxplot test comparing baseline vs optimized solutions using relative gap.
+"""
+
 import json
 import numpy as np
 import matplotlib.pyplot as plt

@@ -2,6 +2,15 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
+plt.rcParams.update({
+    "font.size": 14,          # general font size
+    "axes.titlesize": 16,     # plot title
+    "axes.labelsize": 14,     # label of axes
+    "xtick.labelsize": 12,    # numbers in X
+    "ytick.labelsize": 12,    # numbers in Y
+    "legend.fontsize": 12     # legend text            
+})
+
 # =========================
 # LOAD DATA
 # =========================
@@ -29,13 +38,13 @@ def plot_evolution(pivot, title):
     for col in pivot.columns:
         plt.plot(pivot.index, pivot[col], alpha=0.8, linewidth=1, label=col)
 
-    plt.title(title)
     plt.xlabel("Iteration")
     plt.ylabel("Weight")
     plt.legend(ncol=2, fontsize=8)
     plt.grid(alpha=0.3)
 
     plt.tight_layout()
+    plt.savefig("" + title.replace(" ", "_").lower() + ".pdf", format="pdf", bbox_inches="tight")
     plt.show()
 
 
