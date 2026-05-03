@@ -4,7 +4,6 @@
 #include <cmath>
 #include <chrono>
 #include <limits>
-#include <fstream>
 
 #include "CPLEXSoftSolver.h"
 
@@ -276,10 +275,6 @@ void ALNSSolver::solve() {
     initializeStatsAndTemperature(currentSol);
     initializeRoutePool();
 
-    std::vector<std::vector<double>> destroyWeightHistory;
-    std::vector<std::vector<double>> repairWeightHistory;
-    std::vector<int> weightHistoryIterations;
-
     // 2. Main Loop
     for (iteration = 0; ; ++iteration) {
         auto now = std::chrono::high_resolution_clock::now();
@@ -331,9 +326,6 @@ void ALNSSolver::solve() {
             updateWeights(destroyStats);
             updateWeights(repairStats);
         }
-        destroyWeightHistory.push_back(destroyStats.weights);
-        repairWeightHistory.push_back(repairStats.weights);
-        weightHistoryIterations.push_back(iteration);
 
         // --- Cooling ---
         currentTemperature *= params->coolingRate;
@@ -341,11 +333,6 @@ void ALNSSolver::solve() {
         // --- Matheuristic Integration ---
         if (iteration > 0 && iteration % params->setPartitioningInterval == 0)
             solveMatheuristic();
-
-        // Logging the evolution of the solution
-        if (hybridMethod == HybridMethod::NONE) {
-            evolution.emplace_back(iteration, currentSol.objectiveValue, bestObjective);
-        }
     }
 
     // Final clean run of SP
@@ -361,35 +348,7 @@ void ALNSSolver::solve() {
     this->solveTime = totalElapsed.count();
     result->solveTime = this->solveTime;
 
-    if (hybridMethod == HybridMethod::NONE) {
-        std::ofstream file("alns_evolution.csv");
-        file << "iteration,current_obj,best_obj\n";
 
-        for (const auto& [it, curr, best] : evolution) {
-            file << it << "," << curr << "," << best << "\n";
-        }
-
-        file.close();
-    }
-
-    std::ofstream file("alns_operator_weights.csv");
-    file << "iteration,type,operator_id,weight\n";
-
-    for (size_t t = 0; t < weightHistoryIterations.size(); ++t) {
-        int it = weightHistoryIterations[t];
-
-        // destroy
-        for (size_t i = 0; i < destroyWeightHistory[t].size(); ++i) {
-            file << it << ",destroy," << i << "," << destroyWeightHistory[t][i] << "\n";
-        }
-
-        // repair
-        for (size_t i = 0; i < repairWeightHistory[t].size(); ++i) {
-            file << it << ",repair," << i << "," << repairWeightHistory[t][i] << "\n";
-        }
-    }
-
-    file.close();
 
     // Print operator stats
     if (verbose) {
