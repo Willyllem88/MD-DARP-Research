@@ -2,7 +2,7 @@
 
 // Configuration for the ALNS
 struct ALNSParams {
-    int maxIterations = 2000;
+    int maxIterations = 10000;
     int segmentIterations = 100; // How many iterations before we consider a segment "completed" for adaptive operator selection
     int setPartitioningInterval = 2500; // Run CPLEX SP every X iterations
     double cplexTimeLimit = 100.0; // Time limit for CPLEX in seconds (per SP solve)
