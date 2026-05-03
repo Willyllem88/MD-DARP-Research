@@ -15,19 +15,24 @@ public:
     void addRoute(const ALNSRoute& route);
 
     // Obtiene todas las rutas (útil para que el solver las lea)
-    const std::map<int, std::vector<ALNSRoute>>& getRoutes() const { return routePool; }
-
-    // Firma de la función de purga.
-    // Podría recibir parámetros como límite de tamaño, umbral de coste, o iteraciones sin mejora.
-    void purgeColumns();
+    const std::unordered_map<int, std::vector<ALNSRoute>>& getRoutes();
 
     // Limpia todo el pool
     void clear();
 
 private:
     // Key: VehicleID, Value: List of routes
-    std::map<int, std::vector<ALNSRoute>> routePool;
-    
-    // Para evitar duplicados eficientemente
-    std::unordered_map<int, std::unordered_set<std::vector<int>, RouteSequenceHash>> seenRoutes;
+    std::unordered_map<int, std::vector<ALNSRoute>> routePool;
+
+    struct VectorHash {
+        size_t operator()(const std::vector<int>& v) const {
+            size_t h = 0;
+            for (int x : v) {
+                h = h * 31 + std::hash<int>{}(x);
+            }
+            return h;
+        }
+    };
+    using NodeSetKey = std::vector<int>;
+    std::unordered_map<int, std::unordered_map<NodeSetKey, ALNSRoute, VectorHash>> bestRoutes;
 };

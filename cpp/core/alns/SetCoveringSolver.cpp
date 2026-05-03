@@ -20,7 +20,7 @@ SetCoveringSolver::SetCoveringSolver(const DARPMD_ProblemInstance& data,
 }
 
 bool SetCoveringSolver::solve(ALNSSolution& newSol) {
-    std::map<int, std::vector<ALNSRoute>> routePool = getRoutePool().getRoutes();
+    std::unordered_map<int, std::vector<ALNSRoute>> routePool = getRoutePool().getRoutes();
     
     // If no routes are available, return an empty solution
     if (routePool.empty()) return false;
@@ -47,7 +47,7 @@ bool SetCoveringSolver::solve(ALNSSolution& newSol) {
 
         // Constraint (b): Each vehicle used exactly once
         // Map Vehicle ID -> Constraint Index
-        std::map<int, int> vehicleToIndex;
+        std::unordered_map<int, int> vehicleToIndex;
         int vIdx = 0;
         for (auto const& [k, routes] : routePool) {
             vehicleToIndex[k] = vIdx++;

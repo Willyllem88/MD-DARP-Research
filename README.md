@@ -12,7 +12,7 @@ The aim is to develop different methods to solve the RSP, such as mathematical m
 mkdir build
 cd build
 cmake ..
-cmake --build .
+cmake --build . -j
 ./cpp/core/darpmd_runner --help
 ```
 
