@@ -47,7 +47,7 @@ void ALNSSolver::solveMatheuristic() {
     if (hybridMethod == HybridMethod::NONE) return;
 
     ALNSSolution matSol;
-    //setSolver->getRoutePool().purgeColumns();
+    setSolver->getRoutePool().prune(bestObjective);
     bool solved = setSolver->solve(matSol);
 
     if (!solved) {
@@ -241,7 +241,7 @@ void ALNSSolver::initializeStatsAndTemperature(const ALNSSolution& initialSoluti
     currentTemperature = initialTemperature;
 
     logger.log("Initial solution created. Objective: " + std::to_string(bestObjective) 
-        + " (Violations: " + (evaluator->solutionHasViolations(initialSolution) ? "Yes" : "No") + ")");
+        + " (Violations: " + (initialSolution.hasViolations ? "Yes" : "No") + ")");
 }
 
 void ALNSSolver::initializeRoutePool() {
@@ -314,7 +314,7 @@ void ALNSSolver::solve() {
                 bestSolution = neighbor;
                 bestObjective = neighbor.objectiveValue;
                 logger.log("* Iter " + std::to_string(iteration) + ": New Best = " + std::to_string(bestObjective) 
-                    + " (Violations: " + (evaluator->solutionHasViolations(neighbor) ? "Yes" : "No") + ")");
+                    + " (Violations: " + (neighbor.hasViolations ? "Yes" : "No") + ")");
             }
         }
         

@@ -18,8 +18,6 @@ public:
     void evaluateRouteGreedy(ALNSRoute& route);
     void evaluateSolutionGreedy(ALNSSolution& sol);
 
-    bool solutionHasViolations(const ALNSSolution&) const;
-
     // Different methods to calculate the cost delta of inserting a 
     // request at positions i (pickup) and j (delivery) in a given 
     // route, without modifying the original route

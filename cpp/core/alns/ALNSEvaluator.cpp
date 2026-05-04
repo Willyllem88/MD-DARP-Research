@@ -325,9 +325,11 @@ void ALNSEvaluator::evaluateRouteGreedy(ALNSRoute& route) {
 
 void ALNSEvaluator::evaluateSolutionGreedy(ALNSSolution& sol) {
     sol.objectiveValue = 0.0;
+    sol.hasViolations = false;
     for (auto& r : sol.routes) {
         evaluateRouteGreedy(r);
         sol.objectiveValue += r.totalCost;
+        if (!r.isFeasible) sol.hasViolations = true;
     }
     // Penalize unassigned (the unassigned request set must be handled by the operators)
     sol.objectiveValue += sol.unassignedRequests.size() * params.unassignedPenalty;
@@ -335,19 +337,14 @@ void ALNSEvaluator::evaluateSolutionGreedy(ALNSSolution& sol) {
 
 void ALNSEvaluator::evaluateSolution(ALNSSolution& sol) {
     sol.objectiveValue = 0.0;
+    sol.hasViolations = false;
     for (auto& r : sol.routes) {
         evaluateRoute(r);
         sol.objectiveValue += r.totalCost;
+        if (!r.isFeasible) sol.hasViolations = true;
     }
     // Penalize unassigned (the unassigned request set must be handled by the operators)
     sol.objectiveValue += sol.unassignedRequests.size() * params.unassignedPenalty;
-}
-
-bool ALNSEvaluator::solutionHasViolations(const ALNSSolution& sol) const {
-    for (const auto& r : sol.routes) {
-        if (!r.isFeasible) return true;
-    }
-    return false;
 }
 
 double ALNSEvaluator::calculateExactDelta(const ALNSRoute& route, int requestId, int i, int j) {

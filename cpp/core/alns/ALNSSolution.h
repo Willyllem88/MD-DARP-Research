@@ -11,6 +11,7 @@ struct ALNSSolution {
     std::vector<ALNSRoute> routes; // One per vehicle
     std::set<int> unassignedRequests; // IDs of requests in P not served
     double objectiveValue = 0.0; // Total penalized cost
+    bool hasViolations = false; // Whether the solution has any constraint violations
 
     void print() {
         std::cout << "  Routes:" << std::endl;
