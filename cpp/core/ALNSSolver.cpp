@@ -39,7 +39,7 @@ ALNSSolver::~ALNSSolver() {
 // Set Partitioning using CPLEX
 void ALNSSolver::addRouteToPool(const ALNSRoute& route) {
     if (setSolver) {
-        setSolver->getRoutePool().addRoute(route);
+        setSolver->getRoutePool().addRoute(route, bestObjective);
     }
 }
 

@@ -4,8 +4,9 @@
 #include <unordered_map>
 #include <vector>
 
-void RoutePool::addRoute(const ALNSRoute& route) {
+void RoutePool::addRoute(const ALNSRoute& route, double currentBestTotalSolutionCost) {
     if (route.sequence.empty()) return;
+    if (route.totalCost > currentBestTotalSolutionCost) return;
 
     // Canonical key (order-independent)
     NodeSetKey key = route.sequence;

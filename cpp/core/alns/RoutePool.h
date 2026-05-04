@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <cstddef>
+#include <limits>
 
 class RoutePool {
 public:
@@ -13,7 +14,10 @@ public:
     ~RoutePool() = default;
 
     // Añade la ruta si no está duplicada
-    void addRoute(const ALNSRoute& route);
+    void addRoute(
+        const ALNSRoute& route,
+        double currentBestTotalSolutionCost = std::numeric_limits<double>::infinity()
+    );
 
     // Obtiene todas las rutas (útil para que el solver las lea)
     const std::unordered_map<int, std::vector<ALNSRoute>>& getRoutes();
