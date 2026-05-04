@@ -67,7 +67,7 @@ def print_summary_table(summary_data):
 def run_experiment(instance):
     base_cmd = [
         "../build/cpp/core/darpmd_run",
-        "-i", f"../data/instances_static/cordeau-instances/{instance}.json",
+        "-i", f"../data/cordeau-instances/{instance}.json",
         "-m", "ALNS",
         "-v"
     ]

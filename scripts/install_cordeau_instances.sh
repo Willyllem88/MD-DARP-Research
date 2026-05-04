@@ -6,7 +6,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 
-DATA_DIR="$ROOT_DIR/data/instances_static/cordeau-instances"
+DATA_DIR="$ROOT_DIR/data/cordeau-instances"
 CONVERTER="$ROOT_DIR/python/instance-converter/main.py"
 
 mkdir -p "$DATA_DIR"

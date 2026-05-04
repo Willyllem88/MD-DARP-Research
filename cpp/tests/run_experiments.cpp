@@ -12,7 +12,7 @@
 namespace fs = std::filesystem;
 
 int main() {
-    std::string instances_dir = "data/instances_static/cordeau-instances";
+    std::string instances_dir = "data/cordeau-instances";
     std::string output_csv = "results.csv";
     
     double time_limit = 7200.0; 

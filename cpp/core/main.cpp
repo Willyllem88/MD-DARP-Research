@@ -9,7 +9,7 @@
 #include "CPLEXSoftSolver.h"
 #include "ALNSSolver.h"
 
-const std::string DEFAULT_INSTANCE_PATH = "/home/guillem/TFG-Guillem/data/instances_static/gracia-4R2V.json";
+const std::string DEFAULT_INSTANCE_PATH = "/home/guillem/TFG-Guillem/data/gracia-4R2V.json";
 
 
 struct Args {
