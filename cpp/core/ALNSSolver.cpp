@@ -12,7 +12,9 @@ ALNSSolver::ALNSSolver(DARPMD_ProblemInstance& instance,
                        HybridMethod hybridMethod,
                        int seed,
                        bool verbose,
-                       const ALNSParams& alnsParams
+                       const ALNSParams& alnsParams,
+                       bool enableGICE,
+                       bool enableNR
                        )
     : Solver(verbose), data(instance), timeLimit(timeLimit), hybridMethod(hybridMethod) {
 
@@ -20,7 +22,7 @@ ALNSSolver::ALNSSolver(DARPMD_ProblemInstance& instance,
 
     params = std::make_unique<ALNSParams>(alnsParams);
     evaluator = std::make_unique<ALNSEvaluator>(data, *params);
-    operators = std::make_unique<ALNSOperators>(data, *params, *evaluator, rng);
+    operators = std::make_unique<ALNSOperators>(data, *params, *evaluator, rng, enableGICE, enableNR);
 
     if (hybridMethod == HybridMethod::SET_PARTITIONING) {
         setSolver = std::make_unique<SetPartitioningSolver>(data, *params, *evaluator, logger);

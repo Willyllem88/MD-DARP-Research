@@ -20,6 +20,8 @@ struct Args {
     bool verbose = false;
     std::optional<double> time_limit;
     std::vector<std::string> alnsParams;
+    bool enableGICE = false;
+    bool enableNR = false;
 };
 
 void printUsage(const char* program_name) {
@@ -31,8 +33,10 @@ void printUsage(const char* program_name) {
     std::cout << "  -s, --seed       Random seed for reproducibility" << std::endl;
     std::cout << "  -v, --verbose    Enable verbose output" << std::endl;
     std::cout << "  --alnsParams     Additional parameters for ALNS (in order: see readme)" << std::endl;
+    std::cout << "  --GICE           Enable Greedy Insertion Cost Evaluator in ALNS" << std::endl;
+    std::cout << "  --NR             Enable Neighbor Reduction in ALNS" << std::endl;
     std::cout << "  -h, --help       Show this help message" << std::endl;
-    std::cout << "Example: " << program_name << " -i ./gracia-4R2V.json -t 300 -o ./solution.json -m ILP -s 42 -v" << std::endl;
+    std::cout << "Example: " << program_name << " -i ./a2-16.json -t 300 -o ./solution.json -m ILP -s 42 -v" << std::endl;
 }
 
 Args parseArgs(int argc, char** argv) {
@@ -72,6 +76,12 @@ Args parseArgs(int argc, char** argv) {
             while (i + 1 < argc && argv[i + 1][0] != '-') {
                 args.alnsParams.push_back(argv[++i]);
             }
+        }
+        else if (a == "--GICE") {
+            args.enableGICE = true;
+        }
+        else if (a == "--NR") {
+            args.enableNR = true;
         }
         else if (a == "-h" || a == "--help") {
             printUsage(argv[0]);
@@ -116,8 +126,15 @@ int main(int argc, char** argv) {
             ? ALNSParams::fromArgs(args.alnsParams)
             : ALNSParams();
 
-        solver = std::make_unique<ALNSSolver>(instance, args.time_limit, hybridMethod, args.seed, args.verbose, params);
-
+        solver = std::make_unique<ALNSSolver>(
+            instance,
+            args.time_limit,
+            hybridMethod, args.seed,
+            args.verbose,
+            params,
+            args.enableGICE,
+            args.enableNR
+        );
     } else {
         std::cerr << "Invalid method selected." << std::endl;
         return 1;

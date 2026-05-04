@@ -36,7 +36,9 @@ public:
         HybridMethod hybridMethod = HybridMethod::NONE,
         int seed = 42, 
         bool verbose = false,
-        const ALNSParams& params = ALNSParams()
+        const ALNSParams& params = ALNSParams(),
+        bool enableGICE = false,
+        bool enableNR = false
     );
         
     ~ALNSSolver();

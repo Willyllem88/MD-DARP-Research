@@ -14,7 +14,9 @@ public:
     ALNSOperators(const DARPMD_ProblemInstance& instance, 
                   const ALNSParams& parameters, 
                   ALNSEvaluator& evaluator, 
-                  std::mt19937& randomEngine);
+                  std::mt19937& randomEngine,
+                  bool enableGICE = false,
+                  bool enableNR = false);
 
     // Destroy Operators
     void destroyRandom(ALNSSolution& sol, int q);
@@ -40,10 +42,10 @@ private:
         int dIdx = -1;
         double deltaCost = std::numeric_limits<double>::max();
     };
-    enum InsertionMethod { EXACT, DELTA };
+    enum InsertionMethod { FTSE, GICE }; // Forward Time Slack Evaluation, Greedy Insertion Cost Evaluation
     enum ReductionMethod { REDUCTION, NONE };
-    InsertionMethod insertionMethod = DELTA;
-    ReductionMethod reductionMethod = REDUCTION;
+    InsertionMethod insertionMethod = FTSE;
+    ReductionMethod reductionMethod = NONE;
     LocalInsertion findBestInsertion(InsertionMethod method, const ALNSRoute& route, int reqId);
     LocalInsertion findBestInsertionExact(const ALNSRoute& route, int reqId);
     LocalInsertion findBestInsertionGreedy(const ALNSRoute& route, int reqId);

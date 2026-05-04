@@ -11,8 +11,19 @@
 ALNSOperators::ALNSOperators(const DARPMD_ProblemInstance& instance,
                              const ALNSParams& parameters,
                              ALNSEvaluator& evaluator,
-                             std::mt19937& randomEngine)
+                             std::mt19937& randomEngine,
+                             bool enableGICE,
+                             bool enableNR
+                            )
     : data(instance), params(parameters), evaluator(evaluator), rng(randomEngine) {
+     
+    // Set insertion method based on flags
+    if (enableGICE) insertionMethod = GICE;
+    else insertionMethod = FTSE;
+    
+    // Set reduction method based on flags
+    if (enableNR) reductionMethod = REDUCTION;
+    else reductionMethod = NONE;
 }
 
 void ALNSOperators::destroyRandom(ALNSSolution& sol, int q) {
@@ -380,17 +391,17 @@ ALNSOperators::LocalInsertion ALNSOperators::findBestInsertion(
     
     if (reductionMethod == REDUCTION) {
         switch (method) {
-            case EXACT:
+            case FTSE:
                 return findBestInsertionExact_R(route, reqId);
-            default: //case DELTA:
+            default: //case GICE:
                 return findBestInsertionGreedy_R(route, reqId);
         }
     }
     else {
         switch (method) {
-            case EXACT:
+            case FTSE:
                 return findBestInsertionExact(route, reqId);
-            default: //case DELTA:
+            default: //case GICE:
                 return findBestInsertionGreedy(route, reqId);
         }
     }
