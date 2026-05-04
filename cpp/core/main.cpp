@@ -44,7 +44,8 @@ void printArgsSummary(const Args& args) {
         std::cout << std::endl;
     }
     std::cout << "  Enable GICE: " << (args.enableGICE ? "Yes" : "No") << std::endl;
-    std::cout << "  Enable NR: " << (args.enableNR ? "Yes" : "No") << std::endl << std::endl;
+    std::cout << "  Enable NR: " << (args.enableNR ? "Yes" : "No") << std::endl;
+    std::cout << "=========================" << std::endl << std::endl;
 }
 
 void printUsage(const char* program_name) {
