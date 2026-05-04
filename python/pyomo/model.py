@@ -600,7 +600,7 @@ class MDDARP_Model_Solver:
 
 if __name__ == "__main__":
 
-    json_path = "/home/guillem/TFG-Guillem/data/instances_static/cordeau-instances/a3-24.json"
+    json_path = "/home/guillem/TFG-Guillem/data/cordeau-instances/a3-24.json"
     
     instance = MDDARP_ProblemInstance()    
     success = instance.load_from_json(json_path)
