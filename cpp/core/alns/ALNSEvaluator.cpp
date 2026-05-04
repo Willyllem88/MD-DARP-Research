@@ -207,10 +207,10 @@ void ALNSEvaluator::evaluateRoute(ALNSRoute& route) {
                     + params.capacityPenalty * route.loadViolation
                     + params.rideTimePenalty * route.rideTimeViolation;
 
-    route.isFeasible = (route.timeWindowViolation == 0 && 
-                        route.vehicleMaxRouteTimeViolation == 0 &&
-                        route.loadViolation == 0 && 
-                        route.rideTimeViolation == 0);
+    route.isFeasible = (route.timeWindowViolation <= 1e-6 && 
+                        route.vehicleMaxRouteTimeViolation <= 1e-6 &&
+                        route.loadViolation <= 1e-6 && 
+                        route.rideTimeViolation <= 1e-6);
 }
 
 void ALNSEvaluator::evaluateRouteGreedy(ALNSRoute& route) {
@@ -317,17 +317,19 @@ void ALNSEvaluator::evaluateRouteGreedy(ALNSRoute& route) {
                     + params.capacityPenalty * route.loadViolation
                     + params.rideTimePenalty * route.rideTimeViolation;
 
-    route.isFeasible = (route.timeWindowViolation == 0 && 
-                        route.vehicleMaxRouteTimeViolation == 0 &&
-                        route.loadViolation == 0 && 
-                        route.rideTimeViolation == 0);
+    route.isFeasible = (route.timeWindowViolation <= 1e-6 && 
+                        route.vehicleMaxRouteTimeViolation <= 1e-6 &&
+                        route.loadViolation <= 1e-6 && 
+                        route.rideTimeViolation <= 1e-6);
 }
 
 void ALNSEvaluator::evaluateSolutionGreedy(ALNSSolution& sol) {
     sol.objectiveValue = 0.0;
+    sol.hasViolations = false;
     for (auto& r : sol.routes) {
         evaluateRouteGreedy(r);
         sol.objectiveValue += r.totalCost;
+        if (!r.isFeasible) sol.hasViolations = true;
     }
     // Penalize unassigned (the unassigned request set must be handled by the operators)
     sol.objectiveValue += sol.unassignedRequests.size() * params.unassignedPenalty;
@@ -335,19 +337,14 @@ void ALNSEvaluator::evaluateSolutionGreedy(ALNSSolution& sol) {
 
 void ALNSEvaluator::evaluateSolution(ALNSSolution& sol) {
     sol.objectiveValue = 0.0;
+    sol.hasViolations = false;
     for (auto& r : sol.routes) {
         evaluateRoute(r);
         sol.objectiveValue += r.totalCost;
+        if (!r.isFeasible) sol.hasViolations = true;
     }
     // Penalize unassigned (the unassigned request set must be handled by the operators)
     sol.objectiveValue += sol.unassignedRequests.size() * params.unassignedPenalty;
-}
-
-bool ALNSEvaluator::solutionHasViolations(const ALNSSolution& sol) const {
-    for (const auto& r : sol.routes) {
-        if (!r.isFeasible) return true;
-    }
-    return false;
 }
 
 double ALNSEvaluator::calculateExactDelta(const ALNSRoute& route, int requestId, int i, int j) {

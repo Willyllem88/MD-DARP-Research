@@ -157,7 +157,7 @@ void DARPMD_ProblemInstance::displayInfo() const {
     std::cout << "\n";
 
     // --- Vehicle Details ---
-    std::cout << "--- Vehicle Configuration (K) ---\n";
+    /*std::cout << "--- Vehicle Configuration (K) ---\n";
     std::cout << std::left 
               << std::setw(10) << "Veh_ID" 
               << std::setw(12) << "Start_Node" 
@@ -180,10 +180,10 @@ void DARPMD_ProblemInstance::displayInfo() const {
                   << std::setw(12) << cap 
                   << max_t << "\n";
     }
-    std::cout << "\n";
+    std::cout << "\n";*/
 
     // --- Node Attributes ---
-    std::cout << "--- Node Attributes ---\n";
+    /*std::cout << "--- Node Attributes ---\n";
     std::cout << std::left 
               << std::setw(10) << "Node_ID" 
               << std::setw(15) << "Service_T" 
@@ -218,7 +218,7 @@ void DARPMD_ProblemInstance::displayInfo() const {
     for(int i = 1; i <= max_node_id; ++i) {
         printNodeRow(i);
     }
-    std::cout << "\n";
+    std::cout << "\n";*/
 
     // --- Matrices Dimensions ---
     std::cout << "--- Matrices Dimensions ---\n";
@@ -297,6 +297,5 @@ void DARPMD_ProblemInstance::checkAndFixTriangleInequality(bool fixIt, bool verb
         } else {
             std::cout << "[Triangle Inequality Violations] Times are consistent (Satisfy Triangle Inequality)." << std::endl;
         }
-        std::cout << "--------------------------------------------------------------" << std::endl;
     }
 }

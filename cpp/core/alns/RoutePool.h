@@ -22,6 +22,9 @@ public:
     // Obtiene todas las rutas (útil para que el solver las lea)
     const std::unordered_map<int, std::vector<ALNSRoute>>& getRoutes();
 
+    
+    void prune(double currentBestTotalSolutionCost);
+
     // Limpia todo el pool
     void clear();
 

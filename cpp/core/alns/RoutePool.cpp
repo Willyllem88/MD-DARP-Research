@@ -45,3 +45,15 @@ void RoutePool::clear() {
     routePool.clear();
     bestRoutes.clear();
 }
+
+void RoutePool::prune(double currentBestTotalSolutionCost) {
+    for (auto& [vehicleId, mapRoutes] : bestRoutes) {
+        for (auto it = mapRoutes.begin(); it != mapRoutes.end(); ) {
+            if (it->second.totalCost > currentBestTotalSolutionCost) {
+                it = mapRoutes.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+}

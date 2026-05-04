@@ -24,6 +24,30 @@ struct Args {
     bool enableNR = false;
 };
 
+void printArgsSummary(const Args& args) {
+    std::cout << "=== Arguments Summary === " << std::endl;
+    std::cout << "  Instance Path: " << args.instance_path << std::endl;
+    std::cout << "  Output Path: " << args.output_path << std::endl;
+    std::cout << "  Method: " << args.method << std::endl;
+    std::cout << "  Seed: " << args.seed << std::endl;
+    std::cout << "  Verbose: " << (args.verbose ? "Yes" : "No") << std::endl;
+    if (args.time_limit.has_value()) {
+        std::cout << "  Time Limit: " << args.time_limit.value() << " seconds" << std::endl;
+    } else {
+        std::cout << "  Time Limit: None" << std::endl;
+    }
+    if (!args.alnsParams.empty()) {
+        std::cout << "  ALNS Params: ";
+        for (const auto& param : args.alnsParams) {
+            std::cout << param << " ";
+        }
+        std::cout << std::endl;
+    }
+    std::cout << "  Enable GICE: " << (args.enableGICE ? "Yes" : "No") << std::endl;
+    std::cout << "  Enable NR: " << (args.enableNR ? "Yes" : "No") << std::endl;
+    std::cout << "=========================" << std::endl << std::endl;
+}
+
 void printUsage(const char* program_name) {
     std::cout << "Usage: " << program_name << " [-i instance_path] [-t time_limit] [-o output_path] [-m method] [-s seed] [-v]" << std::endl;
     std::cout << "  -i, --instance   Path to problem instance JSON file" << std::endl;
@@ -97,6 +121,7 @@ Args parseArgs(int argc, char** argv) {
 
 int main(int argc, char** argv) {
     Args args = parseArgs(argc, argv);
+    if (args.verbose) printArgsSummary(args);
 
     // Load Problem Instance
     DARPMD_ProblemInstance instance;
