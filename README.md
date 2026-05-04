@@ -18,7 +18,7 @@ cmake --build . -j
 
 ## Cordeau DARP Instances
 
-To install the Cordeau DARP instances (48 instances), run the following command from the root of the project:
+To install the Cordeau DARP instances (A-series(24) + B-series(24) + R-series(20) = 68 instances), run the following command from the root of the project:
 
 ```bash
 cd build
