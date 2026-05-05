@@ -324,10 +324,10 @@ void ALNSSolver::solve() {
     }
 
     // Final clean run of SP
-    /*if (hybridMethod != HybridMethod::NONE) {
+    if (hybridMethod != HybridMethod::NONE) {
         logger.log("Final matheuristic run to polish solution...");
         solveMatheuristic();
-    }*/
+    }
 
     // Solve the schedule later (only if the best solution has violations)
     if (bestSolution.hasViolations) {
@@ -341,8 +341,10 @@ void ALNSSolver::solve() {
             result = bestFeasibleSolution->toResultInstance(data, this->solveTime);
         }
     }
-    else 
+    else {
+        logger.log("Best solution is feasible. Preparing result instance...");
         result = bestSolution.toResultInstance(data, this->solveTime);
+    }
     
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> totalElapsed = end - start;
