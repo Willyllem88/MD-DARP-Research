@@ -74,6 +74,7 @@ private:
     // Current global status
     ALNSSolution bestSolution;
     double bestObjective;
+    std::optional<ALNSSolution> bestFeasibleSolution;
     double solveTime;
 
     double currentTemperature;
@@ -91,6 +92,8 @@ private:
 
     void applyDestroy(ALNSSolution& sol, int destroyOpIdx);
     void applyRepair(ALNSSolution& sol, int repairOpIdx);
+
+    void updateBestSolutions(const ALNSSolution& candidate, std::string context = "");
     
     // Solution Management
     ALNSSolution createInitialSolution();
@@ -125,7 +128,4 @@ private:
     void solveMatheuristic(); 
     // Solve schedule later
     DARPMD_ResultInstance solveScheduleLater(ALNSSolution& sol);
-
-    // TODO: future improvements
-    void runSimpleLocalSearch(ALNSSolution& sol);
 };

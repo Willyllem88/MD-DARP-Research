@@ -238,15 +238,6 @@ void SetCoveringSolver::repairSolution(ALNSSolution& sol) {
             removeRequestFromRoute(sol.routes[rIdx], reqId);
         }
 
-        // Re-evaluate routes and solution after modifications
-        for (auto& route : sol.routes) {
-            if (route.sequence.size() <= 2) {
-                route.totalCost = 0;
-                route.arrivalTimes.clear();
-            } else {
-                evaluator.evaluateRoute(route);
-            }
-        }
         evaluator.evaluateSolution(sol);
     }
 }

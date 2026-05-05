@@ -19,15 +19,12 @@ struct ALNSRoute {
     bool isFeasible = false;
 
     // Timestamps and loads for reconstruction
-    std::vector<double> arrivalTimes;
     std::vector<double> loads;
 
     void resize(int numNodes) {
-        arrivalTimes.assign(numNodes, 0.0);
         loads.assign(numNodes, 0.0);
     }
 
-    // Handled expulsively by the evaluator, but stored here for efficiency in move evaluations
     std::vector<double> A; // Arrival times
     std::vector<double> W; // Waiting times
     std::vector<double> B; // Beginning of service times

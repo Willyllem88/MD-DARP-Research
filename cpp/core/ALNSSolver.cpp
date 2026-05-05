@@ -55,16 +55,7 @@ void ALNSSolver::solveMatheuristic() {
         return;
     }
 
-    // Handle the new solution from CPLEX
-    if (matSol.objectiveValue < bestObjective) {
-        logger.log("Iter " + std::to_string(iteration) + "  [Matheuristic] CPLEX found new best solution! Objective: " + std::to_string(matSol.objectiveValue) + " (Improvement)");
-        
-        bestSolution = matSol;
-        bestObjective = matSol.objectiveValue;
-    }
-    else {
-        logger.log("Iter " + std::to_string(iteration) + "  [Matheuristic] CPLEX found solution with objective: " + std::to_string(matSol.objectiveValue) + " (No improvement)");
-    }
+    updateBestSolutions(matSol, "  [Matheuristic] ");
 }
 
 DARPMD_ResultInstance ALNSSolver::solveScheduleLater(ALNSSolution& sol) {
@@ -270,6 +261,7 @@ void ALNSSolver::solve() {
     ALNSSolution currentSol = createInitialSolution();
     bestSolution = currentSol;
     bestObjective = currentSol.objectiveValue;
+    bestFeasibleSolution = currentSol.hasViolations ? std::nullopt : std::make_optional(currentSol);
 
     std::unordered_set<std::size_t> visitedSolutionsHashes;
     visitedSolutionsHashes.insert(SolutionHash{}(currentSol));
@@ -309,13 +301,7 @@ void ALNSSolver::solve() {
 
         if (accept) {
             currentSol = neighbor;
-
-            if (neighbor.objectiveValue < bestObjective) {
-                bestSolution = neighbor;
-                bestObjective = neighbor.objectiveValue;
-                logger.log("* Iter " + std::to_string(iteration) + ": New Best = " + std::to_string(bestObjective) 
-                    + " (Violations: " + (neighbor.hasViolations ? "Yes" : "No") + ")");
-            }
+            updateBestSolutions(neighbor);
         }
         
         // -- Update Operator Stats ---
@@ -338,13 +324,26 @@ void ALNSSolver::solve() {
     }
 
     // Final clean run of SP
-    logger.log("Final matheuristic run to polish solution...");
-    solveMatheuristic();
+    /*if (hybridMethod != HybridMethod::NONE) {
+        logger.log("Final matheuristic run to polish solution...");
+        solveMatheuristic();
+    }*/
 
-    // Solve the schedule later
-    result = solveScheduleLater(bestSolution);
+    // Solve the schedule later (only if the best solution has violations)
+    if (bestSolution.hasViolations) {
+        logger.log("Best solution has violations. Attempting to fix with Schedule Later (CPLEX)...");
+        result = solveScheduleLater(bestSolution);
+        // If it still has violations and a feasible solution exists, return the best feasible one found during the search
+        if (result->solverStatus == "Semi-Feasible" && bestFeasibleSolution.has_value()) {
+            logger.log(std::string("Schedule Later did not find a fully feasible solution. ") +
+                        "Returning best feasible solution found during ALNS search " +
+                        "with objective: " + std::to_string(bestFeasibleSolution->objectiveValue));
+            result = bestFeasibleSolution->toResultInstance(data, this->solveTime);
+        }
+    }
+    else 
+        result = bestSolution.toResultInstance(data, this->solveTime);
     
-    // TODO: translate to ALNSSolution
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> totalElapsed = end - start;
     this->solveTime = totalElapsed.count();
@@ -370,6 +369,35 @@ void ALNSSolver::solve() {
                     << ", Times Used=" << repairStats.timesUsed[i] 
                     << ", Avg Score=" << avgScore << std::endl;
         }
+    }
+}
+
+void ALNSSolver::updateBestSolutions(const ALNSSolution& candidate, std::string context) {
+    bool bestImproved = false;
+    bool feasibleImproved = false;
+
+    // Update global best solution if improved
+    if (candidate.objectiveValue < bestObjective) {
+        bestSolution = candidate;
+        bestObjective = candidate.objectiveValue;
+        bestImproved = true;
+    }
+
+    // Update best feasible solution if improved and has no violations
+    if (!candidate.hasViolations) {
+        if (!bestFeasibleSolution.has_value() || candidate.objectiveValue < bestFeasibleSolution->objectiveValue) {
+            bestFeasibleSolution = candidate;
+            feasibleImproved = true;
+        }
+    }
+
+    // Logs
+    if (bestImproved) {
+        logger.log(context + "* Iter " + std::to_string(iteration) + ": New Best = " + std::to_string(candidate.objectiveValue) 
+            + " (Violations: " + (candidate.hasViolations ? "Yes" : "No") + ")");
+    }
+    else if (feasibleImproved) {
+        logger.log(context + "* Iter " + std::to_string(iteration) + ": New Best Feasible = " + std::to_string(candidate.objectiveValue));
     }
 }
 

@@ -17,7 +17,7 @@ void ALNSEvaluator::evaluateRoute(ALNSRoute& route) {
     if (route.sequence.empty()) return;
 
     int q = route.sequence.size() - 1; // Last index (end depot)
-    if ((int)route.arrivalTimes.size() < data.max_node_id + 1) {
+    if ((int)route.loads.size() < data.max_node_id + 1) {
         route.resize(data.max_node_id + 1);
     }
 
@@ -132,15 +132,11 @@ void ALNSEvaluator::evaluateRoute(ALNSRoute& route) {
     double currentLoad = 0.0;
     double capacity = data.getVehicleCapacity(route.vehicleId);
     
-    route.arrivalTimes[route.sequence[0]] = A[0];
     route.loads[route.sequence[0]] = 0.0;
 
     for (int i = 1; i <= q; ++i) {
         int u = route.sequence[i - 1];
         int v = route.sequence[i];
-
-        // Assign definitive arrival times
-        route.arrivalTimes[v] = A[i];
 
         // Distance Cost
         route.distanceCost += data.getCost(u, v, route.vehicleId);
@@ -211,128 +207,6 @@ void ALNSEvaluator::evaluateRoute(ALNSRoute& route) {
                         route.vehicleMaxRouteTimeViolation <= 1e-6 &&
                         route.loadViolation <= 1e-6 && 
                         route.rideTimeViolation <= 1e-6);
-}
-
-void ALNSEvaluator::evaluateRouteGreedy(ALNSRoute& route) {
-    // Reset metrics
-    route.distanceCost = 0.0;
-    route.timeWindowViolation = 0.0;
-    route.vehicleMaxRouteTimeViolation = 0.0;
-    route.loadViolation = 0.0;
-    route.rideTimeViolation = 0.0;
-
-    if (route.sequence.empty()) return;
-
-    if ((int)route.arrivalTimes.size() < data.max_node_id + 1) {
-        route.resize(data.max_node_id + 1);
-    }
-
-    // Assumption: pickup ids 1..n
-    static thread_local std::vector<double> pickupTimes;
-    if ((int)pickupTimes.size() < data.N_requests + 1) pickupTimes.resize(data.N_requests + 1);
-    std::fill(pickupTimes.begin(), pickupTimes.end(), -1.0);
-
-    double currentTime = 0.0;
-    double currentLoad = 0.0;
-    
-    // 1. Initialize at Start Depot
-    int startNode = route.sequence.front();
-    currentTime = std::max(0.0, data.getTimeWindowStart(startNode)); 
-    
-    route.arrivalTimes[startNode] = currentTime;
-    route.loads[startNode] = 0.0;
-
-    for (size_t i = 0; i < route.sequence.size() - 1; ++i) {
-        int u = route.sequence[i];
-        int v = route.sequence[i+1];
-
-        // --- Distance ---
-        route.distanceCost += data.getCost(u, v, route.vehicleId);
-
-        // --- Time ---
-        double serviceTime = data.getServiceTime(u);
-        double travelTime = data.getTravelTime(u, v);
-        
-        double arrivalAtV = currentTime + serviceTime + travelTime;
-        
-        // Time Window Check at V
-        double earlyTW = data.getTimeWindowStart(v);
-        double lateTW = data.getTimeWindowEnd(v);
-
-        // If early, we wait
-        if (arrivalAtV < earlyTW) {
-            arrivalAtV = earlyTW;
-        }
-        
-        // If late, penalty
-        if (arrivalAtV > lateTW) {
-            route.timeWindowViolation += (arrivalAtV - lateTW);
-            // In a soft TW context, we assume we arrive 'late' but continue
-            // To prevent massive propagation, sometimes we clamp, but here we let it flow
-        }
-
-        currentTime = arrivalAtV;
-        route.arrivalTimes[v] = currentTime;
-
-        // --- Capacity ---
-        double demand = data.getDemand(v);
-        currentLoad += demand;
-        route.loads[v] = currentLoad;
-
-        double capacity = data.getVehicleCapacity(route.vehicleId);
-        if (currentLoad > capacity) {
-            route.loadViolation += (currentLoad - capacity);
-        }
-
-        // --- Ride Time Logic ---
-        // If v is a pickup node (in P)
-        if (data.isPickup(v)) {
-            pickupTimes[v] = currentTime;
-        }
-        // If v is a delivery node (in D)
-        else if (data.isDelivery(v)) {
-            // Find corresponding pickup ID. Assuming D_id = P_id + N_requests
-            int pickupId = v - data.N_requests;
-            
-            if (pickupTimes[pickupId] >= 0) {
-                double rideTime = currentTime - (pickupTimes[pickupId] + data.getServiceTime(pickupId));
-                if (rideTime > data.getMaxRideTime()) {
-                    route.rideTimeViolation += (rideTime - data.getMaxRideTime());
-                }
-            }
-        }
-    }
-
-    // Check Max Route Duration
-    int endNode = route.sequence.back();
-    double duration = route.arrivalTimes[endNode] - route.arrivalTimes[startNode];
-    if (duration > data.getVehicleMaxRouteTime(route.vehicleId)) {
-        route.vehicleMaxRouteTimeViolation += (duration - data.getVehicleMaxRouteTime(route.vehicleId));
-    }
-
-    // Final Cost Aggregation
-    route.totalCost = route.distanceCost 
-                    + params.timeWindowPenalty * route.timeWindowViolation
-                    + params.vehicleMaxRouteTimePenalty * route.vehicleMaxRouteTimeViolation
-                    + params.capacityPenalty * route.loadViolation
-                    + params.rideTimePenalty * route.rideTimeViolation;
-
-    route.isFeasible = (route.timeWindowViolation <= 1e-6 && 
-                        route.vehicleMaxRouteTimeViolation <= 1e-6 &&
-                        route.loadViolation <= 1e-6 && 
-                        route.rideTimeViolation <= 1e-6);
-}
-
-void ALNSEvaluator::evaluateSolutionGreedy(ALNSSolution& sol) {
-    sol.objectiveValue = 0.0;
-    sol.hasViolations = false;
-    for (auto& r : sol.routes) {
-        evaluateRouteGreedy(r);
-        sol.objectiveValue += r.totalCost;
-        if (!r.isFeasible) sol.hasViolations = true;
-    }
-    // Penalize unassigned (the unassigned request set must be handled by the operators)
-    sol.objectiveValue += sol.unassignedRequests.size() * params.unassignedPenalty;
 }
 
 void ALNSEvaluator::evaluateSolution(ALNSSolution& sol) {
