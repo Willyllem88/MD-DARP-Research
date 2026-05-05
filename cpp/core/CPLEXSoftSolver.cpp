@@ -398,8 +398,8 @@ DARPMD_ResultInstance CPLEXSoftSolver::getResult() const {
 
         // Check status
         if (cplex.getStatus() == IloAlgorithm::Optimal) {
-            if (totalLoadViolation > 0.001 || totalDurationViolation > 0.001 || totalTWViolation > 0.001 || totalRideTimeViolation > 0.001) {
-                result.solverStatus = "Semi-feasible";
+            if (totalLoadViolation > 1e-6 || totalDurationViolation > 1e-6 || totalTWViolation > 1e-6 || totalRideTimeViolation > 1e-6) {
+                result.solverStatus = "Semi-Feasible";
             } else {
                 result.solverStatus = "Optimal";
             }
@@ -460,7 +460,7 @@ DARPMD_ResultInstance CPLEXSoftSolver::getResult() const {
             RouteStep startStep;
             startStep.nodeId = current_node;
             startStep.type = "DepotStart";
-            startStep.arrivalTime = 0.0;
+            startStep.beginServiceTime = 0.0;
             startStep.loadAfter = 0.0;
             vRoute.steps.push_back(startStep);
             
@@ -483,9 +483,9 @@ DARPMD_ResultInstance CPLEXSoftSolver::getResult() const {
 
             // Extract continuous variable values u (time) and w (load)
             if (u.count(current_node))
-                step.arrivalTime = cplex.getValue(u.at(current_node));
+                step.beginServiceTime = cplex.getValue(u.at(current_node));
             else
-                step.arrivalTime = 0.0;
+                step.beginServiceTime = 0.0;
 
             if (w.count({current_node, k}))
                 step.loadAfter = cplex.getValue(w.at({current_node, k}));
@@ -504,6 +504,7 @@ DARPMD_ResultInstance CPLEXSoftSolver::getResult() const {
         
         result.addRoute(k, vRoute);
     }
+    result.calculateViolations();
 
     return result;
 }

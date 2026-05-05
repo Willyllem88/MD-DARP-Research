@@ -18,7 +18,7 @@ using json = nlohmann::json;
 struct RouteStep {
     int nodeId;             // ID of the node
     std::string type;       // "DepotStart", "DepotEnd", "Pickup", "Delivery"
-    double arrivalTime;     // Value of the variable u
+    double beginServiceTime;     // Value of the variable u
     double loadAfter;       // Load of the vehicle after visiting the node (variable w)
 };
 
@@ -37,7 +37,7 @@ class DARPMD_ResultInstance {
 public:
     // --- Solution Metadata ---
     double objectiveValue;
-    std::string solverStatus; // "Optimal", "Feasible", "Infeasible"
+    std::string solverStatus; // "Optimal", "Feasible", "Semi-Feasible", "Infeasible"
     double solveTime;         // Computation time
     double mipGap;            // Final MIP gap
     // --- Route Data ---
@@ -47,7 +47,7 @@ public:
     Metadata metadata; // Additional information (city, coordinates, etc.)
     DARPMD_ProblemInstance problemInstance;
 
-        struct SolutionViolations {
+    struct SolutionViolations {
         double totalTravelCost = 0.0;
         double totalCost = 0.0;
         

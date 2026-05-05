@@ -27,7 +27,7 @@ void DARPMD_ResultInstance::calculateViolations() {
             // 1. Time Window Violations
             double late = problemInstance.getTimeWindowEnd(step.nodeId);
             double tw_violation = 0.0;
-            if (step.arrivalTime > late) tw_violation += (step.arrivalTime - late);
+            if (step.beginServiceTime > late) tw_violation += (step.beginServiceTime - late);
             
             if (tw_violation > epsilon) {
                 v.timeWindowsViolation[step.nodeId] = tw_violation;
@@ -46,13 +46,13 @@ void DARPMD_ResultInstance::calculateViolations() {
             // 3. Ride Time Violations
             if (step.type == "Pickup") {
                 // We save the time of pickup to calculate ride time when we reach the delivery
-                pickupTimes[step.nodeId] = step.arrivalTime; 
+                pickupTimes[step.nodeId] = step.beginServiceTime; 
             } else if (step.type == "Delivery") {
                 int requestId = step.nodeId - problemInstance.N_requests; 
                 
                 // RideTime = Arrival at Delivery - (Pickup Time + Service Time at Pickup)
                 double serviceTimePickup = problemInstance.getServiceTime(requestId);
-                double rideTime = step.arrivalTime - (pickupTimes[requestId] + serviceTimePickup);
+                double rideTime = step.beginServiceTime - (pickupTimes[requestId] + serviceTimePickup);
 
                 double maxRideTime = problemInstance.getMaxRideTime();
                 if (rideTime > maxRideTime + epsilon) {
@@ -165,7 +165,7 @@ std::string DARPMD_ResultInstance::generateSummaryString() const {
            << std::left << std::setw(10) << "NodeID"
            << std::setw(15) << "NodeAlias"
            << std::setw(15) << "Type" 
-           << std::setw(12) << "ArrTime" 
+           << std::setw(12) << "BegTime" 
            << std::setw(12) << "Load" << "\n";
 
         ss << "  " << std::string(64, '-') << "\n"; // Visual separator
@@ -179,7 +179,7 @@ std::string DARPMD_ResultInstance::generateSummaryString() const {
                << std::left << std::setw(10) << step.nodeId
                << std::setw(15) << nodeName(step.nodeId, problemInstance.N_requests, problemInstance.K_vehicles)
                << std::setw(15) << step.type 
-               << std::setw(12) << std::fixed << std::setprecision(2) << step.arrivalTime 
+               << std::setw(12) << std::fixed << std::setprecision(2) << step.beginServiceTime 
                << std::setw(12) << std::setprecision(1) << step.loadAfter
                << (twViolation ? "    [TW Violation]" : "")
                << (loadViolation ? "    [Load Violation]" : "")
@@ -233,7 +233,7 @@ void DARPMD_ResultInstance::saveToJSON(const std::string& filename) const {
             stepsArr.push_back({
                 {"node", step.nodeId},
                 {"type", step.type},
-                {"arrival", step.arrivalTime},
+                {"begin_service_time", step.beginServiceTime},
                 {"load", step.loadAfter}
             });
         }
