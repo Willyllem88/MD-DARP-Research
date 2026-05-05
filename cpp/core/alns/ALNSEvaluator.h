@@ -14,10 +14,6 @@ public:
     void evaluateRoute(ALNSRoute& route);
     void evaluateSolution(ALNSSolution& sol);
 
-    // This methods only priorize time window feasibility (NOT USED)
-    void evaluateRouteGreedy(ALNSRoute& route);
-    void evaluateSolutionGreedy(ALNSSolution& sol);
-
     // Different methods to calculate the cost delta of inserting a 
     // request at positions i (pickup) and j (delivery) in a given 
     // route, without modifying the original route
