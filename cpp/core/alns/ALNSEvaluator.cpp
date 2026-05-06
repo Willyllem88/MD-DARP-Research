@@ -221,12 +221,13 @@ void ALNSEvaluator::evaluateSolution(ALNSSolution& sol) {
     sol.objectiveValue += sol.unassignedRequests.size() * params.unassignedPenalty;
 }
 
-double ALNSEvaluator::calculateExactDelta(const ALNSRoute& route, int requestId, int i, int j) {
+double ALNSEvaluator::calculateExactDelta(const ALNSRoute& route, ALNSRoute& temp, int requestId, int i, int j) {
     // Simulate a full evaluation of the route with the new request inserted at positions i (pickup) and j (delivery)
-    ALNSRoute temp = route;
     temp.sequence.insert(temp.sequence.begin() + i, requestId); 
     temp.sequence.insert(temp.sequence.begin() + j + 1, requestId + data.N_requests);
     evaluateRoute(temp);
+    temp.sequence.erase(temp.sequence.begin() + j + 1); // Revert to original state
+    temp.sequence.erase(temp.sequence.begin() + i);
 
     double delta = temp.totalCost - route.totalCost;
 

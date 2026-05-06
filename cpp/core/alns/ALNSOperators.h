@@ -51,5 +51,8 @@ private:
     LocalInsertion findBestInsertionGreedy(const ALNSRoute& route, int reqId);
     LocalInsertion findBestInsertionExact_R(const ALNSRoute& route, int reqId);
     LocalInsertion findBestInsertionGreedy_R(const ALNSRoute& route, int reqId);
+
+    // Cache for regret-2 insertions to avoid redundant calculations
+    std::vector<std::vector<LocalInsertion>> insertionCache;
      
 };
