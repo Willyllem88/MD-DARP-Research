@@ -146,27 +146,6 @@ void ALNSOperators::destroyWorst(ALNSSolution& sol, int q) {
     evaluator.evaluateSolution(sol);
 }
 
-double ALNSOperators::calculateRelatedness(int i, int j) {
-    // Heurístic weights
-    double w_dist = params.shawDistWeight;
-    double w_time = params.shawTimeWeight;
-    double w_demand = params.shawDemandWeight;
-
-    // Distancia normalizada (aprox) entre orígenes
-    double dist = data.getTravelTime(i, j); 
-    
-    // Diferencia temporal (Start Time Window)
-    double mu_i = (data.getTimeWindowStart(i) + data.getTimeWindowEnd(i)) / 2.0;
-    double mu_j = (data.getTimeWindowStart(j) + data.getTimeWindowEnd(j)) / 2.0;
-    double timeDiff = std::abs(mu_i - mu_j);
-    
-    // Diferencia de demanda
-    double demandDiff = std::abs(data.getDemand(i) - data.getDemand(j));
-
-    // Valor de relación (Shaw Distance)
-    return w_dist * dist + w_time * timeDiff + w_demand * demandDiff;
-}
-
 void ALNSOperators::destroyShaw(ALNSSolution& sol, int q) {
     // 1. Choose a random seed request that is currently assigned
     const std::vector<int>& assigned = data.P;
@@ -218,199 +197,7 @@ void ALNSOperators::destroyShaw(ALNSSolution& sol, int q) {
     evaluator.evaluateSolution(sol);
 }
 
-ALNSOperators::LocalInsertion ALNSOperators::findBestInsertionExact(const ALNSRoute& route, int reqId) {
-    LocalInsertion best;
-    int n = route.sequence.size();
-
-    for (int i = 1; i < n; ++i) { // Pickup can be inserted between any two nodes
-        for (int j = i; j < n; ++j) { // Delivery must come after pickup
-            double delta = evaluator.calculateExactDelta(route, reqId, i, j);
-            if (delta < best.deltaCost) {
-                best.deltaCost = delta;
-                best.pIdx = i;
-                best.dIdx = j;
-            }
-        }
-    }
-    return best;
-}
-
-ALNSOperators::LocalInsertion ALNSOperators::findBestInsertionGreedy(const ALNSRoute& route, int reqId) {
-    ALNSOperators::LocalInsertion best;
-    int n = route.sequence.size();
-
-    for (int i = 1; i < n; ++i) { // Pickup can be inserted between any two nodes
-        for (int j = i; j < n; ++j) { // Delivery must come after pickup
-            double delta = evaluator.calculateGreedyDelta(route, reqId, i, j, best.deltaCost);
-            if (delta < best.deltaCost) {
-                best.deltaCost = delta;
-                best.pIdx = i;
-                best.dIdx = j;
-            }
-        }
-    }
-    return best;
-}
-
-ALNSOperators::LocalInsertion ALNSOperators::findBestInsertionExact_R(const ALNSRoute& route, int reqId) {
-    LocalInsertion best;
-    int n = route.sequence.size();
-
-    // 1. Determinar cuál es el vértice crítico.
-    // Según el documento de Cordeau & Laporte, un vértice es crítico si e_i != 0 o l_i != T.
-    bool pickupIsCritical = data.getTimeWindowStart(reqId) > 0 || data.getTimeWindowEnd(reqId) < data.getVehicleMaxRouteTime(route.vehicleId);
-
-    if (pickupIsCritical) {
-        // FASE 1: Encontrar la mejor posición para la Recogida (i)
-        int bestI = -1;
-        double bestDeltaI = std::numeric_limits<double>::infinity();
-
-        for (int i = 1; i < n; ++i) {
-            // Evaluamos la inserción poniendo la entrega justo después de la recogida (j = i)
-            // Esto sirve como estimación para encontrar la posición ideal de la recogida.
-            double delta = evaluator.calculateExactDelta(route, reqId, i, i);
-            if (delta < bestDeltaI) {
-                bestDeltaI = delta;
-                bestI = i;
-            }
-        }
-
-        // FASE 2: Manteniendo la Recogida fija (bestI), probar todas las posiciones válidas para la Entrega (j)
-        if (bestI != -1) {
-            for (int j = bestI; j < n; ++j) {
-                double delta = evaluator.calculateExactDelta(route, reqId, bestI, j);
-                if (delta < best.deltaCost) {
-                    best.deltaCost = delta;
-                    best.pIdx = bestI;
-                    best.dIdx = j;
-                }
-            }
-        }
-    } else {
-        // FASE 1: La Entrega es el vértice crítico. Encontrar la mejor posición (j)
-        int bestJ = -1;
-        double bestDeltaJ = std::numeric_limits<double>::infinity();
-
-        for (int j = 1; j < n; ++j) {
-            // Evaluamos la inserción poniendo la recogida justo antes de la entrega (i = j)
-            double delta = evaluator.calculateExactDelta(route, reqId, j, j);
-            if (delta < bestDeltaJ) {
-                bestDeltaJ = delta;
-                bestJ = j;
-            }
-        }
-
-        // FASE 2: Manteniendo la Entrega fija (bestJ), probar todas las posiciones válidas para la Recogida (i)
-        if (bestJ != -1) {
-            for (int i = 1; i <= bestJ; ++i) {
-                double delta = evaluator.calculateExactDelta(route, reqId, i, bestJ);
-                if (delta < best.deltaCost) {
-                    best.deltaCost = delta;
-                    best.pIdx = i;
-                    best.dIdx = bestJ;
-                }
-            }
-        }
-    }
-
-    return best;
-}
-
-
-ALNSOperators::LocalInsertion ALNSOperators::findBestInsertionGreedy_R(const ALNSRoute& route, int reqId) {
-    LocalInsertion best;
-    int n = route.sequence.size();
-
-    // 1. Determinar cuál es el vértice crítico.
-    // Según el documento de Cordeau & Laporte, un vértice es crítico si e_i != 0 o l_i != T.
-    bool pickupIsCritical = data.getTimeWindowStart(reqId) > 0 || data.getTimeWindowEnd(reqId) < data.getVehicleMaxRouteTime(route.vehicleId);
-
-    if (pickupIsCritical) {
-        // FASE 1: Encontrar la mejor posición para la Recogida (i)
-        int bestI = -1;
-        double bestDeltaI = std::numeric_limits<double>::infinity();
-
-        for (int i = 1; i < n; ++i) {
-            // Evaluamos la inserción poniendo la entrega justo después de la recogida (j = i)
-            // Esto sirve como estimación para encontrar la posición ideal de la recogida.
-            double delta = evaluator.calculateGreedyDelta(route, reqId, i, i, bestDeltaI);
-            if (delta < bestDeltaI) {
-                bestDeltaI = delta;
-                bestI = i;
-            }
-        }
-
-        // FASE 2: Manteniendo la Recogida fija (bestI), probar todas las posiciones válidas para la Entrega (j)
-        if (bestI != -1) {
-            for (int j = bestI; j < n; ++j) {
-                double delta = evaluator.calculateGreedyDelta(route, reqId, bestI, j, best.deltaCost);
-                if (delta < best.deltaCost) {
-                    best.deltaCost = delta;
-                    best.pIdx = bestI;
-                    best.dIdx = j;
-                }
-            }
-        }
-    } else {
-        // FASE 1: La Entrega es el vértice crítico. Encontrar la mejor posición (j)
-        int bestJ = -1;
-        double bestDeltaJ = std::numeric_limits<double>::infinity();
-
-        for (int j = 1; j < n; ++j) {
-            // Evaluamos la inserción poniendo la recogida justo antes de la entrega (i = j)
-            double delta = evaluator.calculateGreedyDelta(route, reqId, j, j, bestDeltaJ);
-            if (delta < bestDeltaJ) {
-                bestDeltaJ = delta;
-                bestJ = j;
-            }
-        }
-
-        // FASE 2: Manteniendo la Entrega fija (bestJ), probar todas las posiciones válidas para la Recogida (i)
-        if (bestJ != -1) {
-            for (int i = 1; i <= bestJ; ++i) {
-                double delta = evaluator.calculateGreedyDelta(route, reqId, i, bestJ, best.deltaCost);
-                if (delta < best.deltaCost) {
-                    best.deltaCost = delta;
-                    best.pIdx = i;
-                    best.dIdx = bestJ;
-                }
-            }
-        }
-    }
-
-    return best;
-}
-
-
-ALNSOperators::LocalInsertion ALNSOperators::findBestInsertion(
-        ALNSOperators::InsertionMethod method,
-        const ALNSRoute& route,
-        int reqId
-    ) {
-    LocalInsertion best;
-    
-    if (reductionMethod == REDUCTION) {
-        switch (method) {
-            case FTSE:
-                return findBestInsertionExact_R(route, reqId);
-            default: //case GICE:
-                return findBestInsertionGreedy_R(route, reqId);
-        }
-    }
-    else {
-        switch (method) {
-            case FTSE:
-                return findBestInsertionExact(route, reqId);
-            default: //case GICE:
-                return findBestInsertionGreedy(route, reqId);
-        }
-    }
-}
-
-void ALNSOperators::repairGreedy(ALNSSolution& sol) {
-    // Try to insert unassigned requests into best positions
-    // Simple version: iterate unassigned, find best spot, insert, repeat
-    
+void ALNSOperators::repairGreedy(ALNSSolution& sol) {    
     std::vector<int> todo(sol.unassignedRequests.begin(), sol.unassignedRequests.end());
     sol.unassignedRequests.clear(); // Will re-add failures later
     std::shuffle(todo.begin(), todo.end(), rng);
@@ -443,67 +230,274 @@ void ALNSOperators::repairGreedy(ALNSSolution& sol) {
 }
 
 void ALNSOperators::repairRegret2(ALNSSolution& sol) {
+    int numReqs = data.N_requests;
+    int numVehicles = sol.routes.size();
+
+    // Initialize the cache
+    insertionCache.assign(numReqs + 1, std::vector<LocalInsertion>(numVehicles));
+
+    for (int reqId : sol.unassignedRequests) {
+        for (int v = 0; v < numVehicles; ++v) {
+            LocalInsertion ins = findBestInsertion(insertionMethod, sol.routes[v], reqId);
+            insertionCache[reqId][v] = {ins.pIdx, ins.dIdx, ins.deltaCost};
+        }
+    }
+
     while (!sol.unassignedRequests.empty()) {
-        
         int bestReqId = -1;
         double maxRegretValue = -1.0;
-        
-        // Structure to store the winning move for the best request
-        int winVehicle = -1; 
-        int winPIdx = -1; 
-        int winDIdx = -1;
+        LocalInsertion winMove;
+        int winVehicle = -1;
 
-        // Iterate over all unassigned requests
-        std::vector<int> pending(sol.unassignedRequests.begin(), sol.unassignedRequests.end());
-        
-        for (int reqId : pending) {            
-            // Store the insertion costs of this request in each route
-            std::vector<double> insertionCosts; 
-            
-            // Temporary structures to store the exact position in each route
-            struct Move { int v; int pIdx; int dIdx; double cost; };
-            std::vector<Move> moves;
+        // Search for the request with the highest regret value
+        for (int reqId : sol.unassignedRequests) {
+            double bestCost = std::numeric_limits<double>::infinity();
+            double secondBestCost = std::numeric_limits<double>::infinity();
+            int bestVForThisReq = -1;
+            LocalInsertion bestMoveForThisReq;
 
-            // Evaluate insertion in EACH vehicle
-            for (size_t v = 0; v < sol.routes.size(); ++v) {
-                LocalInsertion insertion = findBestInsertion(insertionMethod, sol.routes[v], reqId);
-
-                // There will always be at least one possible insertion
-                moves.push_back({(int)v, insertion.pIdx, insertion.dIdx, insertion.deltaCost});
-            }
-            
-            // Sort moves by cost (ascending)
-            std::sort(moves.begin(), moves.end(), [](const Move& a, const Move& b){
-                return a.cost < b.cost;
-            });
-
-            double regret = 0;
-            if (moves.size() == 1) {
-                // If it only fits in one place, the regret is infinite (or very high)
-                // because if we don't put it there, we lose it.
-                regret = 100000.0; // High arbitrary value to prioritize this request
-            } else {
-                // Regret-2: the difference between the best and second-best insertion cost
-                regret = moves[1].cost - moves[0].cost;
+            for (int v = 0; v < numVehicles; ++v) {
+                double cost = insertionCache[reqId][v].deltaCost;
+                if (cost < bestCost) {
+                    secondBestCost = bestCost;
+                    bestCost = cost;
+                    bestVForThisReq = v;
+                    bestMoveForThisReq = insertionCache[reqId][v];
+                } else if (cost < secondBestCost) {
+                    secondBestCost = cost;
+                }
             }
 
-            // Is this the "worst" case we have seen?
+            double regret = (secondBestCost == std::numeric_limits<double>::infinity()) 
+                            ? 100000.0 : (secondBestCost - bestCost);
+
             if (regret > maxRegretValue) {
                 maxRegretValue = regret;
                 bestReqId = reqId;
-                winVehicle = moves[0].v;
-                winPIdx = moves[0].pIdx;
-                winDIdx = moves[0].dIdx;
+                winVehicle = bestVForThisReq;
+                winMove = bestMoveForThisReq;
             }
         }
 
-        // Apply the winning move for the request with the highest regret
         auto& r = sol.routes[winVehicle];
-        r.sequence.insert(r.sequence.begin() + winPIdx, bestReqId);
-        int deliveryId = bestReqId + data.N_requests;
-        r.sequence.insert(r.sequence.begin() + winDIdx + 1, deliveryId);
+        r.sequence.insert(r.sequence.begin() + winMove.pIdx, bestReqId);
+        r.sequence.insert(r.sequence.begin() + winMove.dIdx + 1, bestReqId + data.N_requests);
         evaluator.evaluateRoute(r);
         
         sol.unassignedRequests.erase(bestReqId);
+
+        // Just update the cache for the affected vehicle
+        for (int reqId : sol.unassignedRequests) {
+            LocalInsertion ins = findBestInsertion(insertionMethod, sol.routes[winVehicle], reqId);
+            insertionCache[reqId][winVehicle] = {ins.pIdx, ins.dIdx, ins.deltaCost};
+        }
     }
+}
+
+double ALNSOperators::calculateRelatedness(int i, int j) {
+    // Heurístic weights
+    double w_dist = params.shawDistWeight;
+    double w_time = params.shawTimeWeight;
+    double w_demand = params.shawDemandWeight;
+
+    // Distancia normalizada (aprox) entre orígenes
+    double dist = data.getTravelTime(i, j); 
+    
+    // Diferencia temporal (Start Time Window)
+    double mu_i = (data.getTimeWindowStart(i) + data.getTimeWindowEnd(i)) / 2.0;
+    double mu_j = (data.getTimeWindowStart(j) + data.getTimeWindowEnd(j)) / 2.0;
+    double timeDiff = std::abs(mu_i - mu_j);
+    
+    // Diferencia de demanda
+    double demandDiff = std::abs(data.getDemand(i) - data.getDemand(j));
+
+    // Valor de relación (Shaw Distance)
+    return w_dist * dist + w_time * timeDiff + w_demand * demandDiff;
+}
+
+ALNSOperators::LocalInsertion ALNSOperators::findBestInsertion(
+        ALNSOperators::InsertionMethod method,
+        const ALNSRoute& route,
+        int reqId
+    ) {
+    LocalInsertion best;
+    
+    if (reductionMethod == REDUCTION) {
+        switch (method) {
+            case FTSE:
+                return findBestInsertionExact_R(route, reqId);
+            default: //case GICE:
+                return findBestInsertionGreedy_R(route, reqId);
+        }
+    }
+    else {
+        switch (method) {
+            case FTSE:
+                return findBestInsertionExact(route, reqId);
+            default: //case GICE:
+                return findBestInsertionGreedy(route, reqId);
+        }
+    }
+}
+
+ALNSOperators::LocalInsertion ALNSOperators::findBestInsertionExact(const ALNSRoute& route, int reqId) {
+    LocalInsertion best;
+    int n = route.sequence.size();
+
+    ALNSRoute temp = route;
+
+    for (int i = 1; i < n; ++i) { // Pickup can be inserted between any two nodes
+        for (int j = i; j < n; ++j) { // Delivery must come after pickup
+            double delta = evaluator.calculateExactDelta(route, temp, reqId, i, j);
+            if (delta < best.deltaCost) {
+                best.deltaCost = delta;
+                best.pIdx = i;
+                best.dIdx = j;
+            }
+        }
+    }
+    return best;
+}
+
+ALNSOperators::LocalInsertion ALNSOperators::findBestInsertionGreedy(const ALNSRoute& route, int reqId) {
+    ALNSOperators::LocalInsertion best;
+    int n = route.sequence.size();
+
+    for (int i = 1; i < n; ++i) { // Pickup can be inserted between any two nodes
+        for (int j = i; j < n; ++j) { // Delivery must come after pickup
+            double delta = evaluator.calculateGreedyDelta(route, reqId, i, j, best.deltaCost);
+            if (delta < best.deltaCost) {
+                best.deltaCost = delta;
+                best.pIdx = i;
+                best.dIdx = j;
+            }
+        }
+    }
+    return best;
+}
+
+ALNSOperators::LocalInsertion ALNSOperators::findBestInsertionExact_R(const ALNSRoute& route, int reqId) {
+    LocalInsertion best;
+    ALNSRoute temp = route;
+    int n = route.sequence.size();
+    
+    // 1. Determinar cuál es el vértice crítico.
+    // Según el documento de Cordeau & Laporte, un vértice es crítico si e_i != 0 o l_i != T.
+    bool pickupIsCritical = data.getTimeWindowStart(reqId) > 0 || data.getTimeWindowEnd(reqId) < data.getVehicleMaxRouteTime(route.vehicleId);
+
+    if (pickupIsCritical) {
+        // FASE 1: Encontrar la mejor posición para la Recogida (i)
+        int bestI = -1;
+        double bestDeltaI = std::numeric_limits<double>::infinity();
+
+        for (int i = 1; i < n; ++i) {
+            // Evaluamos la inserción poniendo la entrega justo después de la recogida (j = i)
+            // Esto sirve como estimación para encontrar la posición ideal de la recogida.
+            double delta = evaluator.calculateExactDelta(route, temp, reqId, i, i);
+            if (delta < bestDeltaI) {
+                bestDeltaI = delta;
+                bestI = i;
+            }
+        }
+
+        // FASE 2: Manteniendo la Recogida fija (bestI), probar todas las posiciones válidas para la Entrega (j)
+        if (bestI != -1) {
+            for (int j = bestI; j < n; ++j) {
+                double delta = evaluator.calculateExactDelta(route, temp, reqId, bestI, j);
+                if (delta < best.deltaCost) {
+                    best.deltaCost = delta;
+                    best.pIdx = bestI;
+                    best.dIdx = j;
+                }
+            }
+        }
+    } else {
+        // FASE 1: La Entrega es el vértice crítico. Encontrar la mejor posición (j)
+        int bestJ = -1;
+        double bestDeltaJ = std::numeric_limits<double>::infinity();
+
+        for (int j = 1; j < n; ++j) {
+            // Evaluamos la inserción poniendo la recogida justo antes de la entrega (i = j)
+            double delta = evaluator.calculateExactDelta(route, temp, reqId, j, j);
+            if (delta < bestDeltaJ) {
+                bestDeltaJ = delta;
+                bestJ = j;
+            }
+        }
+
+        // FASE 2: Manteniendo la Entrega fija (bestJ), probar todas las posiciones válidas para la Recogida (i)
+        if (bestJ != -1) {
+            for (int i = 1; i <= bestJ; ++i) {
+                double delta = evaluator.calculateExactDelta(route, temp, reqId, i, bestJ);
+                if (delta < best.deltaCost) {
+                    best.deltaCost = delta;
+                    best.pIdx = i;
+                    best.dIdx = bestJ;
+                }
+            }
+        }
+    }
+    return best;
+}
+
+ALNSOperators::LocalInsertion ALNSOperators::findBestInsertionGreedy_R(const ALNSRoute& route, int reqId) {
+    LocalInsertion best;
+    int n = route.sequence.size();
+
+    // 1. Determine which vertex is critical. According to Cordeau & Laporte, a vertex is critical if e_i != 0 or l_i != T.
+    bool pickupIsCritical = data.getTimeWindowStart(reqId) > 0 ||
+                            data.getTimeWindowEnd(reqId) < data.getVehicleMaxRouteTime(route.vehicleId);
+
+    if (pickupIsCritical) {
+        // PHASE 1: Find the best position for Pickup (i)
+        int bestI = -1;
+        double bestDeltaI = std::numeric_limits<double>::infinity();
+
+        for (int i = 1; i < n; ++i) {
+            // We evaluate the insertion by placing the delivery right after the pickup (j = i)
+            double delta = evaluator.calculateGreedyDelta(route, reqId, i, i, bestDeltaI);
+            if (delta < bestDeltaI) {
+                bestDeltaI = delta;
+                bestI = i;
+            }
+        }
+
+        // PHASE 2: Maintaining the Pickup fixed (bestI), test all valid positions for the Delivery (j)
+        if (bestI != -1) {
+            for (int j = bestI; j < n; ++j) {
+                double delta = evaluator.calculateGreedyDelta(route, reqId, bestI, j, best.deltaCost);
+                if (delta < best.deltaCost) {
+                    best.deltaCost = delta;
+                    best.pIdx = bestI;
+                    best.dIdx = j;
+                }
+            }
+        }
+    } else {
+        // PHASE 1: The Delivery is the critical vertex. Find the best position (j)
+        int bestJ = -1;
+        double bestDeltaJ = std::numeric_limits<double>::infinity();
+
+        for (int j = 1; j < n; ++j) {
+            // We evaluate the insertion by placing the pickup right before the delivery (i = j)
+            double delta = evaluator.calculateGreedyDelta(route, reqId, j, j, bestDeltaJ);
+            if (delta < bestDeltaJ) {
+                bestDeltaJ = delta;
+                bestJ = j;
+            }
+        }
+
+        // PHASE 2: Maintaining the Delivery fixed (bestJ), test all valid positions for the Pickup (i)
+        if (bestJ != -1) {
+            for (int i = 1; i <= bestJ; ++i) {
+                double delta = evaluator.calculateGreedyDelta(route, reqId, i, bestJ, best.deltaCost);
+                if (delta < best.deltaCost) {
+                    best.deltaCost = delta;
+                    best.pIdx = i;
+                    best.dIdx = bestJ;
+                }
+            }
+        }
+    }
+    return best;
 }

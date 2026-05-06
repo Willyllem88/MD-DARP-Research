@@ -19,7 +19,7 @@ public:
     // route, without modifying the original route
 
     // - Unoptimized but exact: simulates the full evaluation procedure O(n^2)
-    double calculateExactDelta(const ALNSRoute& route, int requestId, int i, int j);
+    double calculateExactDelta(const ALNSRoute& route, ALNSRoute& temp, int requestId, int i, int j);
 
     // - Optimized but approximate: simulates a simplified evaluation O(n)
     double calculateGreedyDelta(const ALNSRoute& route, int requestId, int i, int j, double upper_bound);
