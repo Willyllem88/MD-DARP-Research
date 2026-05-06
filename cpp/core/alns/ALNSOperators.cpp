@@ -295,23 +295,22 @@ void ALNSOperators::repairRegret2(ALNSSolution& sol) {
 }
 
 double ALNSOperators::calculateRelatedness(int i, int j) {
-    // Heurístic weights
+    // Heuristic weights
     double w_dist = params.shawDistWeight;
     double w_time = params.shawTimeWeight;
     double w_demand = params.shawDemandWeight;
 
-    // Distancia normalizada (aprox) entre orígenes
     double dist = data.getTravelTime(i, j); 
     
-    // Diferencia temporal (Start Time Window)
+    // Temporal time difference: we can use the midpoint of the time windows as a representative time for each request
     double mu_i = (data.getTimeWindowStart(i) + data.getTimeWindowEnd(i)) / 2.0;
     double mu_j = (data.getTimeWindowStart(j) + data.getTimeWindowEnd(j)) / 2.0;
     double timeDiff = std::abs(mu_i - mu_j);
     
-    // Diferencia de demanda
+    // Demand difference
     double demandDiff = std::abs(data.getDemand(i) - data.getDemand(j));
 
-    // Valor de relación (Shaw Distance)
+    // Relatedness value
     return w_dist * dist + w_time * timeDiff + w_demand * demandDiff;
 }
 
@@ -381,18 +380,16 @@ ALNSOperators::LocalInsertion ALNSOperators::findBestInsertionExact_R(const ALNS
     ALNSRoute temp = route;
     int n = route.sequence.size();
     
-    // 1. Determinar cuál es el vértice crítico.
-    // Según el documento de Cordeau & Laporte, un vértice es crítico si e_i != 0 o l_i != T.
+    // 1. Determine which vertex is critical. According to Cordeau & Laporte, a vertex is critical if e_i != 0 or l_i != T.
     bool pickupIsCritical = data.getTimeWindowStart(reqId) > 0 || data.getTimeWindowEnd(reqId) < data.getVehicleMaxRouteTime(route.vehicleId);
 
     if (pickupIsCritical) {
-        // FASE 1: Encontrar la mejor posición para la Recogida (i)
+        // PHASE 1: Find the best position for Pickup (i)
         int bestI = -1;
         double bestDeltaI = std::numeric_limits<double>::infinity();
 
         for (int i = 1; i < n; ++i) {
-            // Evaluamos la inserción poniendo la entrega justo después de la recogida (j = i)
-            // Esto sirve como estimación para encontrar la posición ideal de la recogida.
+            // We evaluate the insertion by placing the delivery right after the pickup (j = i)
             double delta = evaluator.calculateExactDelta(route, temp, reqId, i, i);
             if (delta < bestDeltaI) {
                 bestDeltaI = delta;
@@ -400,7 +397,7 @@ ALNSOperators::LocalInsertion ALNSOperators::findBestInsertionExact_R(const ALNS
             }
         }
 
-        // FASE 2: Manteniendo la Recogida fija (bestI), probar todas las posiciones válidas para la Entrega (j)
+        // PHASE 2: Maintaining the Pickup fixed (bestI), test all valid positions for the Delivery (j)
         if (bestI != -1) {
             for (int j = bestI; j < n; ++j) {
                 double delta = evaluator.calculateExactDelta(route, temp, reqId, bestI, j);
@@ -412,12 +409,12 @@ ALNSOperators::LocalInsertion ALNSOperators::findBestInsertionExact_R(const ALNS
             }
         }
     } else {
-        // FASE 1: La Entrega es el vértice crítico. Encontrar la mejor posición (j)
+        // PHASE 1: The Delivery is the critical vertex. Find the best position (j)
         int bestJ = -1;
         double bestDeltaJ = std::numeric_limits<double>::infinity();
 
         for (int j = 1; j < n; ++j) {
-            // Evaluamos la inserción poniendo la recogida justo antes de la entrega (i = j)
+            // We evaluate the insertion by placing the pickup right before the delivery (i = j)
             double delta = evaluator.calculateExactDelta(route, temp, reqId, j, j);
             if (delta < bestDeltaJ) {
                 bestDeltaJ = delta;
@@ -425,7 +422,7 @@ ALNSOperators::LocalInsertion ALNSOperators::findBestInsertionExact_R(const ALNS
             }
         }
 
-        // FASE 2: Manteniendo la Entrega fija (bestJ), probar todas las posiciones válidas para la Recogida (i)
+        // PHASE 2: Maintaining the Delivery fixed (bestJ), test all valid positions for the Pickup (i)
         if (bestJ != -1) {
             for (int i = 1; i <= bestJ; ++i) {
                 double delta = evaluator.calculateExactDelta(route, temp, reqId, i, bestJ);
