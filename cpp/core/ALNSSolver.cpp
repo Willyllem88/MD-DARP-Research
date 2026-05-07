@@ -114,7 +114,7 @@ void ALNSSolver::solve() {
     }
     else {
         logger.log("Best solution is feasible. Preparing result instance...");
-        result = bestSolution.toResultInstance(data, this->solveTime);
+        result = bestFeasibleSolution.value().toResultInstance(data, this->solveTime);
     }
     
     auto end = std::chrono::steady_clock::now();
