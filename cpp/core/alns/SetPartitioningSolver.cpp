@@ -17,7 +17,7 @@ SetPartitioningSolver::SetPartitioningSolver(const DARPMD_ProblemInstance& data,
     }
 }
 
-bool SetPartitioningSolver::solve(ALNSSolution& newSol) {
+bool SetPartitioningSolver::solve(ALNSSolution& newSol, double maxTime) {
     std::unordered_map<int, std::vector<ALNSRoute>> routePool = getRoutePool().getRoutes();
     
     // If no routes are available, return an empty solution
@@ -31,7 +31,7 @@ bool SetPartitioningSolver::solve(ALNSSolution& newSol) {
 
     // CPLEX Configuration
     cplex.setOut(env.getNullStream()); // Silence output
-    cplex.setParam(IloCplex::Param::TimeLimit, params.cplexTimeLimit);
+    cplex.setParam(IloCplex::Param::TimeLimit, maxTime);
     cplex.setParam(IloCplex::Param::Threads, 1); // Single thread usually faster for SPP subproblems
 
     try {

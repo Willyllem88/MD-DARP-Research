@@ -23,7 +23,7 @@ public:
     );
     ~SetCoveringSolver() {};
 
-    bool solve(ALNSSolution& newSol) override;
+    bool solve(ALNSSolution& newSol, double maxTime) override;
 
 private:
     // Map to quickly find which routes cover each request (built from routePool)

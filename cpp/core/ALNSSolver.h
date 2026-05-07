@@ -41,14 +41,15 @@ public:
         bool enableNR = false
     );
         
-    ~ALNSSolver();
+    ~ALNSSolver() {};
 
     void solve() override;
     DARPMD_ResultInstance getResult() const override;
 
-    std::string name() const override {
-        return "Matheuristic (ALNS + CPLEX Set Partitioning)";
-    }
+    // Returns a string with the name of the solver configuration (for 
+    // logging purposes). In can be ALNS, ALNS_SP or ALNS_SC depending on 
+    // the hybrid method used.
+    std::string name() const override;
 
     // Utility to save a route to the pool if it's good/feasible
     void addRouteToPool(const ALNSRoute& route);
@@ -67,6 +68,9 @@ private:
 
     // Random engine
     std::mt19937 rng;
+
+    // Start time for time limit tracking
+    std::chrono::steady_clock::time_point startTime;
 
     // ALNS iteration
     int iteration;
@@ -87,17 +91,9 @@ private:
 
     // --- Core Logic Methods ---
 
-    bool stoppingCriteria(int iter, double elapsedSeconds);
+    bool stoppingCriteria();
     bool acceptanceCriteria(double candidateObj, double currentObj, double temperature, bool isNew, double& score);
-
-    void applyDestroy(ALNSSolution& sol, int destroyOpIdx);
-    void applyRepair(ALNSSolution& sol, int repairOpIdx);
-
-    void updateBestSolutions(const ALNSSolution& candidate, std::string context = "");
     
-    // Solution Management
-    ALNSSolution createInitialSolution();
-
     enum class DestroyMethod {RANDOM, WORST, SHAW, COUNT}; // COUNT the number of methods for stats
     enum class RepairMethod {GREEDY, REGRET2, COUNT};
 
@@ -117,11 +113,16 @@ private:
 
     int selectOperator(const std::vector<double>& weights);
     void updateWeights(OperatorStats& stats);
+    void applyDestroy(ALNSSolution& sol, int destroyOpIdx);
+    void applyRepair(ALNSSolution& sol, int repairOpIdx);
+
+    void updateBestSolutions(const ALNSSolution& candidate, std::string context = "");
+    
+    // Solution Management
+    ALNSSolution createInitialSolution();
+
     void initializeStatsAndTemperature(const ALNSSolution& initialSolution);
     void initializeRoutePool(); // Initializes the route pool with empty routes for each vehicle
-
-    // Helper: Check if any delivery appears before its pickup in the solution (should never happen)
-    void checkPickupAfterDelivery(const ALNSSolution& sol, const DARPMD_ProblemInstance& data) const;
 
     // --- CPLEX Integration (Set Partitioning / Covering) ---
     // Solves a Set Partitioning/Covering problem using the accumulated routePool

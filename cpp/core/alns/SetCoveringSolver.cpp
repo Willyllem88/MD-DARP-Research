@@ -19,7 +19,7 @@ SetCoveringSolver::SetCoveringSolver(const DARPMD_ProblemInstance& data,
     }
 }
 
-bool SetCoveringSolver::solve(ALNSSolution& newSol) {
+bool SetCoveringSolver::solve(ALNSSolution& newSol, double maxTime) {
     std::unordered_map<int, std::vector<ALNSRoute>> routePool = getRoutePool().getRoutes();
     
     // If no routes are available, return an empty solution
@@ -31,8 +31,8 @@ bool SetCoveringSolver::solve(ALNSSolution& newSol) {
 
     // CPLEX Configuration
     cplex.setOut(env.getNullStream()); // Silence output
-    cplex.setParam(IloCplex::Param::TimeLimit, params.cplexTimeLimit);
-    cplex.setParam(IloCplex::Param::Threads, 1); // Single thread usually faster for SPP subproblems
+    cplex.setParam(IloCplex::Param::TimeLimit, maxTime);
+    cplex.setParam(IloCplex::Param::Threads, 1); //, Single thread usually faster for SPP subproblems
 
     try {
         // --- 1. Define Objectives and Constraints Skeleton ---

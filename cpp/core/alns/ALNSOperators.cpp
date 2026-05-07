@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <unordered_set>
 
 ALNSOperators::ALNSOperators(const DARPMD_ProblemInstance& instance,
                              const ALNSParams& parameters,
@@ -18,54 +19,65 @@ ALNSOperators::ALNSOperators(const DARPMD_ProblemInstance& instance,
     : data(instance), params(parameters), evaluator(evaluator), rng(randomEngine) {
      
     // Set insertion method based on flags
-    if (enableGICE) insertionMethod = GICE;
-    else insertionMethod = FTSE;
+    insertionMethod = (enableGICE) ? GICE : FTSE;
     
     // Set reduction method based on flags
-    if (enableNR) reductionMethod = REDUCTION;
-    else reductionMethod = NONE;
+    reductionMethod = (enableNR) ? REDUCTION : NONE;
 }
 
 void ALNSOperators::destroyRandom(ALNSSolution& sol, int q) {
-    // Randomly remove q requests
-    std::vector<int> requestsInRoutes;
-    // Identify where everyone is
-    struct Loc { int vIdx; int nodeIdx; int reqId; };
-    std::vector<Loc> locations;
+    int n = data.N_requests;
+    int removals = std::min(q, n);
+    if (removals <= 0) return;
+
+    std::vector<int> reqToRoute(n + 1, -1);
 
     for (size_t v = 0; v < sol.routes.size(); ++v) {
         const auto& seq = sol.routes[v].sequence;
-        for (size_t i = 1; i < seq.size() - 1; ++i) {
-            // If it's a pickup node
-            if (data.isPickup(seq[i])) {
-                locations.push_back({(int)v, (int)i, seq[i]});
+        for (size_t i = 1; i < seq.size() - 1; ++i) { // skip depots
+            int node = seq[i];
+            if (data.isPickup(node)) {
+                reqToRoute[node] = (int)v;
             }
         }
     }
 
-    std::shuffle(locations.begin(), locations.end(), rng);
-    
-    int removed = 0;
-    for (const auto& loc : locations) {
-        if (removed >= q) break;
+    std::vector<int> requests(n);
+    std::iota(requests.begin(), requests.end(), 1);
 
-        // Remove pickup (loc.reqId) and delivery (reqId + N) from route
-        auto& route = sol.routes[loc.vIdx];
-        
-        // Simple removal: iterate backwards to keep indices safe roughly, 
-        // or just rebuild vector
-        std::vector<int> newSeq;
-        int deliveryId = loc.reqId + data.N_requests;
-        
-        for (int node : route.sequence) {
-            if (node != loc.reqId && node != deliveryId) {
-                newSeq.push_back(node);
-            }
+    // Fisher-Yates shuffle for the first 'removals' elements
+    for (int i = 0; i < removals; ++i) {
+        std::uniform_int_distribution<int> dist(i, n - 1);
+        int j = dist(rng);
+        std::swap(requests[i], requests[j]);
+    }
+
+    std::unordered_set<int> nodesToRemove;
+    nodesToRemove.reserve(removals * 2);
+    
+    std::vector<bool> routeNeedsUpdate(sol.routes.size(), false);
+
+    for (int i = 0; i < removals; ++i) {
+        int reqId = requests[i];
+        int vIdx = reqToRoute[reqId];
+
+        nodesToRemove.insert(reqId);                          // pickup
+        nodesToRemove.insert(reqId + data.N_requests);        // delivery
+
+        sol.unassignedRequests.insert(reqId);
+        routeNeedsUpdate[vIdx] = true;
+    }
+
+    // Apply removals in a single pass for each affected route to optimize performance
+    for (size_t v = 0; v < sol.routes.size(); ++v) {
+        if (routeNeedsUpdate[v]) {
+            auto& route = sol.routes[v];
+
+            std::erase_if(route.sequence,
+                [&nodesToRemove](int node) {
+                    return nodesToRemove.contains(node);
+                });
         }
-        route.sequence = newSeq;
-        
-        sol.unassignedRequests.insert(loc.reqId);
-        removed++;
     }
 
     evaluator.evaluateSolution(sol);
@@ -74,7 +86,7 @@ void ALNSOperators::destroyRandom(ALNSSolution& sol, int q) {
 void ALNSOperators::destroyWorst(ALNSSolution& sol, int q) {
     std::vector<std::pair<double, int>> savingsMap; // <Saving, RequestID>
 
-    // 1. Calculate the cost of each request in the current solution
+    // Calculate the cost of each request in the current solution
     for (size_t v = 0; v < sol.routes.size(); ++v) {
         ALNSRoute& route = sol.routes[v];
         if (route.sequence.size() <= 2) continue; // Only depot
@@ -106,10 +118,10 @@ void ALNSOperators::destroyWorst(ALNSSolution& sol, int q) {
         }
     }
 
-    // 2. Sort by greatest saving (Descending)
+    // Sort by greatest saving (Descending)
     std::sort(savingsMap.rbegin(), savingsMap.rend()); 
 
-    // 3. Remove the top 'q' (with a random factor to avoid pure determinism)
+    // Remove the top 'q' (with a random factor to avoid pure determinism)
     // The parameter 'p' controls randomness (e.g., p=3)
     int removedCount = 0;
     while (removedCount < q && !savingsMap.empty()) {
