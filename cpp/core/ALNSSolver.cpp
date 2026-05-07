@@ -113,7 +113,7 @@ void ALNSSolver::solve() {
         result = solveScheduleLater(bestSolution);
     }
     else {
-        logger.log("Best solution is feasible. Preparing result instance...");
+        logger.log("A feasible solution is available. Preparing result instance...");
         result = bestFeasibleSolution.value().toResultInstance(data, this->solveTime);
     }
     
