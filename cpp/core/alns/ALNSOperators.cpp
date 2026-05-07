@@ -102,12 +102,13 @@ void ALNSOperators::destroyWorst(ALNSSolution& sol, int q) {
         }
 
         // Try removing each one to see how much we save
+        ALNSRoute tempRoute = route;
         for (int reqId : requestsInRoute) {
-            ALNSRoute tempRoute = route;
+            tempRoute.sequence.clear();
             std::vector<int> newSeq;
             int deliveryId = reqId + data.N_requests;
 
-            for (int node : tempRoute.sequence) {
+            for (int node : route.sequence) {
                 if (node != reqId && node != deliveryId) newSeq.push_back(node);
             }
             tempRoute.sequence = newSeq;
