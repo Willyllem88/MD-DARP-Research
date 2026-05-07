@@ -107,17 +107,10 @@ void ALNSSolver::solve() {
         solveMatheuristic();
     }
 
-    // Solve the schedule later (only if the best solution has violations)
-    if (bestSolution.hasViolations) {
-        logger.log("Best solution has violations. Attempting to fix with Schedule Later (CPLEX)...");
+    // Solve the schedule later (only no feasible soltion found)
+    if (bestFeasibleSolution.has_value() == false) {
+        logger.log("No feasible solution found. Solving schedule later on best solution with objective " + std::to_string(bestObjective));
         result = solveScheduleLater(bestSolution);
-        // If it still has violations and a feasible solution exists, return the best feasible one found during the search
-        if (result->solverStatus == "Semi-Feasible" && bestFeasibleSolution.has_value()) {
-            logger.log(std::string("Schedule Later did not find a fully feasible solution. ") +
-                        "Returning best feasible solution found during ALNS search " +
-                        "with objective: " + std::to_string(bestFeasibleSolution->objectiveValue));
-            result = bestFeasibleSolution->toResultInstance(data, this->solveTime);
-        }
     }
     else {
         logger.log("Best solution is feasible. Preparing result instance...");
