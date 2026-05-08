@@ -1,0 +1,187 @@
+[
+    {
+        "instance": "b2-20",
+        "runs": [
+            {
+                "seed": 3000,
+                "objective": 332.637,
+                "time": 2.99944
+            },
+            {
+                "seed": 1000,
+                "objective": 332.637,
+                "time": 3.17645
+            },
+            {
+                "seed": 5000,
+                "objective": 332.637,
+                "time": 3.26564
+            },
+            {
+                "seed": 4000,
+                "objective": 332.637,
+                "time": 3.28762
+            },
+            {
+                "seed": 2000,
+                "objective": 332.637,
+                "time": 3.35599
+            }
+        ],
+        "summary": {
+            "instance": "b2-20",
+            "obj_mean": 332.637,
+            "obj_std": 0.0,
+            "time_mean": 3.217028,
+            "time_std": 0.13752082231429535
+        }
+    },
+    {
+        "instance": "b3-36",
+        "runs": [
+            {
+                "seed": 4000,
+                "objective": 609.993,
+                "time": 16.2711
+            },
+            {
+                "seed": 2000,
+                "objective": 611.69,
+                "time": 16.5881
+            },
+            {
+                "seed": 5000,
+                "objective": 608.499,
+                "time": 16.8446
+            },
+            {
+                "seed": 1000,
+                "objective": 609.68,
+                "time": 16.9007
+            },
+            {
+                "seed": 3000,
+                "objective": 609.993,
+                "time": 16.9781
+            }
+        ],
+        "summary": {
+            "instance": "b3-36",
+            "obj_mean": 609.971,
+            "obj_std": 1.140985758018056,
+            "time_mean": 16.71652,
+            "time_std": 0.28880855596744365
+        }
+    },
+    {
+        "instance": "b4-32",
+        "runs": [
+            {
+                "seed": 2000,
+                "objective": 517.684,
+                "time": 7.50176
+            },
+            {
+                "seed": 5000,
+                "objective": 517.684,
+                "time": 7.50521
+            },
+            {
+                "seed": 3000,
+                "objective": 515.431,
+                "time": 7.5702
+            },
+            {
+                "seed": 4000,
+                "objective": 517.412,
+                "time": 7.61865
+            },
+            {
+                "seed": 1000,
+                "objective": 516.527,
+                "time": 7.67878
+            }
+        ],
+        "summary": {
+            "instance": "b4-32",
+            "obj_mean": 516.9476,
+            "obj_std": 0.9717532094106742,
+            "time_mean": 7.57492,
+            "time_std": 0.07571882295704274
+        }
+    },
+    {
+        "instance": "b6-48",
+        "runs": [
+            {
+                "seed": 1000,
+                "objective": 735.32,
+                "time": 18.1549
+            },
+            {
+                "seed": 4000,
+                "objective": 727.973,
+                "time": 18.2857
+            },
+            {
+                "seed": 3000,
+                "objective": 727.568,
+                "time": 18.3772
+            },
+            {
+                "seed": 2000,
+                "objective": 731.794,
+                "time": 18.4167
+            },
+            {
+                "seed": 5000,
+                "objective": 728.242,
+                "time": 19.0192
+            }
+        ],
+        "summary": {
+            "instance": "b6-48",
+            "obj_mean": 730.1794,
+            "obj_std": 3.334435154565196,
+            "time_mean": 18.45074,
+            "time_std": 0.33334409099307644
+        }
+    },
+    {
+        "instance": "b7-56",
+        "runs": [
+            {
+                "seed": 5000,
+                "objective": 849.641,
+                "time": 29.3625
+            },
+            {
+                "seed": 1000,
+                "objective": 851.105,
+                "time": 29.5551
+            },
+            {
+                "seed": 3000,
+                "objective": 850.994,
+                "time": 29.7028
+            },
+            {
+                "seed": 2000,
+                "objective": 848.336,
+                "time": 29.7848
+            },
+            {
+                "seed": 4000,
+                "objective": 842.324,
+                "time": 30.2668
+            }
+        ],
+        "summary": {
+            "instance": "b7-56",
+            "obj_mean": 848.48,
+            "obj_std": 3.6220095941341977,
+            "time_mean": 29.7344,
+            "time_std": 0.33817398628516643
+        }
+    }
+]

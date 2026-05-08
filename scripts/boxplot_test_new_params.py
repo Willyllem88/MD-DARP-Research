@@ -1,5 +1,6 @@
 """
 Boxplot test comparing baseline vs optimized solutions using relative gap.
+Ribbon / confidence interval comparing default vs tuned parameters execution time.
 """
 
 import json
@@ -8,12 +9,12 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
 plt.rcParams.update({
-    "font.size": 14,          # general font size
-    "axes.titlesize": 16,     # plot title
-    "axes.labelsize": 14,     # label of axes
-    "xtick.labelsize": 12,    # numbers in X
-    "ytick.labelsize": 12,    # numbers in Y
-    "legend.fontsize": 12     # legend text            
+    "font.size": 11,
+    "axes.titlesize": 12,
+    "axes.labelsize": 11,
+    "xtick.labelsize": 9,
+    "ytick.labelsize": 9,
+    "legend.fontsize": 10
 })
 
 
@@ -60,15 +61,15 @@ def plot_relative_gap_boxplot(path_baseline, path_optimized, title, output_file)
 
         boxplot_data.append(base_gap)
         positions.append(pos)
-        pos += 1
+        pos += 0.5
 
         boxplot_data.append(opt_gap)
         positions.append(pos)
-        pos += 2  # space between instances
+        pos += 1  # space between instances
 
     # Plot
-    plt.figure(figsize=(12, 5))
-    bp = plt.boxplot(boxplot_data, positions=positions, widths=0.6, patch_artist=True)
+    plt.figure(figsize=(7, 3))
+    bp = plt.boxplot(boxplot_data, positions=positions, widths=0.3, patch_artist=True)
     colors = ["lightblue", "lightgreen"]  # baseline, optimized
 
     for i, patch in enumerate(bp["boxes"]):
@@ -90,8 +91,122 @@ def plot_relative_gap_boxplot(path_baseline, path_optimized, title, output_file)
 
     plt.legend(handles=[baseline_patch, optimized_patch])
 
-    plt.ylabel("Relative gap")
+    plt.ylabel("Relative gap (objective value)")
     plt.grid(axis="y", linestyle="--", alpha=0.6)
+
+    plt.tight_layout()
+    plt.savefig(output_file, format="pdf", bbox_inches="tight")
+    plt.show()
+
+def plot_relative_gap_ribbon(
+    default_files,
+    tuned_files,
+    output_file="relative_gap_ribbon.pdf"
+):
+    def load_data(paths):
+        data = {}
+
+        for path in paths:
+            with open(path, "r") as f:
+                content = json.load(f)
+
+            for inst in content:
+                name = inst["instance"]
+
+                if name not in data:
+                    data[name] = []
+
+                data[name].extend(
+                    run["time"] for run in inst["runs"]
+                )
+
+        return data
+
+    # Load all data
+    default_data = load_data(default_files)
+    tuned_data = load_data(tuned_files)
+
+    # Common instances only
+    instances = sorted(set(default_data) & set(tuned_data))
+
+    default_mean = []
+    default_std = []
+
+    tuned_mean = []
+    tuned_std = []
+
+    # Compute relative gaps
+    for inst in instances:
+
+        base = np.array(default_data[inst])
+        tuned = np.array(tuned_data[inst])
+
+        default_mean.append(base.mean())
+        default_std.append(base.std())
+
+        tuned_mean.append(tuned.mean())
+        tuned_std.append(tuned.std())
+
+    x = np.arange(len(instances))
+
+    plt.figure(figsize=(14, 6))
+
+    # DEFAULT PARAMETERS
+    default_mean = np.array(default_mean)
+    default_std = np.array(default_std)
+
+    plt.plot(
+        x,
+        default_mean,
+        marker="o",
+        label="Baseline",
+        color="lightblue"
+    )
+
+    plt.fill_between(
+        x,
+        default_mean - default_std,
+        default_mean + default_std,
+        alpha=0.25,
+        color="lightblue"
+    )
+
+    # TUNED PARAMETERS
+    tuned_mean = np.array(tuned_mean)
+    tuned_std = np.array(tuned_std)
+
+    plt.plot(
+        x,
+        tuned_mean,
+        marker="o",
+        label="Optimized",
+        color="lightgreen"
+    )
+
+    plt.fill_between(
+        x,
+        tuned_mean - tuned_std,
+        tuned_mean + tuned_std,
+        alpha=0.25,
+        color="lightgreen"
+    )
+
+    # Reference line
+    plt.axhline(0, linestyle="--")
+
+    # Labels
+    plt.xticks(
+        x,
+        instances,
+        rotation=45,
+        ha="right"
+    )
+
+    plt.ylabel("Execution time (s)")
+    plt.xlabel("Instances")
+
+    plt.grid(axis="y", linestyle="--", alpha=0.6)
+    plt.legend()
 
     plt.tight_layout()
     plt.savefig(output_file, format="pdf", bbox_inches="tight")
@@ -100,15 +215,27 @@ def plot_relative_gap_boxplot(path_baseline, path_optimized, title, output_file)
 
 if __name__ == "__main__":
     plot_relative_gap_boxplot(
-        "/home/guillem/TFG-Guillem/scripts/results_0.json",
-        "/home/guillem/TFG-Guillem/scripts/results_1.json",
+        "/home/guillem/TFG-Guillem/scripts/results_a0.json",
+        "/home/guillem/TFG-Guillem/scripts/results_a1.json",
         "Baseline vs Optimized Performance per Instance (A-series)",
         "relative_gap_boxplot_A.pdf"
     )
 
     plot_relative_gap_boxplot(
-        "/home/guillem/TFG-Guillem/scripts/results_2.json",
-        "/home/guillem/TFG-Guillem/scripts/results_3.json",
+        "/home/guillem/TFG-Guillem/scripts/results_b0.json",
+        "/home/guillem/TFG-Guillem/scripts/results_b1.json",
         "Baseline vs Optimized Performance per Instance (B-series)",
         "relative_gap_boxplot_B.pdf"
+    )
+
+    plot_relative_gap_ribbon(
+        default_files=[
+            "/home/guillem/TFG-Guillem/scripts/results_a0.json",
+            "/home/guillem/TFG-Guillem/scripts/results_b0.json"
+        ],
+        tuned_files=[
+            "/home/guillem/TFG-Guillem/scripts/results_a1.json",
+            "/home/guillem/TFG-Guillem/scripts/results_b1.json"
+        ],
+        output_file="relative_gap_ribbon.pdf"
     )

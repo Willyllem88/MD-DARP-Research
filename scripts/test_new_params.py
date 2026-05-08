@@ -69,6 +69,7 @@ def run_experiment(instance):
         "../build/cpp/core/darpmd_run",
         "-i", f"../data/cordeau-instances/{instance}.json",
         "-m", "ALNS",
+        "--NR",
         "-v"
     ]
 
@@ -135,3 +136,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
