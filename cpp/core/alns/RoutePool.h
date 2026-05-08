@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ALNSRoute.h"
+#include "../DARPMD_ProblemInstance.h"
 #include <vector>
 #include <map>
 #include <unordered_map>
@@ -10,7 +11,7 @@
 
 class RoutePool {
 public:
-    RoutePool() = default;
+    RoutePool(const DARPMD_ProblemInstance& instance);
     ~RoutePool() = default;
 
     // Añade la ruta si no está duplicada
@@ -29,6 +30,8 @@ public:
     void clear();
 
 private:
+    const DARPMD_ProblemInstance& problemInstance;
+
     // Key: VehicleID, Value: List of routes
     std::unordered_map<int, std::vector<ALNSRoute>> routePool;
 
@@ -43,4 +46,7 @@ private:
     };
     using NodeSetKey = std::vector<int>;
     std::unordered_map<int, std::unordered_map<NodeSetKey, ALNSRoute, VectorHash>> bestRoutes;
+
+    std::vector<double> emptyRouteCosts; 
+    double totalEmptyCost = 0.0;
 };

@@ -309,17 +309,17 @@ void ALNSSolver::updateBestSolutions(const ALNSSolution& candidate, std::string 
 }
 
 void ALNSSolver::initializeRoutePool() {
-    ALNSSolution emptySol;
+    // If no set solver, skip pool initialization (it won't be used)
+    if (!setSolver) return;
+
     for (int k : data.K) {
         ALNSRoute r;
         r.vehicleId = k;
         r.sequence.push_back(data.getVehicleStartNode(k));
         r.sequence.push_back(data.getVehicleEndNode(k));
         evaluator->evaluateRoute(r);
-        emptySol.routes.push_back(r);
-    }
-    for (const auto& route : emptySol.routes) {
-        addRouteToPool(route);
+        
+        setSolver->getRoutePool().addRoute(r);
     }
 }
 
