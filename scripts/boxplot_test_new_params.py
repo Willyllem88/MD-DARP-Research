@@ -9,12 +9,14 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
 plt.rcParams.update({
+    "font.family": "serif",        # más académico (tipo LaTeX)
     "font.size": 11,
-    "axes.titlesize": 12,
+    "axes.titlesize": 11,
     "axes.labelsize": 11,
-    "xtick.labelsize": 9,
-    "ytick.labelsize": 9,
-    "legend.fontsize": 10
+    "xtick.labelsize": 10,
+    "ytick.labelsize": 10,
+    "legend.fontsize": 10,
+    "figure.dpi": 300
 })
 
 
@@ -68,7 +70,7 @@ def plot_relative_gap_boxplot(path_baseline, path_optimized, title, output_file)
         pos += 1  # space between instances
 
     # Plot
-    plt.figure(figsize=(7, 3))
+    plt.figure(figsize=(6.5, 3.5))
     bp = plt.boxplot(boxplot_data, positions=positions, widths=0.3, patch_artist=True)
     colors = ["lightblue", "lightgreen"]  # baseline, optimized
 
@@ -101,7 +103,7 @@ def plot_relative_gap_boxplot(path_baseline, path_optimized, title, output_file)
 def plot_relative_gap_ribbon(
     default_files,
     tuned_files,
-    output_file="relative_gap_ribbon.pdf"
+    output_file
 ):
     def load_data(paths):
         data = {}
@@ -149,7 +151,7 @@ def plot_relative_gap_ribbon(
 
     x = np.arange(len(instances))
 
-    plt.figure(figsize=(14, 6))
+    plt.figure(figsize=(6.5, 3.5))
 
     # DEFAULT PARAMETERS
     default_mean = np.array(default_mean)
@@ -191,9 +193,6 @@ def plot_relative_gap_ribbon(
         color="lightgreen"
     )
 
-    # Reference line
-    plt.axhline(0, linestyle="--")
-
     # Labels
     plt.xticks(
         x,
@@ -203,7 +202,6 @@ def plot_relative_gap_ribbon(
     )
 
     plt.ylabel("Execution time (s)")
-    plt.xlabel("Instances")
 
     plt.grid(axis="y", linestyle="--", alpha=0.6)
     plt.legend()
@@ -237,5 +235,5 @@ if __name__ == "__main__":
             "/home/guillem/TFG-Guillem/scripts/results_a1.json",
             "/home/guillem/TFG-Guillem/scripts/results_b1.json"
         ],
-        output_file="relative_gap_ribbon.pdf"
+        output_file="time_ribbon.pdf"
     )
