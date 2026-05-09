@@ -24,7 +24,7 @@ public:
     const std::unordered_map<int, std::vector<ALNSRoute>>& getRoutes();
 
     
-    void prune(double currentBestTotalSolutionCost);
+    void prune(double currentBestTotalSolutionCost, bool pruneSCP = false);
 
     // Limpia todo el pool
     void clear();

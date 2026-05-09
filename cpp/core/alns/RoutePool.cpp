@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <vector>
 #include <queue>
+#include <iostream>
 
 RoutePool::RoutePool(const DARPMD_ProblemInstance& instance) : problemInstance(instance) {
 
@@ -130,7 +131,7 @@ void RoutePool::clear() {
     totalEmptyCost = 0.0;
 }
 
-void RoutePool::prune(double currentBestTotalSolutionCost) {
+void RoutePool::prune(double currentBestTotalSolutionCost, bool pruneSCP) {
     for (auto& [vehicleId, mapRoutes] : bestRoutes) {
         for (auto it = mapRoutes.begin(); it != mapRoutes.end(); ) {
             double lowerBound = it->second.totalCost;
@@ -142,29 +143,33 @@ void RoutePool::prune(double currentBestTotalSolutionCost) {
             else
                 ++it;
         }
-        for (auto itA = mapRoutes.begin(); itA != mapRoutes.end(); ) {
-            bool dominated = false;
-            
-            for (auto itB = mapRoutes.begin(); itB != mapRoutes.end(); ++itB) {
-                if (itA == itB) continue; // No compararse a sí misma
 
-                // Comprobación de dominancia:
-                // Si la Ruta B es más barata o cuesta igual que la Ruta A...
-                if (itB->second.totalCost <= itA->second.totalCost) {
-                    // ... y la Ruta B cubre todo lo que cubre la Ruta A.
-                    // std::includes funciona perfectamente porque it->first (NodeSetKey) ya está ordenado.
-                    if (std::includes(itB->first.begin(), itB->first.end(),
-                                      itA->first.begin(), itA->first.end())) {
-                        dominated = true;
-                        break;
+        if (pruneSCP) {
+            std::cout << "Pruning SCP for Vehicle " << vehicleId << " with " << mapRoutes.size() << " routes before pruning." << std::endl;
+            for (auto itA = mapRoutes.begin(); itA != mapRoutes.end(); ) {
+                bool dominated = false;
+                
+                for (auto itB = mapRoutes.begin(); itB != mapRoutes.end(); ++itB) {
+                    if (itA == itB) continue;
+
+                    // Comprobación de dominancia:
+                    // Si la Ruta B es más barata o cuesta igual que la Ruta A...
+                    if (itB->second.totalCost <= itA->second.totalCost) {
+                        // ... y la Ruta B cubre todo lo que cubre la Ruta A.
+                        // std::includes funciona perfectamente porque it->first (NodeSetKey) ya está ordenado.
+                        if (std::includes(itB->first.begin(), itB->first.end(),
+                                        itA->first.begin(), itA->first.end())) {
+                            dominated = true;
+                            break;
+                        }
                     }
                 }
-            }
 
-            if (dominated) {
-                itA = mapRoutes.erase(itA); // A es dominada, la borramos
-            } else {
-                ++itA; // A sobrevive
+                if (dominated) {
+                    itA = mapRoutes.erase(itA); // A es dominada, la borramos
+                } else {
+                    ++itA; // A sobrevive
+                }
             }
         }
     }

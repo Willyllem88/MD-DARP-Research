@@ -380,7 +380,8 @@ void ALNSSolver::solveMatheuristic() {
 
     // Prune
     ALNSSolution matSol;
-    setSolver->getRoutePool().prune(bestObjective);
+    bool isSC = (hybridMethod == HybridMethod::SET_COVERING); // For specific pruning
+    setSolver->getRoutePool().prune(bestObjective, isSC);
     bool solved = setSolver->solve(matSol, cplexMaxTime);
 
     if (!solved) {
