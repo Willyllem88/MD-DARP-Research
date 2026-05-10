@@ -145,7 +145,6 @@ void RoutePool::prune(double currentBestTotalSolutionCost, bool pruneSCP) {
         }
 
         if (pruneSCP) {
-            std::cout << "Pruning SCP for Vehicle " << vehicleId << " with " << mapRoutes.size() << " routes before pruning." << std::endl;
             for (auto itA = mapRoutes.begin(); itA != mapRoutes.end(); ) {
                 bool dominated = false;
                 
