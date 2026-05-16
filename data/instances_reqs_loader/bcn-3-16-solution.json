@@ -1,0 +1,412 @@
+{
+    "metadata": {
+        "city": "Barcelona, Spain",
+        "coordinates": {
+            "1": [
+                41.3819309,
+                2.1331823
+            ],
+            "10": [
+                41.3855054,
+                2.1834836
+            ],
+            "11": [
+                41.4035966,
+                2.1889136
+            ],
+            "12": [
+                41.4127863,
+                2.1521976
+            ],
+            "13": [
+                41.3805733,
+                2.1708255
+            ],
+            "14": [
+                41.3876606,
+                2.1966115
+            ],
+            "15": [
+                41.3764551,
+                2.1397896
+            ],
+            "16": [
+                41.4032921,
+                2.1916285
+            ],
+            "17": [
+                41.3889219,
+                2.1515302
+            ],
+            "18": [
+                41.3776218,
+                2.1908622
+            ],
+            "19": [
+                41.3881987,
+                2.1437715
+            ],
+            "2": [
+                41.3869292,
+                2.1712248
+            ],
+            "20": [
+                41.3890419,
+                2.1448762
+            ],
+            "21": [
+                41.3898406,
+                2.1106845
+            ],
+            "22": [
+                41.4298276,
+                2.1420371
+            ],
+            "23": [
+                41.37501,
+                2.1817861
+            ],
+            "24": [
+                41.3899179,
+                2.1505317
+            ],
+            "25": [
+                41.4254347,
+                2.1399049
+            ],
+            "26": [
+                41.4149707,
+                2.1761328
+            ],
+            "27": [
+                41.3808894,
+                2.1893752
+            ],
+            "28": [
+                41.4241843,
+                2.1413447
+            ],
+            "29": [
+                41.3873727,
+                2.1516714
+            ],
+            "3": [
+                41.4030085,
+                2.1747797
+            ],
+            "30": [
+                41.38256,
+                2.1943099
+            ],
+            "31": [
+                41.3851546,
+                2.1024368
+            ],
+            "32": [
+                41.4149707,
+                2.1761328
+            ],
+            "33": [
+                41.3791779,
+                2.1382206
+            ],
+            "34": [
+                41.3942037,
+                2.1815975
+            ],
+            "35": [
+                41.3814273,
+                2.119947
+            ],
+            "36": [
+                41.3924477,
+                2.1517144
+            ],
+            "37": [
+                41.4265219,
+                2.1428932
+            ],
+            "38": [
+                41.409954,
+                2.2140081
+            ],
+            "4": [
+                41.394946,
+                2.1617609
+            ],
+            "5": [
+                41.3924084,
+                2.1810871
+            ],
+            "6": [
+                41.3837706,
+                2.1851771
+            ],
+            "7": [
+                41.4104254,
+                2.2148992
+            ],
+            "8": [
+                41.3811372,
+                2.1151214
+            ],
+            "9": [
+                41.3740736,
+                2.1477349
+            ]
+        }
+    },
+    "routes": [
+        {
+            "steps": [
+                {
+                    "begin_service_time": 0.0,
+                    "load": 0.0,
+                    "node": 33,
+                    "type": "DepotStart"
+                },
+                {
+                    "begin_service_time": 490.0,
+                    "load": 1.0,
+                    "node": 13,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 920.0,
+                    "load": 0.0,
+                    "node": 29,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 1271.0,
+                    "load": 1.0,
+                    "node": 2,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 1622.0,
+                    "load": 2.0,
+                    "node": 11,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 1968.0,
+                    "load": 3.0,
+                    "node": 7,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 2332.0,
+                    "load": 4.0,
+                    "node": 14,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 2542.0,
+                    "load": 3.0,
+                    "node": 30,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 2745.0,
+                    "load": 2.0,
+                    "node": 18,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 2921.0,
+                    "load": 1.0,
+                    "node": 27,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 3203.0,
+                    "load": 0.0,
+                    "node": 23,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 3731.0,
+                    "load": 0.0,
+                    "node": 36,
+                    "type": "DepotEnd"
+                }
+            ],
+            "vehicle_id": 1
+        },
+        {
+            "steps": [
+                {
+                    "begin_service_time": 1800.0,
+                    "load": 0.0,
+                    "node": 34,
+                    "type": "DepotStart"
+                },
+                {
+                    "begin_service_time": 1929.0,
+                    "load": 1.0,
+                    "node": 5,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 2218.0,
+                    "load": 2.0,
+                    "node": 3,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 2478.0,
+                    "load": 3.0,
+                    "node": 4,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 2773.0,
+                    "load": 2.0,
+                    "node": 20,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 2909.0,
+                    "load": 1.0,
+                    "node": 19,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 3285.0,
+                    "load": 2.0,
+                    "node": 8,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 3722.0,
+                    "load": 3.0,
+                    "node": 15,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 4106.0,
+                    "load": 2.0,
+                    "node": 24,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 4588.0,
+                    "load": 1.0,
+                    "node": 31,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 4806.0,
+                    "load": 0.0,
+                    "node": 21,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 5241.0,
+                    "load": 0.0,
+                    "node": 37,
+                    "type": "DepotEnd"
+                }
+            ],
+            "vehicle_id": 2
+        },
+        {
+            "steps": [
+                {
+                    "begin_service_time": 0.0,
+                    "load": 0.0,
+                    "node": 35,
+                    "type": "DepotStart"
+                },
+                {
+                    "begin_service_time": 174.0,
+                    "load": 1.0,
+                    "node": 1,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 504.0,
+                    "load": 0.0,
+                    "node": 17,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 833.0,
+                    "load": 1.0,
+                    "node": 9,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 1213.0,
+                    "load": 2.0,
+                    "node": 6,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 1411.0,
+                    "load": 3.0,
+                    "node": 10,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 1790.0,
+                    "load": 4.0,
+                    "node": 16,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 2166.0,
+                    "load": 3.0,
+                    "node": 32,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 2286.0,
+                    "load": 2.0,
+                    "node": 26,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 2771.0,
+                    "load": 3.0,
+                    "node": 12,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 3217.0,
+                    "load": 2.0,
+                    "node": 22,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 3476.0,
+                    "load": 1.0,
+                    "node": 25,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 3566.0,
+                    "load": 0.0,
+                    "node": 28,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 4268.0,
+                    "load": 0.0,
+                    "node": 38,
+                    "type": "DepotEnd"
+                }
+            ],
+            "vehicle_id": 3
+        }
+    ],
+    "summary": {
+        "mip_gap": 0.0,
+        "num_requests": 16,
+        "num_vehicles": 3,
+        "objective": 7721.0,
+        "status": "Feasible",
+        "time_sec": 3.71139277
+    }
+}

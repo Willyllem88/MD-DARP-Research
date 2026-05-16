@@ -1,0 +1,1232 @@
+{
+    "metadata": {
+        "city": "Barcelona, Spain",
+        "coordinates": {
+            "1": [
+                41.3819309,
+                2.1331823
+            ],
+            "10": [
+                41.3855054,
+                2.1834836
+            ],
+            "100": [
+                41.3330749,
+                2.111414
+            ],
+            "101": [
+                41.3324566,
+                2.1388467
+            ],
+            "102": [
+                41.3298991,
+                2.1323163
+            ],
+            "103": [
+                41.3562476,
+                2.1349781
+            ],
+            "104": [
+                41.348325,
+                2.1368394
+            ],
+            "105": [
+                41.3791779,
+                2.1382206
+            ],
+            "106": [
+                41.3942037,
+                2.1815975
+            ],
+            "107": [
+                41.3814273,
+                2.119947
+            ],
+            "108": [
+                41.429437,
+                2.1807795
+            ],
+            "109": [
+                41.4199949,
+                2.1798198
+            ],
+            "11": [
+                41.4035966,
+                2.1889136
+            ],
+            "110": [
+                41.3627394,
+                2.1563395
+            ],
+            "111": [
+                41.3764913,
+                2.1404797
+            ],
+            "112": [
+                41.3924477,
+                2.1517144
+            ],
+            "113": [
+                41.4265219,
+                2.1428932
+            ],
+            "114": [
+                41.409954,
+                2.2140081
+            ],
+            "115": [
+                41.4268465,
+                2.1824973
+            ],
+            "116": [
+                41.430213,
+                2.1834713
+            ],
+            "117": [
+                41.3753586,
+                2.1487509
+            ],
+            "118": [
+                41.3720332,
+                2.1797012
+            ],
+            "12": [
+                41.4127863,
+                2.1521976
+            ],
+            "13": [
+                41.3805733,
+                2.1708255
+            ],
+            "14": [
+                41.3876606,
+                2.1966115
+            ],
+            "15": [
+                41.3764551,
+                2.1397896
+            ],
+            "16": [
+                41.4032921,
+                2.1916285
+            ],
+            "17": [
+                41.429761,
+                2.143303
+            ],
+            "18": [
+                41.4293032,
+                2.1578404
+            ],
+            "19": [
+                41.4289389,
+                2.1571286
+            ],
+            "2": [
+                41.3879371,
+                2.1702232
+            ],
+            "20": [
+                41.4274056,
+                2.1433104
+            ],
+            "21": [
+                41.4141156,
+                2.1647989
+            ],
+            "22": [
+                41.4388893,
+                2.1964907
+            ],
+            "23": [
+                41.4303926,
+                2.1825705
+            ],
+            "24": [
+                41.4279654,
+                2.1892203
+            ],
+            "25": [
+                41.4358907,
+                2.2021162
+            ],
+            "26": [
+                41.4486724,
+                2.1913952
+            ],
+            "27": [
+                41.3999746,
+                2.1215061
+            ],
+            "28": [
+                41.3996486,
+                2.1205053
+            ],
+            "29": [
+                41.4106688,
+                2.1113615
+            ],
+            "3": [
+                41.4030085,
+                2.1747797
+            ],
+            "30": [
+                41.412009,
+                2.1314292
+            ],
+            "31": [
+                41.4096786,
+                2.1372992
+            ],
+            "32": [
+                41.4033765,
+                2.1506937
+            ],
+            "33": [
+                41.4002909,
+                2.1571912
+            ],
+            "34": [
+                41.4039189,
+                2.1552172
+            ],
+            "35": [
+                41.3984728,
+                2.1532431
+            ],
+            "36": [
+                41.4051666,
+                2.1572503
+            ],
+            "37": [
+                41.3988316,
+                2.1587614
+            ],
+            "38": [
+                41.4077351,
+                2.1586762
+            ],
+            "39": [
+                41.3998038,
+                2.1620293
+            ],
+            "4": [
+                41.394946,
+                2.1617609
+            ],
+            "40": [
+                41.402556,
+                2.1608367
+            ],
+            "41": [
+                41.405151,
+                2.1546895
+            ],
+            "42": [
+                41.4020797,
+                2.1565429
+            ],
+            "43": [
+                41.3655011,
+                2.1462609
+            ],
+            "44": [
+                41.3680586,
+                2.1466641
+            ],
+            "45": [
+                41.3653886,
+                2.1662237
+            ],
+            "46": [
+                41.3699705,
+                2.1595332
+            ],
+            "47": [
+                41.3674104,
+                2.159092
+            ],
+            "48": [
+                41.3351996,
+                2.1399852
+            ],
+            "49": [
+                41.3225665,
+                2.132862
+            ],
+            "5": [
+                41.3922164,
+                2.181334
+            ],
+            "50": [
+                41.3346705,
+                2.1316784
+            ],
+            "51": [
+                41.3519294,
+                2.1448779
+            ],
+            "52": [
+                41.3443919,
+                2.1456566
+            ],
+            "53": [
+                41.3889219,
+                2.1515302
+            ],
+            "54": [
+                41.3776218,
+                2.1908622
+            ],
+            "55": [
+                41.3881987,
+                2.1437715
+            ],
+            "56": [
+                41.3890419,
+                2.1448762
+            ],
+            "57": [
+                41.3898406,
+                2.1106845
+            ],
+            "58": [
+                41.4298276,
+                2.1420371
+            ],
+            "59": [
+                41.37501,
+                2.1817861
+            ],
+            "6": [
+                41.3837706,
+                2.1851771
+            ],
+            "60": [
+                41.3899179,
+                2.1505317
+            ],
+            "61": [
+                41.4254347,
+                2.1399049
+            ],
+            "62": [
+                41.4149707,
+                2.1761328
+            ],
+            "63": [
+                41.3808894,
+                2.1893752
+            ],
+            "64": [
+                41.4241843,
+                2.1413447
+            ],
+            "65": [
+                41.3873727,
+                2.1516714
+            ],
+            "66": [
+                41.38256,
+                2.1943099
+            ],
+            "67": [
+                41.3851546,
+                2.1024368
+            ],
+            "68": [
+                41.4149707,
+                2.1761328
+            ],
+            "69": [
+                41.4411504,
+                2.1463836
+            ],
+            "7": [
+                41.4104254,
+                2.2148992
+            ],
+            "70": [
+                41.4404447,
+                2.1553403
+            ],
+            "71": [
+                41.4201489,
+                2.1654384
+            ],
+            "72": [
+                41.4195383,
+                2.1625843
+            ],
+            "73": [
+                41.4188782,
+                2.1785351
+            ],
+            "74": [
+                41.4160398,
+                2.1746717
+            ],
+            "75": [
+                41.4332073,
+                2.1841879
+            ],
+            "76": [
+                41.4513995,
+                2.1908461
+            ],
+            "77": [
+                41.4248643,
+                2.1407839
+            ],
+            "78": [
+                41.4192113,
+                2.1479522
+            ],
+            "79": [
+                41.4163993,
+                2.1383638
+            ],
+            "8": [
+                41.3811372,
+                2.1151214
+            ],
+            "80": [
+                41.3989668,
+                2.1132507
+            ],
+            "81": [
+                41.4016928,
+                2.1218262
+            ],
+            "82": [
+                41.4015026,
+                2.1420585
+            ],
+            "83": [
+                41.4055873,
+                2.1271371
+            ],
+            "84": [
+                41.4090962,
+                2.1537132
+            ],
+            "85": [
+                41.4013736,
+                2.1536502
+            ],
+            "86": [
+                41.403898,
+                2.1560248
+            ],
+            "87": [
+                41.3990974,
+                2.1576988
+            ],
+            "88": [
+                41.4056949,
+                2.1532052
+            ],
+            "89": [
+                41.4017967,
+                2.1641679
+            ],
+            "9": [
+                41.3740736,
+                2.1477349
+            ],
+            "90": [
+                41.4085564,
+                2.1563348
+            ],
+            "91": [
+                41.4020109,
+                2.154887
+            ],
+            "92": [
+                41.4074535,
+                2.1581948
+            ],
+            "93": [
+                41.4097993,
+                2.1626331
+            ],
+            "94": [
+                41.4079603,
+                2.1528072
+            ],
+            "95": [
+                41.3661822,
+                2.1559797
+            ],
+            "96": [
+                41.3712752,
+                2.1504433
+            ],
+            "97": [
+                41.3668425,
+                2.1679797
+            ],
+            "98": [
+                41.3689261,
+                2.165206
+            ],
+            "99": [
+                41.3615181,
+                2.160346
+            ]
+        }
+    },
+    "routes": [
+        {
+            "steps": [
+                {
+                    "begin_service_time": 0.0,
+                    "load": 0.0,
+                    "node": 105,
+                    "type": "DepotStart"
+                },
+                {
+                    "begin_service_time": 72.0,
+                    "load": 1.0,
+                    "node": 1,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 289.0,
+                    "load": 2.0,
+                    "node": 9,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 714.0,
+                    "load": 3.0,
+                    "node": 13,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 1084.0,
+                    "load": 2.0,
+                    "node": 65,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 1167.0,
+                    "load": 1.0,
+                    "node": 53,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 1553.0,
+                    "load": 2.0,
+                    "node": 27,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 1680.0,
+                    "load": 3.0,
+                    "node": 28,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 2064.0,
+                    "load": 4.0,
+                    "node": 29,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 2574.0,
+                    "load": 5.0,
+                    "node": 31,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 2762.0,
+                    "load": 4.0,
+                    "node": 79,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 2981.0,
+                    "load": 3.0,
+                    "node": 61,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 3225.0,
+                    "load": 4.0,
+                    "node": 30,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 3523.0,
+                    "load": 3.0,
+                    "node": 81,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 3729.0,
+                    "load": 2.0,
+                    "node": 80,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 4139.0,
+                    "load": 1.0,
+                    "node": 83,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 4443.0,
+                    "load": 0.0,
+                    "node": 82,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 4676.0,
+                    "load": 0.0,
+                    "node": 112,
+                    "type": "DepotEnd"
+                }
+            ],
+            "vehicle_id": 1
+        },
+        {
+            "steps": [
+                {
+                    "begin_service_time": 1800.0,
+                    "load": 0.0,
+                    "node": 106,
+                    "type": "DepotStart"
+                },
+                {
+                    "begin_service_time": 1926.0,
+                    "load": 1.0,
+                    "node": 5,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 2157.0,
+                    "load": 2.0,
+                    "node": 3,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 2378.0,
+                    "load": 3.0,
+                    "node": 37,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 2523.0,
+                    "load": 4.0,
+                    "node": 4,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 2660.0,
+                    "load": 5.0,
+                    "node": 35,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 2875.0,
+                    "load": 4.0,
+                    "node": 56,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 2951.0,
+                    "load": 3.0,
+                    "node": 55,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 3220.0,
+                    "load": 4.0,
+                    "node": 15,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 3574.0,
+                    "load": 5.0,
+                    "node": 8,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 3929.0,
+                    "load": 4.0,
+                    "node": 60,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 4243.0,
+                    "load": 3.0,
+                    "node": 89,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 4419.0,
+                    "load": 2.0,
+                    "node": 87,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 4913.0,
+                    "load": 1.0,
+                    "node": 57,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 5083.0,
+                    "load": 0.0,
+                    "node": 67,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 5493.0,
+                    "load": 0.0,
+                    "node": 113,
+                    "type": "DepotEnd"
+                }
+            ],
+            "vehicle_id": 2
+        },
+        {
+            "steps": [
+                {
+                    "begin_service_time": 0.0,
+                    "load": 0.0,
+                    "node": 107,
+                    "type": "DepotStart"
+                },
+                {
+                    "begin_service_time": 435.0,
+                    "load": 1.0,
+                    "node": 17,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 678.0,
+                    "load": 2.0,
+                    "node": 19,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 786.0,
+                    "load": 3.0,
+                    "node": 18,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 1102.0,
+                    "load": 4.0,
+                    "node": 23,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 1288.0,
+                    "load": 5.0,
+                    "node": 24,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 1536.0,
+                    "load": 4.0,
+                    "node": 75,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 1837.0,
+                    "load": 5.0,
+                    "node": 26,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 2033.0,
+                    "load": 4.0,
+                    "node": 76,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 2416.0,
+                    "load": 3.0,
+                    "node": 70,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 2618.0,
+                    "load": 2.0,
+                    "node": 69,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 2838.0,
+                    "load": 3.0,
+                    "node": 20,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 3139.0,
+                    "load": 2.0,
+                    "node": 78,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 3505.0,
+                    "load": 1.0,
+                    "node": 72,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 3634.0,
+                    "load": 0.0,
+                    "node": 71,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 4360.0,
+                    "load": 0.0,
+                    "node": 114,
+                    "type": "DepotEnd"
+                }
+            ],
+            "vehicle_id": 3
+        },
+        {
+            "steps": [
+                {
+                    "begin_service_time": 0.0,
+                    "load": 0.0,
+                    "node": 108,
+                    "type": "DepotStart"
+                },
+                {
+                    "begin_service_time": 278.0,
+                    "load": 1.0,
+                    "node": 21,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 489.0,
+                    "load": 2.0,
+                    "node": 38,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 704.0,
+                    "load": 3.0,
+                    "node": 40,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 1006.0,
+                    "load": 4.0,
+                    "node": 39,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 1222.0,
+                    "load": 5.0,
+                    "node": 33,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 1396.0,
+                    "load": 4.0,
+                    "node": 85,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 1471.0,
+                    "load": 3.0,
+                    "node": 91,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 1635.0,
+                    "load": 4.0,
+                    "node": 36,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 1750.0,
+                    "load": 5.0,
+                    "node": 41,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 1832.0,
+                    "load": 6.0,
+                    "node": 34,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 1928.0,
+                    "load": 5.0,
+                    "node": 86,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 2022.0,
+                    "load": 6.0,
+                    "node": 42,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 2169.0,
+                    "load": 7.0,
+                    "node": 32,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 2363.0,
+                    "load": 6.0,
+                    "node": 84,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 2519.0,
+                    "load": 5.0,
+                    "node": 94,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 2649.0,
+                    "load": 4.0,
+                    "node": 88,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 2850.0,
+                    "load": 3.0,
+                    "node": 90,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 2976.0,
+                    "load": 2.0,
+                    "node": 92,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 3137.0,
+                    "load": 1.0,
+                    "node": 93,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 3386.0,
+                    "load": 0.0,
+                    "node": 73,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 3556.0,
+                    "load": 0.0,
+                    "node": 115,
+                    "type": "DepotEnd"
+                }
+            ],
+            "vehicle_id": 4
+        },
+        {
+            "steps": [
+                {
+                    "begin_service_time": 0.0,
+                    "load": 0.0,
+                    "node": 109,
+                    "type": "DepotStart"
+                },
+                {
+                    "begin_service_time": 198.0,
+                    "load": 1.0,
+                    "node": 11,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 348.0,
+                    "load": 2.0,
+                    "node": 16,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 638.0,
+                    "load": 3.0,
+                    "node": 7,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 942.0,
+                    "load": 4.0,
+                    "node": 14,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 1092.0,
+                    "load": 3.0,
+                    "node": 66,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 1261.0,
+                    "load": 2.0,
+                    "node": 63,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 1483.0,
+                    "load": 1.0,
+                    "node": 59,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 1672.0,
+                    "load": 2.0,
+                    "node": 6,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 1810.0,
+                    "load": 3.0,
+                    "node": 10,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 2441.0,
+                    "load": 4.0,
+                    "node": 12,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 2771.0,
+                    "load": 3.0,
+                    "node": 62,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 2831.0,
+                    "load": 2.0,
+                    "node": 68,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 3311.0,
+                    "load": 3.0,
+                    "node": 25,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 3429.0,
+                    "load": 4.0,
+                    "node": 22,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 3894.0,
+                    "load": 3.0,
+                    "node": 58,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 4087.0,
+                    "load": 2.0,
+                    "node": 77,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 4168.0,
+                    "load": 1.0,
+                    "node": 64,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 4626.0,
+                    "load": 0.0,
+                    "node": 74,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 4918.0,
+                    "load": 0.0,
+                    "node": 116,
+                    "type": "DepotEnd"
+                }
+            ],
+            "vehicle_id": 5
+        },
+        {
+            "steps": [
+                {
+                    "begin_service_time": 0.0,
+                    "load": 0.0,
+                    "node": 110,
+                    "type": "DepotStart"
+                },
+                {
+                    "begin_service_time": 818.0,
+                    "load": 1.0,
+                    "node": 52,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 989.0,
+                    "load": 2.0,
+                    "node": 48,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 1200.0,
+                    "load": 3.0,
+                    "node": 49,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 1498.0,
+                    "load": 2.0,
+                    "node": 100,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 1854.0,
+                    "load": 3.0,
+                    "node": 50,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 2078.0,
+                    "load": 2.0,
+                    "node": 102,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 2261.0,
+                    "load": 1.0,
+                    "node": 101,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 2665.0,
+                    "load": 0.0,
+                    "node": 104,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 2911.0,
+                    "load": 1.0,
+                    "node": 51,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 3162.0,
+                    "load": 0.0,
+                    "node": 103,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 3540.0,
+                    "load": 0.0,
+                    "node": 117,
+                    "type": "DepotEnd"
+                }
+            ],
+            "vehicle_id": 6
+        },
+        {
+            "steps": [
+                {
+                    "begin_service_time": 900.0,
+                    "load": 0.0,
+                    "node": 111,
+                    "type": "DepotStart"
+                },
+                {
+                    "begin_service_time": 1221.0,
+                    "load": 1.0,
+                    "node": 2,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 1574.0,
+                    "load": 2.0,
+                    "node": 44,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 1700.0,
+                    "load": 3.0,
+                    "node": 43,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 1859.0,
+                    "load": 2.0,
+                    "node": 96,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 2057.0,
+                    "load": 3.0,
+                    "node": 46,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 2253.0,
+                    "load": 4.0,
+                    "node": 47,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 2349.0,
+                    "load": 3.0,
+                    "node": 95,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 2569.0,
+                    "load": 2.0,
+                    "node": 99,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 2729.0,
+                    "load": 3.0,
+                    "node": 45,
+                    "type": "Pickup"
+                },
+                {
+                    "begin_service_time": 2817.0,
+                    "load": 2.0,
+                    "node": 97,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 2976.0,
+                    "load": 1.0,
+                    "node": 98,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 3417.0,
+                    "load": 0.0,
+                    "node": 54,
+                    "type": "Delivery"
+                },
+                {
+                    "begin_service_time": 3735.0,
+                    "load": 0.0,
+                    "node": 118,
+                    "type": "DepotEnd"
+                }
+            ],
+            "vehicle_id": 7
+        }
+    ],
+    "summary": {
+        "mip_gap": 0.0,
+        "num_requests": 52,
+        "num_vehicles": 7,
+        "objective": 19776.0,
+        "status": "Feasible",
+        "time_sec": 100.693760267
+    }
+}
