@@ -73,7 +73,7 @@ struct ALNSSolution {
                 
                 // Usar los vectores especificados
                 step.beginServiceTime = (i < alnsRoute.B.size()) ? alnsRoute.B[i] : 0.0;
-                step.loadAfter = (i < alnsRoute.loads.size()) ? alnsRoute.loads[i] : 0.0;
+                step.loadAfter = (step.nodeId < (int)alnsRoute.loads.size()) ? alnsRoute.loads[step.nodeId] : 0.0;
 
                 // Determinar el tipo de nodo en función de su ID
                 if (step.nodeId <= numReq) {
