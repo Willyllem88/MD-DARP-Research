@@ -1,6 +1,6 @@
 # DARP Solution Visualizer
 
-A lightweight tool to visualize the routes and schedules generated for the Dial-a-Ride Multi-Depot Problem (DARP-MD) from JSON instance files.
+A lightweight tool to visualize the routes and schedules generated for the Multi-Depot Dial-a-Ride Problem (MD-DARP-MD) from JSON instance files.
 
 ## Installation
 
@@ -9,14 +9,12 @@ A lightweight tool to visualize the routes and schedules generated for the Dial-
 
 ```bash
 pip install -r requirements.txt
-
 ```
 
 *Note for Linux users: You may need to install `python3-tk` via your package manager if it's not already installed. In Ubuntu/Debian, you can do this with:*
 
 ```bash
 sudo apt-get install python3-tk
-
 ```
 
 ## How to Run
@@ -29,7 +27,6 @@ If you run the script without arguments, a system file dialog will open, allowin
 
 ```bash
 python viewer.py
-
 ```
 
 ### 2. Command Line Mode (Direct Load)
@@ -38,5 +35,4 @@ You can specify the path to the JSON file directly using the `-l` (or `--load`) 
 
 ```bash
 python viewer.py -l results/my_instance.json
-
 ```
