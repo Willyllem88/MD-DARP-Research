@@ -5,10 +5,12 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.lines import Line2D
 import osmnx as ox
+import networkx as nx
 
 class RouteVisualizer:
-    def __init__(self, json_data):
+    def __init__(self, json_data, mode='direct'):
         self.data = json_data
+        self.mode = mode  # 'direct' | 'streets'
         self.city = self.data.get('metadata', {}).get('city', None)
         self.coordinates = self.data.get('metadata', {}).get('coordinates', {})
         self.routes = self.data.get('routes', [])
@@ -26,6 +28,8 @@ class RouteVisualizer:
             "#17becf",
             "#bcbd22" 
         ]
+
+        self.ARROW_EVERY = 15
 
     def _get_node_style(self, node_type, vehicle_idx):
         """
@@ -101,35 +105,100 @@ class RouteVisualizer:
         print(f"🗺️  Loading base map of: {self.city}...")
         try:
             G = ox.graph_from_place(self.city, network_type='drive')
-            fig, ax = ox.plot_graph(G, show=False, close=False, node_size=0, 
+            if self.mode == 'streets':
+                print("⏱️  Computing edge speeds and travel times...")
+                G = ox.add_edge_speeds(G)
+                G = ox.add_edge_travel_times(G)
+            fig, ax = ox.plot_graph(G, show=False, close=False, node_size=0,
                                     edge_linewidth=0.5, edge_color='#999999', bgcolor='white')
         except Exception as e:
             print(f"❌ Error loading the map: {e}")
             return
 
-        print("🎨 Drawing routes and nodes...")
+        print(f"🎨 Drawing routes and nodes (mode: {self.mode})...")
 
-        # 1. Draw Routes (Arrows)
+        # 1. Draw Routes
         legend_patches = []
         for i, route in enumerate(self.routes):
             steps = route.get('steps', [])
-            vehicle_id = route.get('vehicle_id', i+1)
+            vehicle_id = route.get('vehicle_id', i + 1)
             color = self.route_colors[i % len(self.route_colors)]
-            
+
             legend_patches.append(Line2D([0], [0], color=color, lw=2, label=f'Vehicle {vehicle_id}'))
-            
+
             for j in range(len(steps) - 1):
                 start_node = str(steps[j]['node'])
-                end_node = str(steps[j+1]['node'])
+                end_node = str(steps[j + 1]['node'])
 
-                if start_node in self.coordinates and end_node in self.coordinates:
-                    y1, x1 = self.coordinates[start_node]
-                    y2, x2 = self.coordinates[end_node]
-                    # Arrows with a bit of transparency to avoid saturation
+                if start_node not in self.coordinates or end_node not in self.coordinates:
+                    continue
+
+                y1, x1 = self.coordinates[start_node]
+                y2, x2 = self.coordinates[end_node]
+
+                if self.mode == 'direct':
+                    # --- Direct arc mode (original behaviour) ---
                     ax.annotate("", xy=(x2, y2), xytext=(x1, y1),
-                                arrowprops=dict(arrowstyle="->", color=color, 
+                                arrowprops=dict(arrowstyle="->", color=color,
                                                 lw=2, connectionstyle="arc3,rad=0.1", alpha=0.8),
                                 zorder=1)
+
+                else:
+                    # --- Streets mode: shortest path by travel time ---
+                    try:
+                        osm_orig = ox.nearest_nodes(G, x1, y1)
+                        osm_dest = ox.nearest_nodes(G, x2, y2)
+
+                        if osm_orig == osm_dest:
+                            continue
+
+                        path_nodes = nx.shortest_path(
+                            G, osm_orig, osm_dest, weight='travel_time'
+                        )
+
+                        # Collect (lon, lat) pairs for the path
+                        path_lons = [G.nodes[n]['x'] for n in path_nodes]
+                        path_lats = [G.nodes[n]['y'] for n in path_nodes]
+
+                        # Draw the polyline
+                        ax.plot(path_lons, path_lats,
+                                color=color, linewidth=2, alpha=0.8, zorder=2)
+                        
+                        for k in range(self.ARROW_EVERY, len(path_lons), self.ARROW_EVERY):
+                            x_prev = path_lons[k - 1]
+                            y_prev = path_lats[k - 1]
+
+                            x_curr = path_lons[k]
+                            y_curr = path_lats[k]
+
+                            ax.annotate(
+                                "",
+                                xy=(x_curr, y_curr),
+                                xytext=(x_prev, y_prev),
+                                arrowprops=dict(
+                                    arrowstyle="->",
+                                    color=color,
+                                    lw=2,
+                                    alpha=0.8
+                                ),
+                                zorder=3
+                            )
+
+                        # Draw an arrowhead at the midpoint of the last segment
+                        if len(path_lons) >= 2:
+                            mx = (path_lons[-2] + path_lons[-1]) / 2
+                            my = (path_lats[-2] + path_lats[-1]) / 2
+                            ax.annotate("",
+                                        xy=(path_lons[-1], path_lats[-1]),
+                                        xytext=(mx, my),
+                                        arrowprops=dict(arrowstyle="->", color=color,
+                                                        lw=2, alpha=0.8),
+                                        zorder=3)
+
+                    except nx.NetworkXNoPath:
+                        print(f"  ⚠️  No path found between nodes {start_node} → {end_node}, skipping.")
+                    except Exception as e:
+                        print(f"  ⚠️  Street routing error ({start_node} → {end_node}): {e}")
 
         # 2. Draw Nodes (DARPAPP STYLE)
         node_styles = self._analyze_nodes()
@@ -174,7 +243,7 @@ class RouteVisualizer:
                 markerfacecolor='none', markeredgecolor='blue', markersize=8), # markeredgecolor='blue' y facecolor='none' para hueco
         ]
         plt.legend(handles=legend_patches + node_legend, loc='upper right')
-        plt.title(f"Optimized Routes - {self.city}", fontsize=14)
+        plt.title(f"Optimized Routes - {self.city}  [{self.mode} mode]", fontsize=14)
         plt.tight_layout()
         
         print("✨ Map generated. Opening window...")
