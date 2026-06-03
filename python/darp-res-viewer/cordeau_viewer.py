@@ -112,7 +112,7 @@ class CordeauRouteVisualizer(RouteVisualizer):
         """
         Sets up the legend, titles, and grid.
         """
-        ax.set_title(f"DARPMD Solution - (Cordeau Instance)")
+        ax.set_title(f"MD-DARP Solution - (Cordeau Instance)")
         ax.set_xlabel("X")
         ax.set_ylabel("Y")
         ax.grid(True, linestyle='--', alpha=0.5)

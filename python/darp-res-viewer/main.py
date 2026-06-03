@@ -59,6 +59,18 @@ def parse_arguments():
         help='Path to the JSON file to load. If omitted, a file selector will open.',
         metavar='PATH'
     )
+    parser.add_argument(
+        '-m', '--mode',
+        type=str,
+        choices=['direct', 'streets'],
+        default='direct',
+        help=(
+            "Drawing mode for routes. "
+            "'direct' draws straight arcs between stops (default). "
+            "'streets' traces the shortest path by travel time along the real road network."
+        ),
+        metavar='MODE'
+    )
     return parser.parse_args()
 
 def main():
@@ -85,7 +97,7 @@ def main():
             if city == "_Cordeau_":
                 visualizer = CordeauRouteVisualizer(data)
             else:
-                visualizer = RouteVisualizer(data)
+                visualizer = RouteVisualizer(data, mode=args.mode)
             visualizer.plot()
         except Exception as e:
             print(f"Error initializing the visualizer: {e}")
