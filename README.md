@@ -1,4 +1,4 @@
-# Study of Solution Methods for the Multi-Depot Dial-a-Ride Problem
+# Study on Methods for the Multi-Depot Dial-a-Ride Problem
 
 The aim is to develop different methods to solve the MD-DARP, such as mathematical models, heuristics, and metaheuristics. It also intends to explore how the MD-DARP can be extended to a dynamic version.
 
@@ -16,15 +16,21 @@ cmake --build . -j
 ./cpp/core/darpmd_runner --help
 ```
 
-## Cordeau DARP Instances
+## Instances
 
-To install the Cordeau DARP instances (A-series(24) + B-series(24) + R-series(20) = 68 instances), run the following command from the root of the project:
+During the development of this project, we have used a variety of instances to test and evaluate the performance of our solvers. These instances include both synthetic and real-world datasets.
+
+The syntetic instances were created mainly by J.-F. Cordeau, and they are commonly used in the literature to evaluate the performance of DARP solvers. These instances are available in the `instances/cordeau-instances` directory of this project and `instances/cordeau-tabu-instances`. All these instances were mainly created for the DARP, but they can be easily adapted to the MD-DARP by simply assigning the same depot to all the requests.
+
+To install and convert these DARP instances (A-series(24) + B-series(24) + R-series(20) = 68 instances), run the following command from the root of the project:
 
 ```bash
 cd build
 cmake ..
 cmake --build . --target install_cordeau_instances
 ```
+
+In addition we have also generated our own instances based on real-world data, which are available in the `instances/our-mddarp-instances` directory. These instances are based on real-world data and are designed to reflect the characteristics and challenges of real-world MD-DARP problems.
 
 ## Wrappers and Interfaces
 
