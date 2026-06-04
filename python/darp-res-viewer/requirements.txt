@@ -1,4 +1,0 @@
-osmnx
-networkx
-matplotlib
-scikit-learn

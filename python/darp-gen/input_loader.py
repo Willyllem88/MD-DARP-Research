@@ -61,7 +61,7 @@ class YamlLoader:
                 print(f"Error processing Request {req.get('id')}: {e}")
                 continue
 
-        # 3. Procesar Vehicles
+        # 3. Process Vehicles
         print("Geocoding Vehicles...")
         for veh in data.get('vehicles', []):
             try:

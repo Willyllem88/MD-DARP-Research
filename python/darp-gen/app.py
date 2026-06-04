@@ -36,19 +36,19 @@ class DarpApp:
         
         self.manager = DARPGraphManager()
         
-        # Variables de estado
+        # State variables
         self.step = "CONFIG" # CONFIG, PICKING, DONE
         self.current_pick_target = None # ('req', index, 'pickup'/'delivery') o ('veh', index, 'start'/'end')
         
-        self.requests_data = [] # Lista de diccionarios
-        self.vehicles_data = [] # Lista de diccionarios
+        self.requests_data = [] # List of dicts with keys: pickup_node, delivery_node, demand, p_tw_start, p_tw_end, p_service_time, d_tw_start, d_tw_end, d_service_time
+        self.vehicles_data = [] # List of dicts with keys: id, start_node, end_node, capacity, speed
         
         # --- UI LAYOUT ---
-        # Panel Izquierdo (Controles)
+        # Left Panel (Controls)
         self.left_panel = tk.Frame(root, width=300, bg="#f0f0f0")
         self.left_panel.pack(side=tk.LEFT, fill=tk.Y, padx=5, pady=5)
         
-        # Panel Derecho (Mapa)
+        # Right Panel (Map)
         self.right_panel = tk.Frame(root, bg="white")
         self.right_panel.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
         
@@ -58,7 +58,7 @@ class DarpApp:
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
     def setup_config_ui(self):
-        # Título
+        # Title
         tk.Label(self.left_panel, text="DARP Configuration", font=("Arial", 14, "bold"), bg="#f0f0f0").pack(pady=10)
         
         # Inputs
@@ -115,7 +115,7 @@ class DarpApp:
 
         self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         
-        # Conectar evento click
+        # Connect click event
         self.canvas.mpl_connect('button_press_event', self.on_map_click)
 
     def load_map(self):
@@ -162,19 +162,18 @@ class DarpApp:
         self.lbl_status.config(text="Processing YAML & Geocoding addresses...")
         self.root.update()
 
-        # Instanciar el loader pasándole el manager actual
         loader = YamlLoader(self.manager)
         
-        # Cargar datos (esto descargará el mapa y buscará nodos)
+        # Load data (this will download the map and search for nodes)
         result = loader.load_scenario(file_path)
         
         if result:
-            # Actualizar datos de la App
+            # Update App data
             self.requests_data = result['requests']
             self.vehicles_data = result['vehicles']
             self.entry_place.set(result['place'])
             
-            # Actualizar UI Inputs Globales
+            # Update Global UI Inputs
             self.entry_reqs.delete(0, tk.END)
             self.entry_reqs.insert(0, str(len(self.requests_data)))
             self.entry_vehs.delete(0, tk.END)
@@ -185,7 +184,7 @@ class DarpApp:
                 self.entry_lride.delete(0, tk.END)
                 self.entry_lride.insert(0, str(g_params['L_ride']))
 
-            # Dibujar el mapa base
+            # Draw base map
             self.ax.clear()
             ox.plot_graph(self.manager.G, ax=self.ax, show=False, close=False, node_size=0, edge_linewidth=0.5, bgcolor='white')
             
@@ -229,29 +228,29 @@ class DarpApp:
         """
         if node_id is None: return
 
-        # Obtener coordenadas del grafo
+        # Obtain coordinates from the graph data
         y = self.manager.nodes_data[node_id]['y']
         x = self.manager.nodes_data[node_id]['x']
 
-        # Definir colores (Lógica idéntica a tu on_map_click original)
+        # Define colors
         color_map = {'pickup': 'blue', 'delivery': 'blue', 'start': 'green', 'end': 'red'}
         color = color_map.get(sub_type, 'black')
         
-        # Solo delivery es hueco (no relleno)
+        # Only delivery is hollow (no fill), others are filled
         filled = (sub_type != 'delivery')
 
-        # Pintar el punto (Estilos copiados de tu código original)
+        # Paint the point (Styles copied from your original code)
         self.ax.plot(
             x, y,
             marker='o',
-            markersize=12,         # Tamaño original
+            markersize=12,
             markeredgecolor='none' if filled else color,
             markerfacecolor=color if filled else 'none',
             markeredgewidth=2,
-            alpha=0.4,             # Transparencia original
+            alpha=0.4,
         )
         
-        # Pintar el texto (Estilos copiados de tu código original)
+        # Paint the text (Styles copied from your original code)
         self.ax.text(
             x, y, 
             str(label_text), 

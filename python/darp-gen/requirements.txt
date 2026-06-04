@@ -1,5 +1,0 @@
-osmnx
-geopy
-networkx
-matplotlib
-scikit-learn

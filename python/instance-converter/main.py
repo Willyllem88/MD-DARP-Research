@@ -146,10 +146,6 @@ def generate_json_structure(data):
         output["metadata"]["coordinates"][str(end_node_id)] = [depot_coords['y'], depot_coords['x']]
 
     # 4. Generate Matrices
-    
-
-
-    
     for i in all_nodes_map.keys():
         for j in all_nodes_map.keys():
             for k in range(1, n_vehicles + 1):

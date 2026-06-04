@@ -8,7 +8,7 @@ A lightweight tool to visualize the routes and schedules generated for the Multi
 2. Install the required dependencies:
 
 ```bash
-pip install -r requirements.txt
+pip install -r ../requirements.txt
 ```
 
 *Note for Linux users: You may need to install `python3-tk` via your package manager if it's not already installed. In Ubuntu/Debian, you can do this with:*

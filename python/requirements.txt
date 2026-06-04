@@ -1,1 +1,9 @@
 pyomo
+osmnx
+geopy
+networkx
+matplotlib
+scikit-learn
+seaborn
+pandas
+numpy
