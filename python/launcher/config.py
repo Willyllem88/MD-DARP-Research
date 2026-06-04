@@ -8,8 +8,8 @@ import os
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 SOLVER_BIN      = os.path.join(PROJECT_ROOT, "build", "cpp", "core", "darpmd_run")
-GENERATOR_MAIN  = os.path.join(PROJECT_ROOT, "python", "darp-gen", "main.py")
-VIEWER_MAIN     = os.path.join(PROJECT_ROOT, "python", "darp-res-viewer", "main.py")
+GENERATOR_MAIN  = os.path.join(PROJECT_ROOT, "python", "mddarp-gen", "main.py")
+VIEWER_MAIN     = os.path.join(PROJECT_ROOT, "python", "mddarp-res-viewer", "main.py")
 
 TMP_DIR         = os.path.join(os.path.dirname(__file__), "tmp")
 
@@ -51,7 +51,7 @@ PRESETS = {
     },
     "ILP Soft (relaxed)": {
         "method": "ILPSoft",
-        "time_limit": 120,
+        "time_limit": None,
         "seed": 42,
         "verbose": False,
         "enable_gice": False,
@@ -67,15 +67,6 @@ PRESETS = {
         "enable_nr": False,
         "description": "Pure ALNS metaheuristic with 2-minute budget. Great for large instances.",
     },
-    "ALNS -- Balanced (5 min)": {
-        "method": "ALNS",
-        "time_limit": 300,
-        "seed": 42,
-        "verbose": False,
-        "enable_gice": True,
-        "enable_nr": True,
-        "description": "ALNS with GICE + NR enabled for improved solution quality in 5 minutes.",
-    },
     "ALNS_SP -- High quality (10 min)": {
         "method": "ALNS_SP",
         "time_limit": 600,
@@ -85,9 +76,9 @@ PRESETS = {
         "enable_nr": True,
         "description": "ALNS followed by Set-Partitioning refinement. Best quality / time trade-off.",
     },
-    "ALNS_SC -- High quality (10 min)": {
+    "ALNS_SC -- High quality (60 min)": {
         "method": "ALNS_SC",
-        "time_limit": 600,
+        "time_limit": 3600,
         "seed": 42,
         "verbose": False,
         "enable_gice": True,
