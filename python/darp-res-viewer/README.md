@@ -1,6 +1,6 @@
 # DARP Solution Visualizer
 
-A lightweight tool to visualize the routes and schedules generated for the Multi-Depot Dial-a-Ride Problem (MD-DARP-MD) from JSON instance files.
+A lightweight tool to visualize the routes and schedules generated for the Multi-Depot Dial-a-Ride Problem (MD-DARP) from JSON instance files.
 
 ## Installation
 
