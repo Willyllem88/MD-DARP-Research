@@ -158,7 +158,7 @@ class DARPLauncherApp:
         ttk.Separator(p, orient="horizontal").pack(fill=tk.X, padx=16, pady=8)
 
         # ── Select existing instance ──────────────────────────────────────────
-        tk.Label(p, text="-- or load an existing instance --",
+        tk.Label(p, text="You can also load an already generated instance:",
                  font=FONT_LABEL, bg=DARK_BG, fg=MUTED).pack(anchor="w", padx=16)
 
         sel_row = tk.Frame(p, bg=DARK_BG)
