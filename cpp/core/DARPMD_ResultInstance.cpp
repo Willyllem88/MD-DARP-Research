@@ -102,7 +102,7 @@ void DARPMD_ResultInstance::calculateViolations() {
                        v.sumCapacities > epsilon    || v.sumRouteDuration > epsilon ||
                        !v.unassignedRequests.empty());
 
-    // Asignar los cálculos finales al std::optional
+    // Update the optional violations member with the calculated violations
     this->violations = v;
 }
 

@@ -8,8 +8,6 @@
 
 #include "Metadata.h"
 
-// We use the nlohmann/json library for JSON parsing
-// https://github.com/nlohmann/json
 #include "../includes/json.hpp" 
 using json = nlohmann::json;
 
@@ -84,18 +82,18 @@ public:
     }
 
 private:
-    std::vector<double> service_time;           // d_i
-    std::vector<double> demand;                 // q_i
-    std::vector<double> time_window_start;      // e_i
-    std::vector<double> time_window_end;        // l_i
+    std::vector<double> service_time;        // d_i
+    std::vector<double> demand;              // q_i
+    std::vector<double> time_window_start;   // e_i
+    std::vector<double> time_window_end;     // l_i
 
     std::vector<double> capacity;            // Q_k
     std::vector<double> max_route_time;      // T_k
 
-    std::vector<double> t_ij;   // t_ij
+    std::vector<double> t_ij;                // t_ij
     size_t stride_time_i = 0;
 
-    std::vector<double> flat_cost_matrix; // c_kij (k first for better cache locality)
+    std::vector<double> flat_cost_matrix;   // c_kij (k first for better cache locality)
     size_t stride_cost_i = 0;
     size_t stride_cost_j = 0;
     size_t stride_cost_k = 0;

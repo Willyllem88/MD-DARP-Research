@@ -1,5 +1,3 @@
-//INFO: for ALNS 
-
 #include "SetCoveringSolver.h"
 #include "ALNSEvaluator.h"
 #include <ilcplex/ilocplex.h>

@@ -15,7 +15,7 @@ const std::string DEFAULT_INSTANCE_PATH = "/home/guillem/TFG-Guillem/data/gracia
 struct Args {
     std::string instance_path = DEFAULT_INSTANCE_PATH;
     std::string output_path = "solution_report.json";
-    std::string method = "ILP"; // or "Tabu" or "ALNS" or "ILPSoft"
+    std::string method = "ILP"; // or "ILPSoft" or "ALNS" or "ALNS_SP" or "ALNS_SC"
     int seed = 42;
     bool verbose = false;
     std::optional<double> time_limit;
@@ -76,7 +76,8 @@ Args parseArgs(int argc, char** argv) {
         std::string a = argv[i];
         if ((a == "-i" || a == "--instance") && i + 1 < argc) {
             args.instance_path = argv[++i];
-        } else if ((a == "-t" || a == "--time") && i + 1 < argc) {
+        }
+        else if ((a == "-t" || a == "--time") && i + 1 < argc) {
             args.time_limit = std::stod(argv[++i]);
         }
         else if ((a == "-o" || a == "--output") && i + 1 < argc) {

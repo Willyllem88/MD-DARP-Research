@@ -14,19 +14,19 @@ public:
     RoutePool(const DARPMD_ProblemInstance& instance);
     ~RoutePool() = default;
 
-    // Añade la ruta si no está duplicada
+    // Add the route if it's not a duplicate and if it has potential to improve the current best solution
     void addRoute(
         const ALNSRoute& route,
         double currentBestTotalSolutionCost = std::numeric_limits<double>::infinity()
     );
 
-    // Obtiene todas las rutas (útil para que el solver las lea)
+    // Get all routes (useful for the solver to read them)
     const std::unordered_map<int, std::vector<ALNSRoute>>& getRoutes();
 
     
     void prune(double currentBestTotalSolutionCost, bool pruneSCP = false);
 
-    // Limpia todo el pool
+    // Clear the entire pool
     void clear();
 
 private:

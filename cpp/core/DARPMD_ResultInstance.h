@@ -16,10 +16,10 @@ using json = nlohmann::json;
 
 // Structure for representing the visit to a specific node
 struct RouteStep {
-    int nodeId;             // ID of the node
-    std::string type;       // "DepotStart", "DepotEnd", "Pickup", "Delivery"
-    double beginServiceTime;     // Value of the variable u
-    double loadAfter;       // Load of the vehicle after visiting the node (variable w)
+    int nodeId;                 // ID of the node
+    std::string type;           // "DepotStart", "DepotEnd", "Pickup", "Delivery"
+    double beginServiceTime;    // Value of the variable u
+    double loadAfter;           // Load of the vehicle after visiting the node (variable w)
 };
 
 // Structure for representing the complete route of a vehicle

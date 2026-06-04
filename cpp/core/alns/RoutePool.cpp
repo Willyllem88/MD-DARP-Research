@@ -151,11 +151,12 @@ void RoutePool::prune(double currentBestTotalSolutionCost, bool pruneSCP) {
                 for (auto itB = mapRoutes.begin(); itB != mapRoutes.end(); ++itB) {
                     if (itA == itB) continue;
 
-                    // Comprobación de dominancia:
-                    // Si la Ruta B es más barata o cuesta igual que la Ruta A...
+                    // Dominance check: 
+                    // if B is cheaper or equal cost than A, and B covers all nodes that 
+                    // A covers, then A is dominated by B.
                     if (itB->second.totalCost <= itA->second.totalCost) {
-                        // ... y la Ruta B cubre todo lo que cubre la Ruta A.
-                        // std::includes funciona perfectamente porque it->first (NodeSetKey) ya está ordenado.
+                        // ... and if route B covers all the nodes that route A covers.
+                        // std::includes works perfectly because it->first (NodeSetKey) is already sorted.
                         if (std::includes(itB->first.begin(), itB->first.end(),
                                         itA->first.begin(), itA->first.end())) {
                             dominated = true;
@@ -165,9 +166,9 @@ void RoutePool::prune(double currentBestTotalSolutionCost, bool pruneSCP) {
                 }
 
                 if (dominated) {
-                    itA = mapRoutes.erase(itA); // A es dominada, la borramos
+                    itA = mapRoutes.erase(itA); // A is dominated, we remove it
                 } else {
-                    ++itA; // A sobrevive
+                    ++itA; // A survives, we keep it
                 }
             }
         }

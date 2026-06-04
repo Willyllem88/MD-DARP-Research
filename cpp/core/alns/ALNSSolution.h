@@ -9,10 +9,10 @@
 
 // Internal representation of a full solution
 struct ALNSSolution {
-    std::vector<ALNSRoute> routes; // One per vehicle
-    std::set<int> unassignedRequests; // IDs of requests in P not served
-    double objectiveValue = 0.0; // Total penalized cost
-    bool hasViolations = false; // Whether the solution has any constraint violations
+    std::vector<ALNSRoute> routes;      // One per vehicle
+    std::set<int> unassignedRequests;   // IDs of requests in P not served
+    double objectiveValue = 0.0;        // Total penalized cost
+    bool hasViolations = false;         // Whether the solution has any constraint violations
 
     void print() {
         std::cout << "  Routes:" << std::endl;
@@ -36,13 +36,13 @@ struct ALNSSolution {
     };
 
     DARPMD_ResultInstance toResultInstance(const DARPMD_ProblemInstance& problem, double computationTime = 0.0) const {
-        // 1. Inicializar la instancia de resultado con el problema
+        // 1. Initialize the result instance with the problem
         DARPMD_ResultInstance result(problem);
         
-        // 2. Mapear los metadatos generales de la solución
+        // 2. Map the metadata to the solution
         result.objectiveValue = this->objectiveValue;
         result.solveTime = computationTime;
-        result.mipGap = 0.0; // El MIP gap no aplica a heurísticas como ALNS
+        result.mipGap = 0.0;
         
         if (this->hasViolations) {
             result.solverStatus = "Semi-Feasible";
@@ -53,29 +53,28 @@ struct ALNSSolution {
         int numReq = problem.N_requests;
         int numVeh = problem.K_vehicles;
 
-        // 3. Traducir cada ruta
+        // 3. Translate each route
         for (const auto& alnsRoute : this->routes) {
             VehicleRoute vr;
             vr.vehicleId = alnsRoute.vehicleId;
-            vr.routeCost = alnsRoute.distanceCost; // O alnsRoute.totalCost si prefieres el coste penalizado
+            vr.routeCost = alnsRoute.distanceCost;
             
-            // Calcular la duración de la ruta (llegada al Depot final - salida al Depot inicial)
+            // Calculate the duration of the route (arrival at final Depot - departure from initial Depot)
             if (!alnsRoute.B.empty()) {
                 vr.routeDuration = alnsRoute.A.back() - alnsRoute.D.front();
             } else {
                 vr.routeDuration = 0.0;
             }
 
-            // Traducir cada parada en la secuencia a un RouteStep
+            // Translate each stop in the sequence to a RouteStep
             for (size_t i = 0; i < alnsRoute.sequence.size(); ++i) {
                 RouteStep step;
                 step.nodeId = alnsRoute.sequence[i];
                 
-                // Usar los vectores especificados
                 step.beginServiceTime = (i < alnsRoute.B.size()) ? alnsRoute.B[i] : 0.0;
                 step.loadAfter = (step.nodeId < (int)alnsRoute.loads.size()) ? alnsRoute.loads[step.nodeId] : 0.0;
 
-                // Determinar el tipo de nodo en función de su ID
+                // Determine the type of node based on its ID
                 if (step.nodeId <= numReq) {
                     step.type = "Pickup";
                 } else if (step.nodeId <= 2 * numReq) {
@@ -89,11 +88,11 @@ struct ALNSSolution {
                 vr.steps.push_back(step);
             }
 
-            // Añadir la ruta traducida a la instancia de resultados
+            // Add the translated route to the result instance
             result.addRoute(vr.vehicleId, vr);
         }
 
-        // 4. Calcular las violaciones formales utilizando la propia lógica de la instancia
+        // 4. Calculate the formal violations using the instance's own logic
         result.calculateViolations();
 
         return result;

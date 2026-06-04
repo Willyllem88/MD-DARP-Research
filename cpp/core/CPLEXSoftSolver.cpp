@@ -378,7 +378,6 @@ DARPMD_ResultInstance CPLEXSoftSolver::getResult() const {
         result.solveTime = this->solveTime;
         result.mipGap = this->mipGap;
 
-        // DEBUG only, print the sum of the violations to check if they are being used
         double totalLoadViolation = 0.0;
         double totalDurationViolation = 0.0;
         double totalTWViolation = 0.0;
@@ -410,25 +409,6 @@ DARPMD_ResultInstance CPLEXSoftSolver::getResult() const {
         else {
             result.solverStatus = "No Solution";
         }
-
-        logger.log("Total Load Violation: " + std::to_string(totalLoadViolation));
-        logger.log("Total Duration Violation: " + std::to_string(totalDurationViolation));
-        logger.log("Total Time Window Violation: " + std::to_string(totalTWViolation));
-        logger.log("Total Ride Time Violation: " + std::to_string(totalRideTimeViolation));
-
-        double totalViolationCost = alpha * totalLoadViolation + beta * totalDurationViolation + gamma * totalTWViolation + tau * totalRideTimeViolation;
-        logger.log("Total Violation Cost: " + std::to_string(totalViolationCost));
-
-        //DEBUG: print the cost of the routes without the violations to check if the objective is being driven by the cost or the violations
-        double totalRouteCost = 0.0;
-        for (const auto& arc : A_k) {
-            if (cplex.isExtracted(x.at(arc)) && cplex.getValue(x.at(arc)) > 0.5) {
-                auto [i, j, k] = arc;
-                totalRouteCost += data.getCost(i, j, k);
-            }
-        }
-        logger.log("Total Route Cost (without violations): " + std::to_string(totalRouteCost));
-        logger.log("Objective Value: " + std::to_string(result.objectiveValue));
     } catch (...) {
         result.solverStatus = "No Solution";
         return result;
