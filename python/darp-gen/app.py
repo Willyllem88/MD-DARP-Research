@@ -29,9 +29,10 @@ class MultiFieldDialog(simpledialog.Dialog):
 
 
 class DarpApp:
-    def __init__(self, root):
+    def __init__(self, root, output_path=None):
         self.root = root
-        self.root.title("Interactive DARP-MD Instance Generator")
+        self._output_path = output_path
+        self.root.title("Interactive MD-DARP Instance Generator")
         self.root.geometry("1200x800")
         
         self.manager = DARPGraphManager()
@@ -59,7 +60,7 @@ class DarpApp:
 
     def setup_config_ui(self):
         # Title
-        tk.Label(self.left_panel, text="DARP Configuration", font=("Arial", 14, "bold"), bg="#f0f0f0").pack(pady=10)
+        tk.Label(self.left_panel, text="MD-DARP Configuration", font=("Arial", 14, "bold"), bg="#f0f0f0").pack(pady=10)
         
         # Inputs
         PLACES = [
@@ -470,7 +471,11 @@ class DarpApp:
                 global_params
             )
             
-            filename = self.manager.save_to_file(json_data)
+            if self._output_path:
+                filename = self.manager.save_to_file(json_data, output_path=self._output_path)
+            else:
+                filename = self.manager.save_to_file(json_data)
+                
             if filename:
                 messagebox.showinfo("Success", f"File generated successfully:\n{filename}")
                 self.lbl_status.config(text="JSON Generated. Close or restart for another.")
