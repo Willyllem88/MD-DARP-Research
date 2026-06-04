@@ -231,21 +231,22 @@ class DARPGraphManager:
         
         return data
 
-    def save_to_file(self, data):
-        """Open a file dialog to save the JSON data to a file. Returns the filename or None if cancelled."""
-        root = tk.Tk()
-        root.withdraw()  # Hide main window
+    def save_to_file(self, data, output_path=None):
+        if output_path is None:
+            root = tk.Tk()
+            root.withdraw()
 
-        filename = filedialog.asksaveasfilename(
-            defaultextension=".json",
-            filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
-            title="Save JSON file"
-        )
-        if filename:
-            with open(filename, 'w') as f:
+            output_path = filedialog.asksaveasfilename(
+                defaultextension=".json",
+                filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
+                title="Save JSON file"
+            )
+
+        if output_path:
+            with open(output_path, 'w') as f:
                 json.dump(data, f, indent=2)
-            print(f"💾 Saved to {filename}")
-            return filename
-        else:
-            print("❌ Save cancelled.")
-            return None
+            print(f"💾 Saved to {output_path}")
+            return output_path
+
+        print("❌ Save cancelled.")
+        return None

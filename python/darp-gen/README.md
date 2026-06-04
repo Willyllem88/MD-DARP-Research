@@ -1,6 +1,6 @@
-# Interactive DARP-MD Instance Generator
+# Interactive MD-DARP Instance Generator
 
-A graphical tool to generate instances for the Dial-a-Ride Problem (Multi-Depot) using real-world map data from OpenStreetMap.
+A graphical tool to generate instances for the Multi-Depot Dial-a-Ride Problem (MD-DARP) using real-world map data from OpenStreetMap.
 
 ## Installation
 
