@@ -85,9 +85,9 @@ class DARPLauncherApp:
         self._tab_solve = ttk.Frame(nb, style="TFrame")
         self._tab_view  = ttk.Frame(nb, style="TFrame")
 
-        nb.add(self._tab_gen,   text="  ① Generate  ")
-        nb.add(self._tab_solve, text="  ② Solve  ")
-        nb.add(self._tab_view,  text="  ③ View  ")
+        nb.add(self._tab_gen,   text="  (1) Generate  ")
+        nb.add(self._tab_solve, text="  (2) Solve  ")
+        nb.add(self._tab_view,  text="  (3) View  ")
 
         self._build_gen_tab()
         self._build_solve_tab()
@@ -127,7 +127,7 @@ class DARPLauncherApp:
             text=(
                 "Opens the interactive map-based generator.\n\n"
                 "The produced instance JSON is saved to the tmp/ folder and automatically selected as the active instance, to \n"
-                "preoceed with solving (② Solve tab).\n\n"
+                "preoceed with solving ( (2) Solve tab).\n\n"
                 "Alternatively, you can load any existing (.json) instance from disk and skip the generation step."
 
             ),
@@ -287,7 +287,7 @@ class DARPLauncherApp:
         irow = tk.Frame(inst_card, bg=CARD_BG)
         irow.pack(fill=tk.X, pady=(4, 0))
         self._solve_instance_var = tk.StringVar(
-            value=self._current_instance or "(none -- select in ① Generate)"
+            value=self._current_instance or "(none -- select in (1) Generate)"
         )
         tk.Entry(irow, textvariable=self._solve_instance_var,
                  bg=CARD_BG, fg=TEXT, insertbackground=TEXT,
@@ -519,7 +519,7 @@ class DARPLauncherApp:
         if not result or not os.path.isfile(result):
             messagebox.showinfo("No result",
                                 "No result file found. Run the solver first, "
-                                "or go to the ③ View tab.")
+                                "or go to the (3) View tab.")
             return
         self._open_viewer(result)
 
