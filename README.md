@@ -1,4 +1,4 @@
-# Study on Methods for the Multi-Depot Dial-a-Ride Problem
+# Study on Methods for Solving the Multi-Depot Dial-a-Ride Problem
 
 The aim is to develop different methods to solve the MD-DARP, such as mathematical models, heuristics, and metaheuristics. It also intends to explore how the MD-DARP can be extended to a dynamic version.
 
