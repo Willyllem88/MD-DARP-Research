@@ -1,4 +1,3 @@
-maxIterations    "--maxIterations "    i (1000, 15000)
 w                "--w "                r (0.01, 0.2)
 coolingRate      "--coolingRate "      r (0.995, 0.9999)
 destroyFraction  "--destroyFraction "  r (0.1, 0.4)
