@@ -16,6 +16,14 @@ cmake --build . -j
 ./cpp/core/darpmd_runner --help
 ```
 
+---
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Willyllem88/images/main/intro-md-darp-cover.png" width="800">
+</p>
+
+---
+
 ## Instances
 
 During the development of this project, we have used a variety of instances to test and evaluate the performance of our solvers. These instances include both synthetic and real-world datasets.
