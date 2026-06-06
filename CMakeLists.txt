@@ -1,18 +1,24 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(DARPMD
+project(MDDARP
     VERSION 1.0
-    DESCRIPTION "Dial-a-Ride Problem with Multi-Depots Solver"
+    DESCRIPTION "Multi-Depot Dial-a-Ride Problem Solver"
     LANGUAGES CXX
 )
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(CMAKE_CXX_FLAGS "-O3 -Wall -Wextra")
+add_compile_options(-O3 -Wall -Wextra)
 
 ## CPLEX configuration
-if(NOT DEFINED CPLEX_ROOT)
+set(
+    CPLEX_ROOT
+    "$ENV{CPLEX_ROOT}"
+    CACHE PATH "Path to the CPLEX Studio installation"
+)
+if(NOT CPLEX_ROOT)
     set(CPLEX_ROOT "/opt/ibm/ILOG/CPLEX_Studio2211")
 endif()
 
