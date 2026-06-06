@@ -1,20 +1,10 @@
 # Study on Methods for Solving the Multi-Depot Dial-a-Ride Problem
 
-The aim is to develop different methods to solve the MD-DARP, such as mathematical models, heuristics, and metaheuristics. It also intends to explore how the MD-DARP can be extended to a dynamic version.
+The project aims to develop and study different methods for solving the Multi-Depot Dial-a-Ride Problem (MD-DARP), including mathematical programming models, metaheuristics, and hybrid metaheuristics. In addition, the project explores possible extensions of the problem, such as dynamic variants, and evaluates the performance and applicability of the proposed approaches through computational experimentation.
 
 - Author: GUILLEM CABRÉ FARRÉ
-- Director: PEDRO JESÚS COPADO MÉNDEZ
-- Codirector: CAROLINE KÖNIG
-
-## Usage
-
-```bash
-mkdir build
-cd build
-cmake ..
-cmake --build . -j
-./cpp/core/darpmd_runner --help
-```
+- Supervisor: Dr. PEDRO JESÚS COPADO MÉNDEZ
+- Co-supervisor: Dr. CAROLINE KÖNIG
 
 ---
 
@@ -24,11 +14,37 @@ cmake --build . -j
 
 ---
 
+## Requirements and Installation
+
+For linux users you can download the dependencies through the package manager of your distribution. For example, on Ubuntu you can run the following command:
+
+```bash
+sudo apt-get install cmake g++ python3 python3-pip
+```
+
+In addition you must have IBM ILOG CPLEX installed on your system, and you must set the `CPLEX_ROOT` environment variable (in your `.bashrc`) to point to the directory where CPLEX is installed. For example, if CPLEX is installed in `/opt/ibm/ILOG/CPLEX_Studio2211`, you can set the environment variable as follows:
+
+```bash
+export CPLEX_ROOT="/opt/ibm/ILOG/CPLEX_Studio2211"
+```
+
+## Building the Solvers
+
+To build the solvers, you can use CMake. From the root of the project, run the following commands:
+
+```bash
+mkdir build
+cd build
+cmake ..
+cmake --build . -j
+./cpp/core/darpmd_runner --help
+```
+
 ## Instances
 
 During the development of this project, we have used a variety of instances to test and evaluate the performance of our solvers. These instances include both synthetic and real-world datasets.
 
-The syntetic instances were created mainly by J.-F. Cordeau, and they are commonly used in the literature to evaluate the performance of DARP solvers. These instances are available in the `instances/cordeau-instances` directory of this project and `instances/cordeau-tabu-instances`. All these instances were mainly created for the DARP, but they can be easily adapted to the MD-DARP by simply assigning the same depot to all the requests.
+The synthetic instances were created mainly by J.-F. Cordeau, and they are commonly used in the literature to evaluate the performance of DARP solvers. These instances are available in the `instances/cordeau-instances` directory of this project and `instances/cordeau-tabu-instances`. All these instances were originally designed for the DARP. They can be used within the MD-DARP framework by assigning all vehicles to a single depot.
 
 To install and convert these DARP instances (A-series(24) + B-series(24) + R-series(20) = 68 instances), run the following command from the root of the project:
 
@@ -42,12 +58,14 @@ In addition we have also generated our own instances based on real-world data, w
 
 ## Wrappers and Interfaces
 
-This project although the solvers being implemented in C++, we have also developed wrappers and interfaces in Python to facilitate the use of the solvers and to allow for easier integration with other tools and libraries. The Python interface provides a user-friendly way to interact with the solvers, enabling users to easily set up and solve MD-DARP instances without needing to directly interact with the C++ code. This Python applications are the following:
+Although the core solvers are implemented in C++, we have also developed Python wrappers and interfaces to facilitate their use and integration with other tools and libraries. The Python interface provides a user-friendly way to interact with the solvers, enabling users to easily set up and solve MD-DARP instances without needing to directly interact with the C++ code. 
 
-- `python/launcher`: A Python application to launch the solvers with a user-friendly interface. This application allows users to easily set up and solve MD-DARP instances by providing a simple interface to specify the parameters and options for the solvers. Users can easily create instance and visualize the results of the solvers using this application.
+These Python applications are:
+
+- `python/launcher`: A Python application to launch the solvers with a user-friendly interface. This application allows users to easily set up and solve MD-DARP instances by providing a simple interface to specify the parameters and options for the solvers. Users can easily create instances and visualize the results of the solvers using this application.
 - `python/mddarp-gen`: A Python application to generate MD-DARP instances based on real-world data.
 - `python/mddarp-res-viewer`: This application allows users to visualize the results of the MD-DARP solvers. This application gets a result file generated by the solvers and creates a visual representation of the solution, making it easier to analyze and understand the results. (not only it shows the `python/mddarp-gen` solutions, it can also generate a visualization of the Cordeau DARP instance solutions).
-- `python/instance-converter`: This application allows users to convert standad Cordeau and Laporte DARP instances into the format used by our solvers.
+- `python/instance-converter`: This application allows users to convert standard Cordeau and Laporte DARP instances into the format used by our solvers.
 - `python/pyomo`: Contains the prototype of the mathematical model implemented in Pyomo (only the hard-constrained model).
 
-Each applicattion has its own README file with instructions on how to use it, which can be found in the respective directories.
+Each application has its own README file with instructions on how to use it, which can be found in the respective directories.
