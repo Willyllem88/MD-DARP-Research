@@ -160,7 +160,7 @@ void ALNSOperators::destroyWorst(ALNSSolution& sol, int q) {
 }
 
 void ALNSOperators::destroyShaw(ALNSSolution& sol, int q) {
-    // 1. Choose a random seed request that is currently assigned
+    // Choose a random seed request that is currently assigned
     const std::vector<int>& assigned = data.P;
     std::uniform_int_distribution<> dis(0, assigned.size() - 1);
     int seedRequest = assigned[dis(rng)];
@@ -168,7 +168,7 @@ void ALNSOperators::destroyShaw(ALNSSolution& sol, int q) {
     std::vector<int> toRemove;
     toRemove.push_back(seedRequest);
 
-    // 2. Sort the rest of the requests by similarity to the seed
+    // Sort the rest of the requests by similarity to the seed
     std::vector<std::pair<double, int>> relatedList;
     for (int other : assigned) {
         if (other == seedRequest) continue;
@@ -177,7 +177,7 @@ void ALNSOperators::destroyShaw(ALNSSolution& sol, int q) {
     }
     std::sort(relatedList.begin(), relatedList.end()); // Lower R is better
 
-    // 3. Select q-1 closest neighbors (with some randomness)
+    // Select q-1 closest neighbors (with some randomness)
     while ((int)toRemove.size() < q && !relatedList.empty()) {
         double r = std::generate_canonical<double, 10>(rng);
         int idx = std::floor(relatedList.size() * std::pow(r, 6.0)); // Strong bias towards the beginning
@@ -187,11 +187,10 @@ void ALNSOperators::destroyShaw(ALNSSolution& sol, int q) {
         relatedList.erase(relatedList.begin() + idx);
     }
 
-    // 4. Execute removal
+    // Execute removal
     for (int req : toRemove) {
         for (auto& route : sol.routes) {
             // ... Same physical removal code as in destroyRandom/Worst ...
-            // (You can refactor the physical removal to an auxiliary function 'removeRequestFromRoute')
             std::vector<int> newSeq;
             int devId = req + data.N_requests;
             bool found = false;
@@ -394,7 +393,8 @@ ALNSOperators::LocalInsertion ALNSOperators::findBestInsertionExact_R(const ALNS
     int n = route.sequence.size();
     
     // 1. Determine which vertex is critical. According to Cordeau & Laporte, a vertex is critical if e_i != 0 or l_i != T.
-    bool pickupIsCritical = data.getTimeWindowStart(reqId) > 0 || data.getTimeWindowEnd(reqId) < data.getVehicleMaxRouteTime(route.vehicleId);
+    bool pickupIsCritical = data.getTimeWindowStart(reqId) > 0 || 
+                            data.getTimeWindowEnd(reqId) < data.getVehicleMaxRouteTime(route.vehicleId);
 
     if (pickupIsCritical) {
         // PHASE 1: Find the best position for Pickup (i)
