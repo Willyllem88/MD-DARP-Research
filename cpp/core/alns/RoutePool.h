@@ -45,7 +45,11 @@ private:
         }
     };
     using NodeSetKey = std::vector<int>;
-    std::unordered_map<int, std::unordered_map<NodeSetKey, ALNSRoute, VectorHash>> bestRoutes;
+
+    // For each vehicle, store the best route for each unique set of nodes (ignoring order)
+    std::unordered_map<int, 
+        std::unordered_map<NodeSetKey, ALNSRoute, VectorHash>
+    > bestRoutes;
 
     std::vector<double> emptyRouteCosts; 
     double totalEmptyCost = 0.0;

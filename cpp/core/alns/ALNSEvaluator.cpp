@@ -307,7 +307,7 @@ double ALNSEvaluator::calculateGreedyDelta(const ALNSRoute& route, int requestId
         int curr_old = route.sequence[k];
         int prev_old = route.sequence[k - 1];
         
-        // 1. Accumulate old metrics for this step k
+        // Accumulate old metrics for this step k
         old_distance += data.getCost(prev_old, curr_old, route.vehicleId);
         
         double l = route.loads[curr_old];
@@ -323,7 +323,7 @@ double ALNSEvaluator::calculateGreedyDelta(const ALNSRoute& route, int requestId
             if (rt > data.getMaxRideTime()) old_ride_viol += (rt - data.getMaxRideTime());
         }
         
-        // 2. Simulate the new metrics for this step k
+        // Simulate the new metrics for this step k
         if (k == i && k == j) {
             simulateNode(P_node, -1, true);
             simulateNode(D_node, -1, true);

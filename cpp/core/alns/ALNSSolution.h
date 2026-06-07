@@ -36,10 +36,10 @@ struct ALNSSolution {
     };
 
     DARPMD_ResultInstance toResultInstance(const DARPMD_ProblemInstance& problem, double computationTime = 0.0) const {
-        // 1. Initialize the result instance with the problem
+        // Initialize the result instance with the problem
         DARPMD_ResultInstance result(problem);
         
-        // 2. Map the metadata to the solution
+        // Map the metadata to the solution
         result.objectiveValue = this->objectiveValue;
         result.solveTime = computationTime;
         result.mipGap = 0.0;
@@ -53,7 +53,7 @@ struct ALNSSolution {
         int numReq = problem.N_requests;
         int numVeh = problem.K_vehicles;
 
-        // 3. Translate each route
+        // Translate each route
         for (const auto& alnsRoute : this->routes) {
             VehicleRoute vr;
             vr.vehicleId = alnsRoute.vehicleId;
@@ -92,7 +92,7 @@ struct ALNSSolution {
             result.addRoute(vr.vehicleId, vr);
         }
 
-        // 4. Calculate the formal violations using the instance's own logic
+        // Calculate the formal violations using the instance's own logic
         result.calculateViolations();
 
         return result;

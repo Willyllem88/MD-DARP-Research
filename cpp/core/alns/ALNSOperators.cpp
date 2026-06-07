@@ -45,7 +45,7 @@ void ALNSOperators::destroyRandom(ALNSSolution& sol, int q) {
     std::vector<int> requests(n);
     std::iota(requests.begin(), requests.end(), 1);
 
-    // Fisher-Yates shuffle for the first 'removals' elements
+    // Fisher-Yates shuffle for the first removals elements
     for (int i = 0; i < removals; ++i) {
         std::uniform_int_distribution<int> dist(i, n - 1);
         int j = dist(rng);
@@ -61,8 +61,8 @@ void ALNSOperators::destroyRandom(ALNSSolution& sol, int q) {
         int reqId = requests[i];
         int vIdx = reqToRoute[reqId];
 
-        nodesToRemove.insert(reqId);                          // pickup
-        nodesToRemove.insert(reqId + data.N_requests);        // delivery
+        nodesToRemove.insert(reqId);                    // pickup
+        nodesToRemove.insert(reqId + data.N_requests);  // delivery
 
         sol.unassignedRequests.insert(reqId);
         routeNeedsUpdate[vIdx] = true;
