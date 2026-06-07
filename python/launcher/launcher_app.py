@@ -15,11 +15,12 @@ from typing import Optional
 import config
 import runner
 from widgets import (
-    apply_dark_theme,
+    apply_theme,
     LabeledEntry, CheckRow, SectionHeader, LogPane,
-    DARK_BG, PANEL_BG, CARD_BG, ACCENT, ACCENT2,
+    MAIN_BG, PANEL_BG, CARD_BG, ACCENT, ACCENT2,
     WARN, DANGER, TEXT, MUTED, BORDER,
     FONT_UI, FONT_LABEL, FONT_TITLE, FONT_HEADER, FONT_MONO,
+    apply_theme,
 )
 
 
@@ -36,9 +37,9 @@ class DARPLauncherApp:
         self.root.title("MD-DARP Launcher")
         self.root.geometry("1000x720")
         self.root.resizable(True, True)
-        self.root.configure(bg=DARK_BG)
+        self.root.configure(bg=MAIN_BG)
 
-        apply_dark_theme(root)
+        apply_theme(root)
         os.makedirs(config.TMP_DIR, exist_ok=True)
 
         # Shared state
@@ -159,14 +160,14 @@ class DARPLauncherApp:
 
         # ── Select existing instance ──────────────────────────────────────────
         tk.Label(p, text="You can also load an already generated instance:",
-                 font=FONT_LABEL, bg=DARK_BG, fg=MUTED).pack(anchor="w", padx=16)
+                 font=FONT_LABEL, bg=MAIN_BG, fg=MUTED).pack(anchor="w", padx=16)
 
-        sel_row = tk.Frame(p, bg=DARK_BG)
+        sel_row = tk.Frame(p, bg=MAIN_BG)
         sel_row.pack(fill=tk.X, padx=16, pady=6)
 
         self._gen_sel_var = tk.StringVar(value="(none)")
         tk.Label(sel_row, textvariable=self._gen_sel_var,
-                 font=FONT_LABEL, bg=DARK_BG, fg=ACCENT2, anchor="w",
+                 font=FONT_LABEL, bg=MAIN_BG, fg=ACCENT2, anchor="w",
                  width=55).pack(side=tk.LEFT)
 
         ttk.Button(sel_row, text="Browse…", style="Neutral.TButton",
@@ -175,18 +176,18 @@ class DARPLauncherApp:
         # ── tmp file list ─────────────────────────────────────────────────────
         ttk.Separator(p, orient="horizontal").pack(fill=tk.X, padx=16, pady=8)
         tk.Label(p, text="Recent instances in tmp/",
-                 font=FONT_LABEL, bg=DARK_BG, fg=MUTED).pack(anchor="w", padx=16)
+                 font=FONT_LABEL, bg=MAIN_BG, fg=MUTED).pack(anchor="w", padx=16)
 
         list_frame = tk.Frame(p, bg=CARD_BG, padx=6, pady=6)
         list_frame.pack(fill=tk.BOTH, expand=True, padx=16, pady=(4, 12))
 
-        sb = tk.Scrollbar(list_frame, bg=PANEL_BG, troughcolor=DARK_BG)
+        sb = tk.Scrollbar(list_frame, bg=PANEL_BG, troughcolor=MAIN_BG)
         sb.pack(side=tk.RIGHT, fill=tk.Y)
 
         self._gen_listbox = tk.Listbox(
             list_frame,
             bg=CARD_BG, fg=TEXT, selectbackground=ACCENT,
-            selectforeground=DARK_BG, font=FONT_MONO,
+            selectforeground=MAIN_BG, font=FONT_MONO,
             relief="flat", borderwidth=0,
             yscrollcommand=sb.set,
         )
@@ -268,11 +269,11 @@ class DARPLauncherApp:
 
         # Split into left-config and right-log
         panes = tk.PanedWindow(p, orient=tk.HORIZONTAL,
-                               bg=DARK_BG, sashwidth=4, sashrelief="flat")
+                               bg=MAIN_BG, sashwidth=4, sashrelief="flat")
         panes.pack(fill=tk.BOTH, expand=True, padx=8, pady=8)
 
-        left  = tk.Frame(panes, bg=DARK_BG)
-        right = tk.Frame(panes, bg=DARK_BG)
+        left  = tk.Frame(panes, bg=MAIN_BG)
+        right = tk.Frame(panes, bg=MAIN_BG)
         panes.add(left,  minsize=340, width=420)
         panes.add(right, minsize=280)
 
@@ -383,7 +384,7 @@ class DARPLauncherApp:
                    command=self._browse_solve_output).pack(side=tk.LEFT, padx=(6, 0))
 
         # Action buttons
-        btn_row = tk.Frame(left, bg=DARK_BG)
+        btn_row = tk.Frame(left, bg=MAIN_BG)
         btn_row.pack(fill=tk.X, pady=8)
         self._solve_btn = ttk.Button(
             btn_row, text="▶  Run Solver", style="Accent.TButton",
@@ -402,7 +403,7 @@ class DARPLauncherApp:
 
         # ── RIGHT -- Log ────────────────────────────────────────────────────────
         tk.Label(right, text="Solver Output", font=FONT_HEADER,
-                 bg=DARK_BG, fg=ACCENT).pack(anchor="w", pady=(0, 4))
+                 bg=MAIN_BG, fg=ACCENT).pack(anchor="w", pady=(0, 4))
 
         log_frame = tk.Frame(right, bg="#0f1117")
         log_frame.pack(fill=tk.BOTH, expand=True)
@@ -592,17 +593,17 @@ class DARPLauncherApp:
 
         # Recent results list
         tk.Label(p, text="Recent results in tmp/",
-                 font=FONT_LABEL, bg=DARK_BG, fg=MUTED).pack(anchor="w", padx=16)
+                 font=FONT_LABEL, bg=MAIN_BG, fg=MUTED).pack(anchor="w", padx=16)
 
         rlist_frame = tk.Frame(p, bg=CARD_BG, padx=6, pady=6)
         rlist_frame.pack(fill=tk.BOTH, expand=True, padx=16, pady=(4, 6))
 
-        rsb = tk.Scrollbar(rlist_frame, bg=PANEL_BG, troughcolor=DARK_BG)
+        rsb = tk.Scrollbar(rlist_frame, bg=PANEL_BG, troughcolor=MAIN_BG)
         rsb.pack(side=tk.RIGHT, fill=tk.Y)
         self._view_listbox = tk.Listbox(
             rlist_frame,
             bg=CARD_BG, fg=TEXT, selectbackground=ACCENT,
-            selectforeground=DARK_BG, font=FONT_MONO,
+            selectforeground=MAIN_BG, font=FONT_MONO,
             relief="flat", borderwidth=0,
             yscrollcommand=rsb.set,
         )
@@ -610,7 +611,7 @@ class DARPLauncherApp:
         rsb.config(command=self._view_listbox.yview)
         self._view_listbox.bind("<Double-Button-1>", self._on_view_listbox_select)
 
-        btn_row = tk.Frame(p, bg=DARK_BG)
+        btn_row = tk.Frame(p, bg=MAIN_BG)
         btn_row.pack(fill=tk.X, padx=16, pady=(0, 10))
 
         ttk.Button(btn_row, text="↻  Refresh list", style="Neutral.TButton",

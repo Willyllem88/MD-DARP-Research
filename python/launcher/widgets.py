@@ -8,16 +8,18 @@ from typing import Optional
 
 
 # ── Colour palette ─────────────────────────────────────────────────────────────
-DARK_BG       = "#1a1d23"
-PANEL_BG      = "#22262e"
-CARD_BG       = "#2a2f3a"
-ACCENT        = "#00d4aa"          # teal-green
-ACCENT2       = "#4f8ef7"          # blue
-WARN          = "#f7c94f"          # amber
-DANGER        = "#e05c5c"
-TEXT          = "#e8eaf0"
-MUTED         = "#8890a0"
-BORDER        = "#363c4a"
+MAIN_BG       = "#f5f7fa"   # fondo principal
+PANEL_BG      = "#ffffff"   # paneles
+CARD_BG       = "#eef2f7"   # tarjetas
+ACCENT        = "#00b894"   # teal-green
+ACCENT2       = "#3b82f6"   # blue
+WARN          = "#f59e0b"   # amber
+DANGER        = "#dc2626"   # red
+TEXT          = "#1f2937"   # texto principal
+MUTED         = "#6b7280"   # texto secundario
+BORDER        = "#d1d5db"   # bordes
+LOG_BG        = "#ffffff"
+LOG_TEXT      = "#111827"
 FONT_MONO     = ("Consolas", 9)
 FONT_UI       = ("Segoe UI", 10)
 FONT_LABEL    = ("Segoe UI", 9)
@@ -25,26 +27,26 @@ FONT_TITLE    = ("Segoe UI", 13, "bold")
 FONT_HEADER   = ("Segoe UI", 11, "bold")
 
 
-def apply_dark_theme(root: tk.Tk) -> None:
-    """Configure ttk styles for a dark theme."""
+def apply_theme(root: tk.Tk) -> None:
+    """Configure ttk styles for theme."""
     style = ttk.Style(root)
     style.theme_use("clam")
 
     style.configure(".",
-        background=DARK_BG, foreground=TEXT,
+        background=MAIN_BG, foreground=TEXT,
         fieldbackground=CARD_BG, troughcolor=PANEL_BG,
-        selectbackground=ACCENT, selectforeground=DARK_BG,
+        selectbackground=ACCENT, selectforeground=MAIN_BG,
         font=FONT_UI,
     )
-    style.configure("TFrame", background=DARK_BG)
+    style.configure("TFrame", background=MAIN_BG)
     style.configure("Card.TFrame", background=CARD_BG)
     style.configure("Panel.TFrame", background=PANEL_BG)
 
-    style.configure("TLabel", background=DARK_BG, foreground=TEXT, font=FONT_UI)
-    style.configure("Muted.TLabel", background=DARK_BG, foreground=MUTED, font=FONT_LABEL)
+    style.configure("TLabel", background=MAIN_BG, foreground=TEXT, font=FONT_UI)
+    style.configure("Muted.TLabel", background=MAIN_BG, foreground=MUTED, font=FONT_LABEL)
     style.configure("Card.TLabel", background=CARD_BG, foreground=TEXT, font=FONT_UI)
-    style.configure("Header.TLabel", background=DARK_BG, foreground=TEXT, font=FONT_HEADER)
-    style.configure("Title.TLabel", background=DARK_BG, foreground=ACCENT, font=FONT_TITLE)
+    style.configure("Header.TLabel", background=MAIN_BG, foreground=TEXT, font=FONT_HEADER)
+    style.configure("Title.TLabel", background=MAIN_BG, foreground=ACCENT, font=FONT_TITLE)
     style.configure("Accent.TLabel", background=CARD_BG, foreground=ACCENT, font=FONT_UI)
     style.configure("Warn.TLabel", background=CARD_BG, foreground=WARN, font=FONT_LABEL)
 
@@ -77,7 +79,7 @@ def apply_dark_theme(root: tk.Tk) -> None:
         insertcolor=TEXT, arrowcolor=MUTED,
     )
 
-    style.configure("TNotebook", background=DARK_BG, borderwidth=0)
+    style.configure("TNotebook", background=MAIN_BG, borderwidth=0)
     style.configure("TNotebook.Tab",
         background=PANEL_BG, foreground=MUTED,
         padding=(14, 6), font=FONT_UI,
@@ -89,14 +91,14 @@ def apply_dark_theme(root: tk.Tk) -> None:
 
     style.configure("TSeparator", background=BORDER)
     style.configure("TScrollbar",
-        background=PANEL_BG, troughcolor=DARK_BG,
-        arrowcolor=MUTED, bordercolor=DARK_BG,
+        background=PANEL_BG, troughcolor=MAIN_BG,
+        arrowcolor=MUTED, bordercolor=MAIN_BG,
     )
 
     # Custom button styles
     for name, bg, fg, abg in [
-        ("Accent.TButton",  ACCENT,   DARK_BG, "#00b899"),
-        ("Blue.TButton",    ACCENT2,  DARK_BG, "#3a7aed"),
+        ("Accent.TButton",  ACCENT,   MAIN_BG, "#00b899"),
+        ("Blue.TButton",    ACCENT2,  MAIN_BG, "#3a7aed"),
         ("Danger.TButton",  DANGER,   "#fff",  "#c94444"),
         ("Neutral.TButton", BORDER,   TEXT,    "#454d5e"),
     ]:
@@ -166,8 +168,8 @@ class LogPane(tk.Text):
     """Scrollable, read-only log widget."""
 
     def __init__(self, parent, **kwargs):
-        kwargs.setdefault("bg", "#0f1117")
-        kwargs.setdefault("fg", "#b8c0cc")
+        kwargs.setdefault("bg", LOG_BG)
+        kwargs.setdefault("fg", LOG_TEXT)
         kwargs.setdefault("font", FONT_MONO)
         kwargs.setdefault("relief", "flat")
         kwargs.setdefault("borderwidth", 0)
