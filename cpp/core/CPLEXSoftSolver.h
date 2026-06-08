@@ -56,8 +56,8 @@ private:
     // Violaton multipliers
     const double alpha = 1000.0; // For load violations
     const double beta  = 100.0; // For route duration violations
-    const double gamma = 100.0; // For ride time window violations
-    const double tau   = 100.0; // For time ride time violations
+    const double gamma = 100.0; // For time window violations
+    const double tau   = 100.0; // For ride time violations
 
     // --- Auxiliary Sets ---
     // List of valid arcs (i,j,k)
