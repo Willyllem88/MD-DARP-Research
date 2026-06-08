@@ -99,18 +99,17 @@ void CPLEXSoftSolver::buildModel() {
         viol_duration[k] = IloNumVar(env, 0, IloInfinity, ILOFLOAT, dur_name.c_str());
     }
     for (int i : V_nodes) {
+        std::string tw_name = "viol_tw_" + std::to_string(i);
+        viol_tw[i] = IloNumVar(env, 0, IloInfinity, ILOFLOAT, tw_name.c_str());
+
         for (int k : data.K) {
             std::string load_name = "viol_load_" + std::to_string(i) + "_" + std::to_string(k);
-            std::string tw_name = "viol_tw_" + std::to_string(i) + "_" + std::to_string(k);
-            std::string ride_name = "viol_ridetime_" + std::to_string(i) + "_" + std::to_string(k);
-
-            viol_tw[i] = IloNumVar(env, 0, IloInfinity, ILOFLOAT, tw_name.c_str());
             viol_load[{i, k}] = IloNumVar(env, 0, IloInfinity, ILOFLOAT, load_name.c_str());
+        }
 
-            // Ride time violations only for pickup nodes
-            if (std::find(data.P.begin(), data.P.end(), i) != data.P.end()) {
-                viol_ridetime[i] = IloNumVar(env, 0, IloInfinity, ILOFLOAT, ride_name.c_str());
-            }
+        if (std::find(data.P.begin(), data.P.end(), i) != data.P.end()) {
+            std::string ride_name = "viol_ridetime_" + std::to_string(i);
+            viol_ridetime[i] = IloNumVar(env, 0, IloInfinity, ILOFLOAT, ride_name.c_str());
         }
     }
 
