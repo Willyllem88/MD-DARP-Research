@@ -37,8 +37,10 @@ mkdir build
 cd build
 cmake ..
 cmake --build . -j
-./cpp/core/darpmd_runner --help
+./cpp/core/darpmd_run --help
 ```
+
+Parameters and options for the solvers can be found in the help message of the `darpmd_run` executable, which is the main entry point for running the solvers. This executable allows you to specify the instance file, the solver to use, and various parameters and options for the solvers.
 
 ## Instances
 

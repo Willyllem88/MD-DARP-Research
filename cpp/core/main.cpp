@@ -49,18 +49,31 @@ void printArgsSummary(const Args& args) {
 }
 
 void printUsage(const char* program_name) {
-    std::cout << "Usage: " << program_name << " [-i instance_path] [-t time_limit] [-o output_path] [-m method] [-s seed] [-v]" << std::endl;
-    std::cout << "  -i, --instance   Path to problem instance JSON file" << std::endl;
-    std::cout << "  -t, --time       Time limit in seconds (optional)" << std::endl;
-    std::cout << "  -o, --output     Path to output solution file" << std::endl;
-    std::cout << "  -m, --method     Solver method: 'ILP', 'ILPSoft', 'ALNS', 'ALNS_SP', 'ALNS_SC'" << std::endl;
-    std::cout << "  -s, --seed       Random seed for reproducibility" << std::endl;
-    std::cout << "  -v, --verbose    Enable verbose output" << std::endl;
-    std::cout << "  --alnsParams     Additional parameters for ALNS (in order: see readme)" << std::endl;
-    std::cout << "  --GICE           Enable Greedy Insertion Cost Evaluator in ALNS" << std::endl;
-    std::cout << "  --NR             Enable Neighbor Reduction in ALNS" << std::endl;
-    std::cout << "  -h, --help       Show this help message" << std::endl;
-    std::cout << "Example: " << program_name << " -i ./a2-16.json -t 300 -o ./solution.json -m ILP -s 42 -v" << std::endl;
+    std::cout << "MD-DARP Solver - Usage Instructions\n"
+              << "===================================\n"
+              << "This program solves the Multi-Depot Dial-a-Ride Problem using various methods.\n\n"
+              << "Usage: " << program_name << R"( [-i instance_path] [-t time_limit] [-o output_path]
+      [-m method] [-s seed] [-v] [--GICE] [--NR]
+      [--alnsParams maxIterations w coolingRate destroyFraction
+                    shawDistWeight shawTimeWeight shawDemandWeight
+                    sigma1 sigma2 sigma3]
+
+  -i, --instance   Path to problem instance JSON file
+  -t, --time       Time limit in seconds
+  -o, --output     Path to output solution file
+  -m, --method     Solver method: ILP, ILPSoft, ALNS, ALNS_SP, ALNS_SC
+  -s, --seed       Random seed for reproducibility
+  -v, --verbose    Enable verbose output
+  --alnsParams     Additional ALNS parameters in order (maxIterations, w, coolingRate,
+                    destroyFraction, shawDistWeight, shawTimeWeight, shawDemandWeight,
+                    sigma1, sigma2, sigma3)
+  --GICE           Enable Greedy Insertion Cost Evaluator in ALNS, if not set uses Forward
+                    Time Slack Evaluator (FTSE)
+  --NR             Enable Neighbor Reduction in ALNS
+  -h, --help       Show this help message
+)"
+              << "\nExample: " << program_name
+              << " -i ./a2-16.json -t 300 -o ./solution.json -m ILP -s 42 -v\n";
 }
 
 Args parseArgs(int argc, char** argv) {
