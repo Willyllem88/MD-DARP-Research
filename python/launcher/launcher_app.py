@@ -418,15 +418,6 @@ class DARPLauncherApp:
         # Apply default preset
         self._on_preset_selected()
 
-    def _toggle_alns_panel(self) -> None:
-        if self._alns_expanded:
-            self._alns_panel.pack_forget()
-            self._alns_toggle_btn.config(text="▶  ALNS Advanced Parameters")
-        else:
-            self._alns_panel.pack(fill=tk.X, pady=(0, 6))
-            self._alns_toggle_btn.config(text="▼  ALNS Advanced Parameters")
-        self._alns_expanded = not self._alns_expanded
-
     def _on_preset_selected(self, _event=None) -> None:
         name = self._preset_var.get()
         preset = config.PRESETS.get(name, config.PRESETS[config.DEFAULT_PRESET])
