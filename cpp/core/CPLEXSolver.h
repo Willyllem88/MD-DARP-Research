@@ -69,9 +69,14 @@ private:
 
     // Build the model (Variables, Objective, Constraints)
     void buildModel();
-    // Check if an arc is feasible
+
+    // Check if an arc is feasible: that means, if a feasible solution exists, this 
+    // arc could be used in such solution. This prunes the number of arcs and reduces
+    // the size of the model, which is important for performance.
     bool isArcFeasible(uint i, uint j, uint k) const;
-    // Check if a path is feasible
+
+    // Check if a path (e.g., a sequence of nodes) is feasible regarding time windows,
+    // vehicle capacity, and ride time constraints. This is useful to prune arcs.
     bool checkPathFeasibility(const std::vector<uint>& path, uint k) const;
     
     // Helper to check if a tuple exists in the map (like "if (i,j,k) in m.A_k")

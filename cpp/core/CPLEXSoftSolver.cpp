@@ -66,8 +66,213 @@ CPLEXSoftSolver::~CPLEXSoftSolver() {
     env.end();
 }
 
-bool CPLEXSoftSolver::varExists(int i, int j, int k) const {
-    return x.find({i, j, k}) != x.end();
+void CPLEXSoftSolver::solve() {
+    // Set time limit if provided
+    if (timeLimit.has_value()) {
+        cplex.setParam(IloCplex::Param::TimeLimit, timeLimit.value());
+    }
+    
+    logger.log("Starting CPLEX solve");
+
+    auto start = std::chrono::high_resolution_clock::now();
+    bool solved = cplex.solve();
+    auto end =  std::chrono::high_resolution_clock::now();
+
+    std::chrono::duration<double> elapsed = end - start;
+    this->solveTime = elapsed.count();
+
+    // Print solve results
+    if (solved) {
+        logger.log("CPLEX Status: " + std::to_string(cplex.getStatus()));
+        logger.log("Objective Value: " + std::to_string(cplex.getObjValue()));
+        this->mipGap = cplex.getMIPRelativeGap();
+        this->objectiveValue = cplex.getObjValue();
+    } else {
+        logger.log("No solution found or infeasible. Status: " + std::to_string(cplex.getStatus()));
+    }
+    logger.log("Total Solve Time: " + std::to_string(this->solveTime) + " s");
+}
+
+double CPLEXSoftSolver::solveLPRelaxation() {
+    IloNumVarArray binaryVars(env);
+    for (const auto& arc : A_k) {
+        binaryVars.add(x[arc]); 
+    }
+
+    IloConversion lpRelaxation(env, binaryVars, ILOFLOAT);
+
+    model.add(lpRelaxation);
+
+    auto start = std::chrono::high_resolution_clock::now();
+    bool solved = cplex.solve();
+    auto end = std::chrono::high_resolution_clock::now();
+
+    std::chrono::duration<double> elapsed = end - start;
+
+    double lpObjValue = cplex.getObjValue();
+
+    if (solved) {
+        logger.log("Status of the LP relaxation: " + std::to_string(cplex.getStatus()));
+        logger.log("LP Objective Value (Lower Bound): " + std::to_string(lpObjValue));
+    } else {
+        logger.log("No solution found or infeasible. Status: " + std::to_string(cplex.getStatus()));
+    }
+    logger.log("LP Solving Time: " + std::to_string(elapsed.count()) + " s\n");
+
+    model.remove(lpRelaxation);
+    lpRelaxation.end();
+    binaryVars.end();
+
+    return lpObjValue;
+}
+
+
+int CPLEXSoftSolver::getNumberOfConstraints() const {
+    return cplex.getNrows();
+}
+
+int CPLEXSoftSolver::getNumberOfVariables() const {
+    return cplex.getNcols();
+}
+
+void CPLEXSoftSolver::fixAllRoutingVariablesToZero() {
+    for (const auto& arc : A_k) {
+        x[arc].setBounds(0.0, 0.0);
+    }
+}
+
+void CPLEXSoftSolver::fixRoutingVariable(int i, int j, int k, double value) {
+    if (varExists(i, j, k)) {
+        x[{i, j, k}].setBounds(value, value);
+    } else {
+        std::cerr << "Warning: Attempting to fix non-existent variable x[" << i << "," << j << "," << k << "]\n";
+    }
+}
+
+void CPLEXSoftSolver::unfixAllRoutingVariables() {
+    for (const auto& arc : A_k) {
+        x[arc].setBounds(0.0, 1.0);
+    }
+}
+
+DARPMD_ResultInstance CPLEXSoftSolver::getResult() const {
+    DARPMD_ResultInstance result(data); 
+
+    // 1. General Solution Info
+    try {
+        result.objectiveValue = this->objectiveValue;
+        result.solveTime = this->solveTime;
+        result.mipGap = this->mipGap;
+
+        double totalLoadViolation = 0.0;
+        double totalDurationViolation = 0.0;
+        double totalTWViolation = 0.0;
+        double totalRideTimeViolation = 0.0;
+        for (const auto& [key, var] : viol_load) {
+            totalLoadViolation += cplex.getValue(var);
+        }
+        for (const auto& [key, var] : viol_duration) {
+            totalDurationViolation += cplex.getValue(var);
+        }
+        for (const auto& [key, var] : viol_tw) {
+            totalTWViolation += cplex.getValue(var);
+        }
+        for (const auto& [key, var] : viol_ridetime) {
+            totalRideTimeViolation += cplex.getValue(var);
+        }
+
+        // Check status
+        if (cplex.getStatus() == IloAlgorithm::Optimal) {
+            if (totalLoadViolation > 1e-6 || totalDurationViolation > 1e-6 || totalTWViolation > 1e-6 || totalRideTimeViolation > 1e-6) {
+                result.solverStatus = "Semi-Feasible";
+            } else {
+                result.solverStatus = "Optimal";
+            }
+        }
+        else if (cplex.getStatus() == IloAlgorithm::Feasible) {
+            result.solverStatus = "Feasible";
+        }
+        else {
+            result.solverStatus = "No Solution";
+        }
+    } catch (...) {
+        result.solverStatus = "No Solution";
+        return result;
+    }
+
+    // 2. Reconstruct routes
+    for (int k : data.K) {
+        VehicleRoute vRoute;
+        vRoute.vehicleId = k;
+
+        // Map of next nodes for this vehicle
+        std::map<int, int> next_node_map;
+        for (const auto& arc : A_k) {
+            auto [i, j, veh] = arc;
+            if (veh == k) {
+                // Check if variable is 1 (with numerical tolerance)
+                if (cplex.isExtracted(x.at(arc)) && cplex.getValue(x.at(arc)) > 0.5) {
+                    next_node_map[i] = j;
+                }
+            }
+        }
+
+        int current_node = data.getVehicleStartNode(k);
+        int end_node = data.getVehicleEndNode(k);
+
+        // If vehicle doesn't move
+        if (next_node_map.find(current_node) == next_node_map.end()) {
+            // Still, we can add the start node for consistency
+            RouteStep startStep;
+            startStep.nodeId = current_node;
+            startStep.type = "DepotStart";
+            startStep.beginServiceTime = 0.0;
+            startStep.loadAfter = 0.0;
+            vRoute.steps.push_back(startStep);
+            
+            result.addRoute(k, vRoute);
+            continue;
+        }
+
+        // Traverse the route
+        while (true) {
+            // Create the current step
+            RouteStep step;
+            step.nodeId = current_node;
+            
+            // Determine type (simple heuristic based on your sets P and D)
+            if (current_node == data.getVehicleStartNode(k)) step.type = "DepotStart";
+            else if (current_node == data.getVehicleEndNode(k)) step.type = "DepotEnd";
+            else if (std::find(data.P.begin(), data.P.end(), current_node) != data.P.end()) step.type = "Pickup";
+            else if (std::find(data.D.begin(), data.D.end(), current_node) != data.D.end()) step.type = "Delivery";
+            else step.type = "Node";
+
+            // Extract continuous variable values u (time) and w (load)
+            if (u.count(current_node))
+                step.beginServiceTime = cplex.getValue(u.at(current_node));
+            else
+                step.beginServiceTime = 0.0;
+
+            if (w.count({current_node, k}))
+                step.loadAfter = cplex.getValue(w.at({current_node, k}));
+            else 
+                step.loadAfter = 0.0;
+
+            vRoute.steps.push_back(step);
+
+            // Stopping condition
+            if (current_node == end_node) break;
+            if (next_node_map.find(current_node) == next_node_map.end()) break; // Broken route?
+
+            // Advance
+            current_node = next_node_map[current_node];
+        }
+        
+        result.addRoute(k, vRoute);
+    }
+    result.calculateViolations();
+
+    return result;
 }
 
 void CPLEXSoftSolver::buildModel() {
@@ -313,210 +518,6 @@ void CPLEXSoftSolver::buildModel() {
     }
 }
 
-void CPLEXSoftSolver::solve() {
-    // Set time limit if provided
-    if (timeLimit.has_value()) {
-        cplex.setParam(IloCplex::Param::TimeLimit, timeLimit.value());
-    }
-    
-    logger.log("Starting CPLEX solve");
-
-    auto start = std::chrono::high_resolution_clock::now();
-    bool solved = cplex.solve();
-    auto end =  std::chrono::high_resolution_clock::now();
-
-    std::chrono::duration<double> elapsed = end - start;
-    this->solveTime = elapsed.count();
-
-    // Print solve results
-    if (solved) {
-        logger.log("CPLEX Status: " + std::to_string(cplex.getStatus()));
-        logger.log("Objective Value: " + std::to_string(cplex.getObjValue()));
-        this->mipGap = cplex.getMIPRelativeGap();
-        this->objectiveValue = cplex.getObjValue();
-    } else {
-        logger.log("No solution found or infeasible. Status: " + std::to_string(cplex.getStatus()));
-    }
-    logger.log("Total Solve Time: " + std::to_string(this->solveTime) + " s");
-}
-
-int CPLEXSoftSolver::getNumberOfConstraints() const {
-    return cplex.getNrows();
-}
-
-int CPLEXSoftSolver::getNumberOfVariables() const {
-    return cplex.getNcols();
-}
-
-void CPLEXSoftSolver::fixAllRoutingVariablesToZero() {
-    for (const auto& arc : A_k) {
-        x[arc].setBounds(0.0, 0.0);
-    }
-}
-
-void CPLEXSoftSolver::fixRoutingVariable(int i, int j, int k, double value) {
-    if (varExists(i, j, k)) {
-        x[{i, j, k}].setBounds(value, value);
-    } else {
-        std::cerr << "Warning: Attempting to fix non-existent variable x[" << i << "," << j << "," << k << "]\n";
-    }
-}
-
-void CPLEXSoftSolver::unfixAllRoutingVariables() {
-    for (const auto& arc : A_k) {
-        x[arc].setBounds(0.0, 1.0);
-    }
-}
-
-DARPMD_ResultInstance CPLEXSoftSolver::getResult() const {
-    DARPMD_ResultInstance result(data); 
-
-    // 1. General Solution Info
-    try {
-        result.objectiveValue = this->objectiveValue;
-        result.solveTime = this->solveTime;
-        result.mipGap = this->mipGap;
-
-        double totalLoadViolation = 0.0;
-        double totalDurationViolation = 0.0;
-        double totalTWViolation = 0.0;
-        double totalRideTimeViolation = 0.0;
-        for (const auto& [key, var] : viol_load) {
-            totalLoadViolation += cplex.getValue(var);
-        }
-        for (const auto& [key, var] : viol_duration) {
-            totalDurationViolation += cplex.getValue(var);
-        }
-        for (const auto& [key, var] : viol_tw) {
-            totalTWViolation += cplex.getValue(var);
-        }
-        for (const auto& [key, var] : viol_ridetime) {
-            totalRideTimeViolation += cplex.getValue(var);
-        }
-
-        // Check status
-        if (cplex.getStatus() == IloAlgorithm::Optimal) {
-            if (totalLoadViolation > 1e-6 || totalDurationViolation > 1e-6 || totalTWViolation > 1e-6 || totalRideTimeViolation > 1e-6) {
-                result.solverStatus = "Semi-Feasible";
-            } else {
-                result.solverStatus = "Optimal";
-            }
-        }
-        else if (cplex.getStatus() == IloAlgorithm::Feasible) {
-            result.solverStatus = "Feasible";
-        }
-        else {
-            result.solverStatus = "No Solution";
-        }
-    } catch (...) {
-        result.solverStatus = "No Solution";
-        return result;
-    }
-
-    // 2. Reconstruct routes
-    for (int k : data.K) {
-        VehicleRoute vRoute;
-        vRoute.vehicleId = k;
-
-        // Map of next nodes for this vehicle
-        std::map<int, int> next_node_map;
-        for (const auto& arc : A_k) {
-            auto [i, j, veh] = arc;
-            if (veh == k) {
-                // Check if variable is 1 (with numerical tolerance)
-                if (cplex.isExtracted(x.at(arc)) && cplex.getValue(x.at(arc)) > 0.5) {
-                    next_node_map[i] = j;
-                }
-            }
-        }
-
-        int current_node = data.getVehicleStartNode(k);
-        int end_node = data.getVehicleEndNode(k);
-
-        // If vehicle doesn't move
-        if (next_node_map.find(current_node) == next_node_map.end()) {
-            // Still, we can add the start node for consistency
-            RouteStep startStep;
-            startStep.nodeId = current_node;
-            startStep.type = "DepotStart";
-            startStep.beginServiceTime = 0.0;
-            startStep.loadAfter = 0.0;
-            vRoute.steps.push_back(startStep);
-            
-            result.addRoute(k, vRoute);
-            continue;
-        }
-
-        // Traverse the route
-        while (true) {
-            // Create the current step
-            RouteStep step;
-            step.nodeId = current_node;
-            
-            // Determine type (simple heuristic based on your sets P and D)
-            if (current_node == data.getVehicleStartNode(k)) step.type = "DepotStart";
-            else if (current_node == data.getVehicleEndNode(k)) step.type = "DepotEnd";
-            else if (std::find(data.P.begin(), data.P.end(), current_node) != data.P.end()) step.type = "Pickup";
-            else if (std::find(data.D.begin(), data.D.end(), current_node) != data.D.end()) step.type = "Delivery";
-            else step.type = "Node";
-
-            // Extract continuous variable values u (time) and w (load)
-            if (u.count(current_node))
-                step.beginServiceTime = cplex.getValue(u.at(current_node));
-            else
-                step.beginServiceTime = 0.0;
-
-            if (w.count({current_node, k}))
-                step.loadAfter = cplex.getValue(w.at({current_node, k}));
-            else 
-                step.loadAfter = 0.0;
-
-            vRoute.steps.push_back(step);
-
-            // Stopping condition
-            if (current_node == end_node) break;
-            if (next_node_map.find(current_node) == next_node_map.end()) break; // Broken route?
-
-            // Advance
-            current_node = next_node_map[current_node];
-        }
-        
-        result.addRoute(k, vRoute);
-    }
-    result.calculateViolations();
-
-    return result;
-}
-
-double CPLEXSoftSolver::solveLPRelaxation() {
-    IloNumVarArray binaryVars(env);
-    for (const auto& arc : A_k) {
-        binaryVars.add(x[arc]); 
-    }
-
-    IloConversion lpRelaxation(env, binaryVars, ILOFLOAT);
-
-    model.add(lpRelaxation);
-
-    auto start = std::chrono::high_resolution_clock::now();
-    bool solved = cplex.solve();
-    auto end = std::chrono::high_resolution_clock::now();
-
-    std::chrono::duration<double> elapsed = end - start;
-
-    double lpObjValue = cplex.getObjValue();
-
-    if (solved) {
-        logger.log("Status of the LP relaxation: " + std::to_string(cplex.getStatus()));
-        logger.log("LP Objective Value (Lower Bound): " + std::to_string(lpObjValue));
-    } else {
-        logger.log("No solution found or infeasible. Status: " + std::to_string(cplex.getStatus()));
-    }
-    logger.log("LP Solving Time: " + std::to_string(elapsed.count()) + " s\n");
-
-    model.remove(lpRelaxation);
-    lpRelaxation.end();
-    binaryVars.end();
-
-    return lpObjValue;
+bool CPLEXSoftSolver::varExists(int i, int j, int k) const {
+    return x.find({i, j, k}) != x.end();
 }
