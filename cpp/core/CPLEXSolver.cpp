@@ -641,24 +641,11 @@ bool CPLEXSolver::checkPathFeasibility(const std::vector<uint>& path, uint k) co
             if (it != path.end()) {
                 // d_idx is the index of the delivery node in the path
                 size_t d_idx = std::distance(path.begin(), it);
-                double min_ride_time = 0.0;
-                
-                for (size_t j = i; j < d_idx; ++j) {
-                    min_ride_time += data.getTravelTime(path[j], path[j + 1]);
-                    if (j > i) {
-                        min_ride_time += data.getServiceTime(path[j]);
-                    }
-                }
 
-                if (i + 1 < d_idx) {
-                    uint next_n = path[i + 1];
-                    double l_p = data.getTimeWindowEnd(p_node);
-                    double s_p = data.getServiceTime(p_node);
-                    double t_p_next = data.getTravelTime(p_node, next_n);
-                    double e_next = data.getTimeWindowStart(next_n);
-                    
-                    double mandatory_wait = std::max(0.0, e_next - (l_p + s_p + t_p_next));
-                    min_ride_time += mandatory_wait;
+                double min_ride_time = data.getTravelTime(path[i], path[i + 1]);
+                
+                for (size_t j = i + 1; j < d_idx; ++j) {
+                    min_ride_time += data.getServiceTime(path[j]) + data.getTravelTime(path[j], path[j + 1]);
                 }
 
                 if (min_ride_time > data.getMaxRideTime() + epsilon) {
