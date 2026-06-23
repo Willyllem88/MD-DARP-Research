@@ -14,7 +14,7 @@ const std::string DEFAULT_INSTANCE_PATH = "/home/guillem/TFG-Guillem/data/gracia
 
 struct Args {
     std::string instance_path = DEFAULT_INSTANCE_PATH;
-    std::string output_path = "solution_report.json";
+    std::optional<std::string> output_path;
     std::string method = "ILP"; // or "ILPSoft" or "ALNS" or "ALNS_SP" or "ALNS_SC"
     int seed = 42;
     bool verbose = false;
@@ -27,7 +27,7 @@ struct Args {
 void printArgsSummary(const Args& args) {
     std::cout << "=== Arguments Summary === " << std::endl;
     std::cout << "  Instance Path: " << args.instance_path << std::endl;
-    std::cout << "  Output Path: " << args.output_path << std::endl;
+    std::cout << "  Output Path: " << args.output_path.value_or("Not specified") << std::endl;
     std::cout << "  Method: " << args.method << std::endl;
     std::cout << "  Seed: " << args.seed << std::endl;
     std::cout << "  Verbose: " << (args.verbose ? "Yes" : "No") << std::endl;
@@ -183,8 +183,10 @@ int main(int argc, char** argv) {
     solver->solve();
     MDDARP_ResultInstance result = solver->getResult();
     if(args.verbose) result.displaySummary();
-    result.saveToJSON(args.output_path);
-    if(args.verbose) std::cout << "Solution saved to: " << args.output_path << std::endl;
+    if (args.output_path.has_value()) {
+        result.saveToJSON(args.output_path.value());
+        if(args.verbose) std::cout << "Solution saved to: " << args.output_path.value() << std::endl;
+    }
     std::cout << result.objectiveValue << std::endl;
 
     return 0;
