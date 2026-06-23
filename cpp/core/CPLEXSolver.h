@@ -8,13 +8,13 @@
 #include <optional>
 
 #include "Solver.h"
-#include "DARPMD_ProblemInstance.h"
-#include "DARPMD_ResultInstance.h"
+#include "MDDARP_ProblemInstance.h"
+#include "MDDARP_ResultInstance.h"
 
 class CPLEXSolver: public Solver {
 public:
     CPLEXSolver(
-        DARPMD_ProblemInstance& instance,
+        MDDARP_ProblemInstance& instance,
         std::optional <double> timeLimit = std::nullopt,
         bool verbose = false
     );
@@ -33,14 +33,14 @@ public:
     int getNumberOfVariables() const;
 
     // After solving, extract the solution and return it in structured and uniform format
-    DARPMD_ResultInstance getResult() const override;
+    MDDARP_ResultInstance getResult() const override;
 
     std::string name() const override {
         return "ILP (CPLEX)";
     }
 
 private:
-    DARPMD_ProblemInstance& data;
+    MDDARP_ProblemInstance& data;
 
     std::optional<double> timeLimit;
     

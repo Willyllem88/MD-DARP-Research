@@ -5,7 +5,7 @@
 #include <algorithm>
 
 // Constructor: Initializes the persistent environment and pre-calculates indices
-SetPartitioningSolver::SetPartitioningSolver(const DARPMD_ProblemInstance& data, 
+SetPartitioningSolver::SetPartitioningSolver(const MDDARP_ProblemInstance& data, 
                                              const ALNSParams& params, 
                                              ALNSEvaluator& evaluator,
                                              Logger& logger)

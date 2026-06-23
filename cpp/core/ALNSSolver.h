@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Solver.h"
-#include "DARPMD_ProblemInstance.h"
-#include "DARPMD_ResultInstance.h"
+#include "MDDARP_ProblemInstance.h"
+#include "MDDARP_ResultInstance.h"
 #include "alns/ALNSRoute.h"
 #include "alns/ALNSSolution.h"
 #include "alns/ALNSParams.h"
@@ -31,7 +31,7 @@ public:
 
 
     ALNSSolver(
-        DARPMD_ProblemInstance& instance, 
+        MDDARP_ProblemInstance& instance, 
         std::optional<double> timeLimit = std::nullopt, 
         HybridMethod hybridMethod = HybridMethod::NONE,
         int seed = 42, 
@@ -44,7 +44,7 @@ public:
     ~ALNSSolver() {};
 
     void solve() override;
-    DARPMD_ResultInstance getResult() const override;
+    MDDARP_ResultInstance getResult() const override;
 
     // Returns a string with the name of the solver configuration (for 
     // logging purposes). In can be ALNS, ALNS_SP or ALNS_SC depending on 
@@ -55,8 +55,8 @@ public:
     void addRouteToPool(const ALNSRoute& route);
 
 private:
-    DARPMD_ProblemInstance& data;
-    std::optional<DARPMD_ResultInstance> result;
+    MDDARP_ProblemInstance& data;
+    std::optional<MDDARP_ResultInstance> result;
     std::optional<double> timeLimit;
 
     HybridMethod hybridMethod;
@@ -128,5 +128,5 @@ private:
     // Solves a Set Partitioning/Covering problem using the accumulated routePool
     void solveMatheuristic(); 
     // Solve schedule later
-    DARPMD_ResultInstance solveScheduleLater(ALNSSolution& sol);
+    MDDARP_ResultInstance solveScheduleLater(ALNSSolution& sol);
 };

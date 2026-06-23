@@ -6,12 +6,12 @@
 
 // Forward declarations
 class ALNSEvaluator;
-struct DARPMD_ProblemInstance;
+struct MDDARP_ProblemInstance;
 struct ALNSParams;
 
 class ALNSOperators {
 public:
-    ALNSOperators(const DARPMD_ProblemInstance& instance, 
+    ALNSOperators(const MDDARP_ProblemInstance& instance, 
                   const ALNSParams& parameters, 
                   ALNSEvaluator& evaluator, 
                   std::mt19937& randomEngine,
@@ -28,7 +28,7 @@ public:
     void repairRegret2(ALNSSolution& sol);
 
 private:
-    const DARPMD_ProblemInstance& data;
+    const MDDARP_ProblemInstance& data;
     const ALNSParams& params;
     ALNSEvaluator& evaluator;
     std::mt19937& rng;

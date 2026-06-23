@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../DARPMD_ProblemInstance.h"
+#include "../MDDARP_ProblemInstance.h"
 #include "../logger.h"
 #include "ALNSSolution.h"
 #include "ALNSParams.h"
@@ -12,7 +12,7 @@
 class SetBasedSolver {
 public:
     SetBasedSolver(
-        const DARPMD_ProblemInstance& data, 
+        const MDDARP_ProblemInstance& data, 
         const ALNSParams& params, 
         ALNSEvaluator& evaluator,
         Logger& logger
@@ -31,7 +31,7 @@ public:
     RoutePool& getRoutePool() { return pool; }
 
 protected:
-    const DARPMD_ProblemInstance& data;
+    const MDDARP_ProblemInstance& data;
     const ALNSParams& params;
     ALNSEvaluator& evaluator;
     Logger& logger;

@@ -6,7 +6,7 @@
 #include <queue>
 #include <iostream>
 
-RoutePool::RoutePool(const DARPMD_ProblemInstance& instance) : problemInstance(instance) {
+RoutePool::RoutePool(const MDDARP_ProblemInstance& instance) : problemInstance(instance) {
 
     int numNodes = problemInstance.max_node_id + 1;
     int numVehicles = problemInstance.K_vehicles;

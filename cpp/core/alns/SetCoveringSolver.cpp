@@ -5,7 +5,7 @@
 #include <algorithm>
 
 // Constructor: Initializes the persistent environment and pre-calculates indices
-SetCoveringSolver::SetCoveringSolver(const DARPMD_ProblemInstance& data, 
+SetCoveringSolver::SetCoveringSolver(const MDDARP_ProblemInstance& data, 
                                              const ALNSParams& params, 
                                              ALNSEvaluator& evaluator,
                                              Logger& logger)

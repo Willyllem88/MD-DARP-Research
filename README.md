@@ -35,13 +35,13 @@ mkdir build
 cd build
 cmake ..
 cmake --build . -j
-./cpp/core/darpmd_run --help
+./cpp/core/mddarp_run --help
 ```
 
-Parameters and options for the solvers can be found in the help message of the `darpmd_run` executable, which is the main entry point for running the solvers. This executable allows you to specify the instance file, the solver to use, and various parameters and options for the solvers. An example of how to run the solvers is as follows:
+Parameters and options for the solvers can be found in the help message of the `mddarp_run` executable, which is the main entry point for running the solvers. This executable allows you to specify the instance file, the solver to use, and various parameters and options for the solvers. An example of how to run the solvers is as follows:
 
 ```bash
-./cpp/core/darpmd_run --instance ../data/our-mddarp-instances/bcn-5-32.json --method ALNS --time 3600 --verbose
+./cpp/core/mddarp_run --instance ../data/our-mddarp-instances/bcn-5-32.json --method ALNS --time 3600 --verbose
 ```
 
 ## Instances

@@ -7,7 +7,7 @@
 
 #include "CPLEXSoftSolver.h"
 
-ALNSSolver::ALNSSolver(DARPMD_ProblemInstance& instance,
+ALNSSolver::ALNSSolver(MDDARP_ProblemInstance& instance,
                        std::optional<double> timeLimit,
                        HybridMethod hybridMethod,
                        int seed,
@@ -143,7 +143,7 @@ void ALNSSolver::solve() {
     }
 }
 
-DARPMD_ResultInstance ALNSSolver::getResult() const {
+MDDARP_ResultInstance ALNSSolver::getResult() const {
     if (result.has_value()) {
         return result.value();
     } else {
@@ -392,7 +392,7 @@ void ALNSSolver::solveMatheuristic() {
     updateBestSolutions(matSol, "  [Matheuristic] ");
 }
 
-DARPMD_ResultInstance ALNSSolver::solveScheduleLater(ALNSSolution& sol) {
+MDDARP_ResultInstance ALNSSolver::solveScheduleLater(ALNSSolution& sol) {
     logger.log("[Schedule Later] Starting... Current solution objective: " + std::to_string(sol.objectiveValue));
     CPLEXSoftSolver softSolver(data, std::nullopt, false);
 
@@ -409,7 +409,7 @@ DARPMD_ResultInstance ALNSSolver::solveScheduleLater(ALNSSolution& sol) {
     }
 
     softSolver.solve();
-    DARPMD_ResultInstance result = softSolver.getResult();
+    MDDARP_ResultInstance result = softSolver.getResult();
 
     if (result.objectiveValue < bestObjective - 1e-6) {
         logger.log("[Schedule Later] CPLEX improved the solution! Objective: " + std::to_string(result.objectiveValue) + " (Improvement)");

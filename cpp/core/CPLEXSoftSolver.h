@@ -8,13 +8,13 @@
 #include <optional>
 
 #include "Solver.h"
-#include "DARPMD_ProblemInstance.h"
-#include "DARPMD_ResultInstance.h"
+#include "MDDARP_ProblemInstance.h"
+#include "MDDARP_ResultInstance.h"
 
 class CPLEXSoftSolver: public Solver {
 public:
     CPLEXSoftSolver(
-        DARPMD_ProblemInstance& instance,
+        MDDARP_ProblemInstance& instance,
         std::optional <double> timeLimit = std::nullopt,
         bool verbose = false
     );
@@ -37,14 +37,14 @@ public:
     void fixRoutingVariable(int i, int j, int k, double value = 1.0);
     void unfixAllRoutingVariables();
 
-    DARPMD_ResultInstance getResult() const override;
+    MDDARP_ResultInstance getResult() const override;
 
     std::string name() const override {
         return "ILP (CPLEX)";
     }
 
 private:
-    DARPMD_ProblemInstance& data;
+    MDDARP_ProblemInstance& data;
 
     std::optional<double> timeLimit;
     

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../DARPMD_ProblemInstance.h"
+#include "../MDDARP_ProblemInstance.h"
 #include "../logger.h"
 #include "ALNSSolution.h"
 #include "ALNSParams.h"
@@ -14,7 +14,7 @@
 class SetPartitioningSolver : public SetBasedSolver {
 public:
     SetPartitioningSolver(
-        const DARPMD_ProblemInstance& data, 
+        const MDDARP_ProblemInstance& data, 
         const ALNSParams& params, 
         ALNSEvaluator& evaluator,
         Logger& logger

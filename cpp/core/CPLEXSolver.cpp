@@ -4,7 +4,7 @@
 #include <set>
 #include <chrono>
 
-CPLEXSolver::CPLEXSolver(DARPMD_ProblemInstance& instance, std::optional<double> timeLimit, bool verbose) 
+CPLEXSolver::CPLEXSolver(MDDARP_ProblemInstance& instance, std::optional<double> timeLimit, bool verbose) 
     : Solver(verbose), data(instance), timeLimit(timeLimit), model(env), cplex(model) {
     
     // Mute CPLEX output if not verbose
@@ -130,8 +130,8 @@ int CPLEXSolver::getNumberOfVariables() const {
     return cplex.getNcols();
 }
 
-DARPMD_ResultInstance CPLEXSolver::getResult() const {
-    DARPMD_ResultInstance result(data);
+MDDARP_ResultInstance CPLEXSolver::getResult() const {
+    MDDARP_ResultInstance result(data);
 
     // 1. General Solution Info
     try {

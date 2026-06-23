@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ALNSRoute.h"
-#include "../DARPMD_ProblemInstance.h"
+#include "../MDDARP_ProblemInstance.h"
 #include <vector>
 #include <map>
 #include <unordered_map>
@@ -11,7 +11,7 @@
 
 class RoutePool {
 public:
-    RoutePool(const DARPMD_ProblemInstance& instance);
+    RoutePool(const MDDARP_ProblemInstance& instance);
     ~RoutePool() = default;
 
     // Add the route if it's not a duplicate and if it has potential to improve the current best solution
@@ -30,7 +30,7 @@ public:
     void clear();
 
 private:
-    const DARPMD_ProblemInstance& problemInstance;
+    const MDDARP_ProblemInstance& problemInstance;
 
     // Key: VehicleID, Value: List of routes
     std::unordered_map<int, std::vector<ALNSRoute>> routePool;

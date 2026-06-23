@@ -38,7 +38,7 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 # Run solver with the provided parameters
-../build/cpp/core/darpmd_run \
+../build/cpp/core/mddarp_run \
     -i "$INSTANCE" \
     -m ALNS \
     -s "$SEED" \

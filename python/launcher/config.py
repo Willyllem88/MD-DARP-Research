@@ -7,7 +7,7 @@ import os
 # ── Paths (relative to the project root, i.e., the parent of ./python) ────────
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
-SOLVER_BIN      = os.path.join(PROJECT_ROOT, "build", "cpp", "core", "darpmd_run")
+SOLVER_BIN      = os.path.join(PROJECT_ROOT, "build", "cpp", "core", "mddarp_run")
 GENERATOR_MAIN  = os.path.join(PROJECT_ROOT, "python", "mddarp-gen", "main.py")
 VIEWER_MAIN     = os.path.join(PROJECT_ROOT, "python", "mddarp-res-viewer", "main.py")
 

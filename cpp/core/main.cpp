@@ -3,7 +3,7 @@
 #include <optional>
 #include <memory>
 
-#include "DARPMD_ProblemInstance.h"
+#include "MDDARP_ProblemInstance.h"
 #include "Solver.h"
 #include "CPLEXSolver.h"
 #include "CPLEXSoftSolver.h"
@@ -138,7 +138,7 @@ int main(int argc, char** argv) {
     if (args.verbose) printArgsSummary(args);
 
     // Load Problem Instance
-    DARPMD_ProblemInstance instance;
+    MDDARP_ProblemInstance instance;
     if (!instance.loadFromJSON(args.instance_path)) {
         std::cerr << "Failed to load instance from " << args.instance_path << std::endl;
         return 1;
@@ -181,7 +181,7 @@ int main(int argc, char** argv) {
 
     // Solve and Get Results
     solver->solve();
-    DARPMD_ResultInstance result = solver->getResult();
+    MDDARP_ResultInstance result = solver->getResult();
     if(args.verbose) result.displaySummary();
     result.saveToJSON(args.output_path);
     if(args.verbose) std::cout << "Solution saved to: " << args.output_path << std::endl;

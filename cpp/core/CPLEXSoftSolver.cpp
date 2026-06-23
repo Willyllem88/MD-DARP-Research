@@ -4,7 +4,7 @@
 #include <set>
 #include <chrono>
 
-CPLEXSoftSolver::CPLEXSoftSolver(DARPMD_ProblemInstance& instance, std::optional<double> timeLimit, bool verbose) 
+CPLEXSoftSolver::CPLEXSoftSolver(MDDARP_ProblemInstance& instance, std::optional<double> timeLimit, bool verbose) 
     : Solver(verbose), data(instance), timeLimit(timeLimit), model(env), cplex(model) {
 
     // Mute CPLEX output if not verbose
@@ -155,8 +155,8 @@ void CPLEXSoftSolver::unfixAllRoutingVariables() {
     }
 }
 
-DARPMD_ResultInstance CPLEXSoftSolver::getResult() const {
-    DARPMD_ResultInstance result(data); 
+MDDARP_ResultInstance CPLEXSoftSolver::getResult() const {
+    MDDARP_ResultInstance result(data); 
 
     // 1. General Solution Info
     try {

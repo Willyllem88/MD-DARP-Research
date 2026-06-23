@@ -2,12 +2,12 @@
 
 #include "ALNSSolution.h"
 #include "ALNSParams.h"
-#include "DARPMD_ProblemInstance.h"
+#include "MDDARP_ProblemInstance.h"
 
 class ALNSEvaluator {
 public:
     ALNSEvaluator(
-        const DARPMD_ProblemInstance& data,
+        const MDDARP_ProblemInstance& data,
         const ALNSParams& params
     );
 
@@ -25,6 +25,6 @@ public:
     double calculateGreedyDelta(const ALNSRoute& route, int requestId, int i, int j, double upper_bound);
 
 private:
-    const DARPMD_ProblemInstance& data;
+    const MDDARP_ProblemInstance& data;
     const ALNSParams& params;
 };

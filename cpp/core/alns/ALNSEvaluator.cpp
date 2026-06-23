@@ -2,7 +2,7 @@
 
 #include "../ALNSSolver.h"
 
-ALNSEvaluator::ALNSEvaluator(const DARPMD_ProblemInstance& data, 
+ALNSEvaluator::ALNSEvaluator(const MDDARP_ProblemInstance& data, 
                              const ALNSParams& params)
     : data(data), params(params) { };
 

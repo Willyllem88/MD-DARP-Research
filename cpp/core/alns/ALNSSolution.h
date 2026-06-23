@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ALNSRoute.h"
-#include "../DARPMD_ResultInstance.h"
+#include "../MDDARP_ResultInstance.h"
 
 #include <vector> 
 #include <set>
@@ -35,9 +35,9 @@ struct ALNSSolution {
         std::cout << std::endl;
     };
 
-    DARPMD_ResultInstance toResultInstance(const DARPMD_ProblemInstance& problem, double computationTime = 0.0) const {
+    MDDARP_ResultInstance toResultInstance(const MDDARP_ProblemInstance& problem, double computationTime = 0.0) const {
         // Initialize the result instance with the problem
-        DARPMD_ResultInstance result(problem);
+        MDDARP_ResultInstance result(problem);
         
         // Map the metadata to the solution
         result.objectiveValue = this->objectiveValue;

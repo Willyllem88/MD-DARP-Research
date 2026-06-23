@@ -1,7 +1,7 @@
 #pragma once
 
-#include "DARPMD_ProblemInstance.h"
-#include "DARPMD_ResultInstance.h"
+#include "MDDARP_ProblemInstance.h"
+#include "MDDARP_ResultInstance.h"
 #include "logger.h"
 
 class Solver {
@@ -13,7 +13,7 @@ public:
 
     virtual void solve() = 0;
 
-    virtual DARPMD_ResultInstance getResult() const = 0;
+    virtual MDDARP_ResultInstance getResult() const = 0;
 
     virtual std::string name() const = 0;
 

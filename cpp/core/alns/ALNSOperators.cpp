@@ -1,6 +1,6 @@
 #include "ALNSOperators.h"
 
-#include "../DARPMD_ProblemInstance.h"
+#include "../MDDARP_ProblemInstance.h"
 #include "ALNSEvaluator.h"
         
 #include <iostream>
@@ -9,7 +9,7 @@
 #include <limits>
 #include <unordered_set>
 
-ALNSOperators::ALNSOperators(const DARPMD_ProblemInstance& instance,
+ALNSOperators::ALNSOperators(const MDDARP_ProblemInstance& instance,
                              const ALNSParams& parameters,
                              ALNSEvaluator& evaluator,
                              std::mt19937& randomEngine,
