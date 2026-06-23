@@ -37,7 +37,6 @@ public:
         int seed = 42, 
         bool verbose = false,
         const ALNSParams& params = ALNSParams(),
-        bool enableGICE = false,
         bool enableNR = false
     );
         

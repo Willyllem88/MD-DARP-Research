@@ -20,7 +20,6 @@ struct Args {
     bool verbose = false;
     std::optional<double> time_limit;
     std::vector<std::string> alnsParams;
-    bool enableGICE = false;
     bool enableNR = false;
 };
 
@@ -43,7 +42,6 @@ void printArgsSummary(const Args& args) {
         }
         std::cout << std::endl;
     }
-    std::cout << "  Enable GICE: " << (args.enableGICE ? "Yes" : "No") << std::endl;
     std::cout << "  Enable NR: " << (args.enableNR ? "Yes" : "No") << std::endl;
     std::cout << "=========================" << std::endl << std::endl;
 }
@@ -53,7 +51,7 @@ void printUsage(const char* program_name) {
               << "===================================\n"
               << "This program solves the Multi-Depot Dial-a-Ride Problem using various methods.\n\n"
               << "Usage: " << program_name << R"( [-i instance_path] [-t time_limit] [-o output_path]
-      [-m method] [-s seed] [-v] [--GICE] [--NR]
+      [-m method] [-s seed] [-v] [--NR]
       [--alnsParams maxIterations w coolingRate destroyFraction
                     shawDistWeight shawTimeWeight shawDemandWeight
                     sigma1 sigma2 sigma3]
@@ -67,8 +65,6 @@ void printUsage(const char* program_name) {
   --alnsParams     Additional ALNS parameters in order (maxIterations, w, coolingRate,
                     destroyFraction, shawDistWeight, shawTimeWeight, shawDemandWeight,
                     sigma1, sigma2, sigma3)
-  --GICE           Enable Greedy Insertion Cost Evaluator in ALNS, if not set uses Forward
-                    Time Slack Evaluator (FTSE)
   --NR             Enable Neighbor Reduction in ALNS
   -h, --help       Show this help message
 )"
@@ -114,9 +110,6 @@ Args parseArgs(int argc, char** argv) {
             while (i + 1 < argc && argv[i + 1][0] != '-') {
                 args.alnsParams.push_back(argv[++i]);
             }
-        }
-        else if (a == "--GICE") {
-            args.enableGICE = true;
         }
         else if (a == "--NR") {
             args.enableNR = true;
@@ -171,7 +164,6 @@ int main(int argc, char** argv) {
             hybridMethod, args.seed,
             args.verbose,
             params,
-            args.enableGICE,
             args.enableNR
         );
     } else {

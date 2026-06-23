@@ -13,7 +13,6 @@ ALNSSolver::ALNSSolver(MDDARP_ProblemInstance& instance,
                        int seed,
                        bool verbose,
                        const ALNSParams& alnsParams,
-                       bool enableGICE,
                        bool enableNR
                        )
     : Solver(verbose), data(instance), timeLimit(timeLimit), hybridMethod(hybridMethod) {
@@ -22,7 +21,7 @@ ALNSSolver::ALNSSolver(MDDARP_ProblemInstance& instance,
 
     params = std::make_unique<ALNSParams>(alnsParams);
     evaluator = std::make_unique<ALNSEvaluator>(data, *params);
-    operators = std::make_unique<ALNSOperators>(data, *params, *evaluator, rng, enableGICE, enableNR);
+    operators = std::make_unique<ALNSOperators>(data, *params, *evaluator, rng, enableNR);
 
     if (hybridMethod == HybridMethod::SET_PARTITIONING) {
         setSolver = std::make_unique<SetPartitioningSolver>(data, *params, *evaluator, logger);

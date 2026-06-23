@@ -14,6 +14,56 @@ struct ALNSSolution {
     double objectiveValue = 0.0;        // Total penalized cost
     bool hasViolations = false;         // Whether the solution has any constraint violations
 
+    // Mapping from node ID to route index for quick access
+    std::vector<int> node2routeIndex;
+
+    // Initialize the node-to-route mapping
+    void initNodeDirectory(int maxNodeId) {
+        node2routeIndex.assign(maxNodeId + 1, -1);
+    }
+
+    // Update the node-to-route mapping based on the current routes
+    void updateNodeToRouteMapping() {
+        for (size_t r = 0; r < routes.size(); ++r) {
+            for (int nodeId : routes[r].sequence) {
+                node2routeIndex[nodeId] = r;
+            }
+        }
+    }
+
+    inline int getRouteIndexOf(int nodeId) const { return node2routeIndex[nodeId]; }
+    inline const ALNSRoute* getRouteOf(int nodeId) const {
+        int rIdx = node2routeIndex[nodeId];
+        if (rIdx == -1) return nullptr; // Nodo no asignado
+        return &routes[rIdx];
+    }
+
+    inline double getA(int nodeId) const {
+        const ALNSRoute* r = getRouteOf(nodeId);
+        return r ? r->getA(nodeId) : -1.0;
+    }
+
+    inline double getB(int nodeId) const {
+        const ALNSRoute* r = getRouteOf(nodeId);
+        return r ? r->getB(nodeId) : -1.0;
+    }
+
+    inline double getW(int nodeId) const {
+        const ALNSRoute* r = getRouteOf(nodeId);
+        return r ? r->getW(nodeId) : -1.0;
+    }
+
+    inline double getD(int nodeId) const {
+        const ALNSRoute* r = getRouteOf(nodeId);
+        return r ? r->getD(nodeId) : -1.0;
+    }
+
+    inline double getLoad(int nodeId) const {
+        const ALNSRoute* r = getRouteOf(nodeId);
+        return r ? r->getLoad(nodeId) : -1.0;
+    }
+
+
     void print() {
         std::cout << "  Routes:" << std::endl;
         for (const auto& r : routes) {
@@ -59,20 +109,15 @@ struct ALNSSolution {
             vr.vehicleId = alnsRoute.vehicleId;
             vr.routeCost = alnsRoute.distanceCost;
             
-            // Calculate the duration of the route (arrival at final Depot - departure from initial Depot)
-            if (!alnsRoute.B.empty()) {
-                vr.routeDuration = alnsRoute.A.back() - alnsRoute.D.front();
-            } else {
-                vr.routeDuration = 0.0;
-            }
+            vr.routeDuration = alnsRoute.getAByPos(alnsRoute.getRouteSize() - 1) - alnsRoute.getDByPos(0); // Arrival at end depot - Departure from start depot
 
             // Translate each stop in the sequence to a RouteStep
             for (size_t i = 0; i < alnsRoute.sequence.size(); ++i) {
                 RouteStep step;
                 step.nodeId = alnsRoute.sequence[i];
                 
-                step.beginServiceTime = (i < alnsRoute.B.size()) ? alnsRoute.B[i] : 0.0;
-                step.loadAfter = (step.nodeId < (int)alnsRoute.loads.size()) ? alnsRoute.loads[step.nodeId] : 0.0;
+                step.beginServiceTime = alnsRoute.getBByPos(i);
+                step.loadAfter = alnsRoute.getLoadByPos(i);
 
                 // Determine the type of node based on its ID
                 if (step.nodeId <= numReq) {

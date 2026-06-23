@@ -13,14 +13,10 @@ ALNSOperators::ALNSOperators(const MDDARP_ProblemInstance& instance,
                              const ALNSParams& parameters,
                              ALNSEvaluator& evaluator,
                              std::mt19937& randomEngine,
-                             bool enableGICE,
                              bool enableNR
                             )
     : data(instance), params(parameters), evaluator(evaluator), rng(randomEngine) {
      
-    // Set insertion method based on flags
-    insertionMethod = (enableGICE) ? GICE : FTSE;
-    
     // Set reduction method based on flags
     reductionMethod = (enableNR) ? REDUCTION : NONE;
 }
@@ -223,7 +219,7 @@ void ALNSOperators::repairGreedy(ALNSSolution& sol) {
 
         // Try all vehicles
         for (size_t v = 0; v < sol.routes.size(); ++v) {
-            LocalInsertion insertion = findBestInsertion(insertionMethod, sol.routes[v], reqId);
+            LocalInsertion insertion = findBestInsertion(sol.routes[v], reqId);
 
             if (insertion.deltaCost < bestCostIncrease) {
                 bestCostIncrease = insertion.deltaCost;
@@ -250,7 +246,7 @@ void ALNSOperators::repairRegret2(ALNSSolution& sol) {
 
     for (int reqId : sol.unassignedRequests) {
         for (int v = 0; v < numVehicles; ++v) {
-            LocalInsertion ins = findBestInsertion(insertionMethod, sol.routes[v], reqId);
+            LocalInsertion ins = findBestInsertion(sol.routes[v], reqId);
             insertionCache[reqId][v] = {ins.pIdx, ins.dIdx, ins.deltaCost};
         }
     }
@@ -300,7 +296,7 @@ void ALNSOperators::repairRegret2(ALNSSolution& sol) {
 
         // Just update the cache for the affected vehicle
         for (int reqId : sol.unassignedRequests) {
-            LocalInsertion ins = findBestInsertion(insertionMethod, sol.routes[winVehicle], reqId);
+            LocalInsertion ins = findBestInsertion(sol.routes[winVehicle], reqId);
             insertionCache[reqId][winVehicle] = {ins.pIdx, ins.dIdx, ins.deltaCost};
         }
     }
@@ -327,27 +323,16 @@ double ALNSOperators::calculateRelatedness(int i, int j) {
 }
 
 ALNSOperators::LocalInsertion ALNSOperators::findBestInsertion(
-        ALNSOperators::InsertionMethod method,
         const ALNSRoute& route,
         int reqId
     ) {
     LocalInsertion best;
     
     if (reductionMethod == REDUCTION) {
-        switch (method) {
-            case FTSE:
-                return findBestInsertionExact_R(route, reqId);
-            default: //case GICE:
-                return findBestInsertionGreedy_R(route, reqId);
-        }
+        return findBestInsertionExact_R(route, reqId);
     }
     else {
-        switch (method) {
-            case FTSE:
-                return findBestInsertionExact(route, reqId);
-            default: //case GICE:
-                return findBestInsertionGreedy(route, reqId);
-        }
+        return findBestInsertionExact(route, reqId);
     }
 }
 
@@ -359,24 +344,7 @@ ALNSOperators::LocalInsertion ALNSOperators::findBestInsertionExact(const ALNSRo
 
     for (int i = 1; i < n; ++i) { // Pickup can be inserted between any two nodes
         for (int j = i; j < n; ++j) { // Delivery must come after pickup
-            double delta = evaluator.calculateExactDelta(route, temp, reqId, i, j);
-            if (delta < best.deltaCost) {
-                best.deltaCost = delta;
-                best.pIdx = i;
-                best.dIdx = j;
-            }
-        }
-    }
-    return best;
-}
-
-ALNSOperators::LocalInsertion ALNSOperators::findBestInsertionGreedy(const ALNSRoute& route, int reqId) {
-    ALNSOperators::LocalInsertion best;
-    int n = route.sequence.size();
-
-    for (int i = 1; i < n; ++i) { // Pickup can be inserted between any two nodes
-        for (int j = i; j < n; ++j) { // Delivery must come after pickup
-            double delta = evaluator.calculateGreedyDelta(route, reqId, i, j, best.deltaCost);
+            double delta = evaluator.calculateDelta(route, temp, reqId, i, j);
             if (delta < best.deltaCost) {
                 best.deltaCost = delta;
                 best.pIdx = i;
@@ -403,7 +371,7 @@ ALNSOperators::LocalInsertion ALNSOperators::findBestInsertionExact_R(const ALNS
 
         for (int i = 1; i < n; ++i) {
             // We evaluate the insertion by placing the delivery right after the pickup (j = i)
-            double delta = evaluator.calculateExactDelta(route, temp, reqId, i, i);
+            double delta = evaluator.calculateDelta(route, temp, reqId, i, i);
             if (delta < bestDeltaI) {
                 bestDeltaI = delta;
                 bestI = i;
@@ -413,7 +381,7 @@ ALNSOperators::LocalInsertion ALNSOperators::findBestInsertionExact_R(const ALNS
         // PHASE 2: Maintaining the Pickup fixed (bestI), test all valid positions for the Delivery (j)
         if (bestI != -1) {
             for (int j = bestI; j < n; ++j) {
-                double delta = evaluator.calculateExactDelta(route, temp, reqId, bestI, j);
+                double delta = evaluator.calculateDelta(route, temp, reqId, bestI, j);
                 if (delta < best.deltaCost) {
                     best.deltaCost = delta;
                     best.pIdx = bestI;
@@ -428,7 +396,7 @@ ALNSOperators::LocalInsertion ALNSOperators::findBestInsertionExact_R(const ALNS
 
         for (int j = 1; j < n; ++j) {
             // We evaluate the insertion by placing the pickup right before the delivery (i = j)
-            double delta = evaluator.calculateExactDelta(route, temp, reqId, j, j);
+            double delta = evaluator.calculateDelta(route, temp, reqId, j, j);
             if (delta < bestDeltaJ) {
                 bestDeltaJ = delta;
                 bestJ = j;
@@ -438,69 +406,7 @@ ALNSOperators::LocalInsertion ALNSOperators::findBestInsertionExact_R(const ALNS
         // PHASE 2: Maintaining the Delivery fixed (bestJ), test all valid positions for the Pickup (i)
         if (bestJ != -1) {
             for (int i = 1; i <= bestJ; ++i) {
-                double delta = evaluator.calculateExactDelta(route, temp, reqId, i, bestJ);
-                if (delta < best.deltaCost) {
-                    best.deltaCost = delta;
-                    best.pIdx = i;
-                    best.dIdx = bestJ;
-                }
-            }
-        }
-    }
-    return best;
-}
-
-ALNSOperators::LocalInsertion ALNSOperators::findBestInsertionGreedy_R(const ALNSRoute& route, int reqId) {
-    LocalInsertion best;
-    int n = route.sequence.size();
-
-    // 1. Determine which vertex is critical. According to Cordeau & Laporte, a vertex is critical if e_i != 0 or l_i != T.
-    bool pickupIsCritical = data.getTimeWindowStart(reqId) > 0 ||
-                            data.getTimeWindowEnd(reqId) < data.getVehicleMaxRouteTime(route.vehicleId);
-
-    if (pickupIsCritical) {
-        // PHASE 1: Find the best position for Pickup (i)
-        int bestI = -1;
-        double bestDeltaI = std::numeric_limits<double>::infinity();
-
-        for (int i = 1; i < n; ++i) {
-            // We evaluate the insertion by placing the delivery right after the pickup (j = i)
-            double delta = evaluator.calculateGreedyDelta(route, reqId, i, i, bestDeltaI);
-            if (delta < bestDeltaI) {
-                bestDeltaI = delta;
-                bestI = i;
-            }
-        }
-
-        // PHASE 2: Maintaining the Pickup fixed (bestI), test all valid positions for the Delivery (j)
-        if (bestI != -1) {
-            for (int j = bestI; j < n; ++j) {
-                double delta = evaluator.calculateGreedyDelta(route, reqId, bestI, j, best.deltaCost);
-                if (delta < best.deltaCost) {
-                    best.deltaCost = delta;
-                    best.pIdx = bestI;
-                    best.dIdx = j;
-                }
-            }
-        }
-    } else {
-        // PHASE 1: The Delivery is the critical vertex. Find the best position (j)
-        int bestJ = -1;
-        double bestDeltaJ = std::numeric_limits<double>::infinity();
-
-        for (int j = 1; j < n; ++j) {
-            // We evaluate the insertion by placing the pickup right before the delivery (i = j)
-            double delta = evaluator.calculateGreedyDelta(route, reqId, j, j, bestDeltaJ);
-            if (delta < bestDeltaJ) {
-                bestDeltaJ = delta;
-                bestJ = j;
-            }
-        }
-
-        // PHASE 2: Maintaining the Delivery fixed (bestJ), test all valid positions for the Pickup (i)
-        if (bestJ != -1) {
-            for (int i = 1; i <= bestJ; ++i) {
-                double delta = evaluator.calculateGreedyDelta(route, reqId, i, bestJ, best.deltaCost);
+                double delta = evaluator.calculateDelta(route, temp, reqId, i, bestJ);
                 if (delta < best.deltaCost) {
                     best.deltaCost = delta;
                     best.pIdx = i;
