@@ -1,0 +1,77 @@
+Total runs: 15
+----------------------------------------
+
+Instance: ../data/cordeau-tabu-instances/pr01.json
+----------------------------------------
+Running 1/15 (instance=../data/cordeau-tabu-instances/pr01.json, seed=1001)
+  -> objective: 191.726
+  -> time:       4.53 s
+Running 2/15 (instance=../data/cordeau-tabu-instances/pr01.json, seed=2002)
+  -> objective: 191.051
+  -> time:       4.73 s
+Running 3/15 (instance=../data/cordeau-tabu-instances/pr01.json, seed=3003)
+  -> objective: 191.659
+  -> time:       4.69 s
+Running 4/15 (instance=../data/cordeau-tabu-instances/pr01.json, seed=4004)
+  -> objective: 191.659
+  -> time:       4.56 s
+Running 5/15 (instance=../data/cordeau-tabu-instances/pr01.json, seed=5005)
+  -> objective: 191.051
+  -> time:       4.63 s
+
+>>> SUMMARY instance ../data/cordeau-tabu-instances/pr01.json
+    mean objective: 191.42920000000000000000
+    mean time:      4.62800000000000000000 s
+----------------------------------------
+
+Instance: ../data/cordeau-tabu-instances/pr03.json
+----------------------------------------
+Running 6/15 (instance=../data/cordeau-tabu-instances/pr03.json, seed=1001)
+  -> objective: 554.08
+  -> time:       80.51 s
+Running 7/15 (instance=../data/cordeau-tabu-instances/pr03.json, seed=2002)
+  -> objective: 553.418
+  -> time:       78.63 s
+Running 8/15 (instance=../data/cordeau-tabu-instances/pr03.json, seed=3003)
+  -> objective: 569.986
+  -> time:       79.39 s
+Running 9/15 (instance=../data/cordeau-tabu-instances/pr03.json, seed=4004)
+  -> objective: 548.645
+  -> time:       76.59 s
+Running 10/15 (instance=../data/cordeau-tabu-instances/pr03.json, seed=5005)
+  -> objective: 554.286
+  -> time:       79.73 s
+
+>>> SUMMARY instance ../data/cordeau-tabu-instances/pr03.json
+    mean objective: 556.08300000000000000000
+    mean time:      78.97000000000000000000 s
+----------------------------------------
+
+Instance: ../data/cordeau-tabu-instances/pr05.json
+----------------------------------------
+Running 11/15 (instance=../data/cordeau-tabu-instances/pr05.json, seed=1001)
+  -> objective: 674.943
+  -> time:       284.45 s
+Running 12/15 (instance=../data/cordeau-tabu-instances/pr05.json, seed=2002)
+  -> objective: 655.086
+  -> time:       286.24 s
+Running 13/15 (instance=../data/cordeau-tabu-instances/pr05.json, seed=3003)
+  -> objective: 674.478
+  -> time:       278.54 s
+Running 14/15 (instance=../data/cordeau-tabu-instances/pr05.json, seed=4004)
+  -> objective: 680.322
+  -> time:       285.62 s
+Running 15/15 (instance=../data/cordeau-tabu-instances/pr05.json, seed=5005)
+  -> objective: 667.768
+  -> time:       285.27 s
+
+>>> SUMMARY instance ../data/cordeau-tabu-instances/pr05.json
+    mean objective: 670.51940000000000000000
+    mean time:      284.02400000000000000000 s
+----------------------------------------
+
+========================================
+GLOBAL SUMMARY
+  mean objective: 472.67720000000000000000
+  mean time:      122.54066666666666666666 s
+========================================

@@ -26,18 +26,6 @@ void ALNSOperators::destroyRandom(ALNSSolution& sol, int q) {
     int removals = std::min(q, n);
     if (removals <= 0) return;
 
-    std::vector<int> reqToRoute(n + 1, -1);
-
-    for (size_t v = 0; v < sol.routes.size(); ++v) {
-        const auto& seq = sol.routes[v].sequence;
-        for (size_t i = 1; i < seq.size() - 1; ++i) { // skip depots
-            int node = seq[i];
-            if (data.isPickup(node)) {
-                reqToRoute[node] = (int)v;
-            }
-        }
-    }
-
     std::vector<int> requests(n);
     std::iota(requests.begin(), requests.end(), 1);
 
@@ -55,7 +43,7 @@ void ALNSOperators::destroyRandom(ALNSSolution& sol, int q) {
 
     for (int i = 0; i < removals; ++i) {
         int reqId = requests[i];
-        int vIdx = reqToRoute[reqId];
+        int vIdx = sol.getRouteIndexOf(reqId);
 
         nodesToRemove.insert(reqId);                    // pickup
         nodesToRemove.insert(reqId + data.N_requests);  // delivery
@@ -71,6 +59,7 @@ void ALNSOperators::destroyRandom(ALNSSolution& sol, int q) {
 
             std::erase_if(route.sequence,
                 [&nodesToRemove](int node) {
+                     // TODO: could be implemented more efficienly with unordered_set
                     return nodesToRemove.contains(node);
                 });
         }
@@ -132,19 +121,20 @@ void ALNSOperators::destroyWorst(ALNSSolution& sol, int q) {
         int reqToRemove = savingsMap[idx].second;
         
         // Physically remove from the solution
-        for (auto& route : sol.routes) {
-            auto& seq = route.sequence;
-            auto itP = std::find(seq.begin(), seq.end(), reqToRemove);
-            if (itP != seq.end()) {
-                // Rebuild vector without P and D
-                int deliveryId = reqToRemove + data.N_requests;
-                std::vector<int> cleanSeq;
-                for(int node : seq) {
-                    if (node != reqToRemove && node != deliveryId) cleanSeq.push_back(node);
+        int vIdx = sol.getRouteIndexOf(reqToRemove);
+        if (vIdx != -1) {
+            auto& route = sol.routes[vIdx];
+            int deliveryId = reqToRemove + data.N_requests;
+            
+            // Reconstruir la ruta sin hacer std::find
+            std::vector<int> cleanSeq;
+            cleanSeq.reserve(route.sequence.size() - 2);
+            for(int node : route.sequence) {
+                if (node != reqToRemove && node != deliveryId) {
+                    cleanSeq.push_back(node);
                 }
-                route.sequence = cleanSeq;
-                break; // We found it in this route
             }
+            route.sequence = std::move(cleanSeq); // std::move para evitar copia extra
         }
         
         sol.unassignedRequests.insert(reqToRemove);
