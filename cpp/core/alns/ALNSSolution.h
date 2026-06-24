@@ -13,12 +13,14 @@ struct ALNSSolution {
     std::set<int> unassignedRequests;   // IDs of requests in P not served
     double objectiveValue = 0.0;        // Total penalized cost
     bool hasViolations = false;         // Whether the solution has any constraint violations
+    int maxNodeId = 0;                  // Maximum node ID in the problem instance
 
     // Mapping from node ID to route index for quick access
     std::vector<int> node2routeIndex;
 
     // Initialize the node-to-route mapping
     void initNodeDirectory(int maxNodeId) {
+        this->maxNodeId = maxNodeId;
         node2routeIndex.assign(maxNodeId + 1, -1);
     }
 
@@ -62,7 +64,7 @@ struct ALNSSolution {
         const ALNSRoute* r = getRouteOf(nodeId);
         return r ? r->getLoad(nodeId) : -1.0;
     }
-
+    
 
     void print() {
         std::cout << "  Routes:" << std::endl;

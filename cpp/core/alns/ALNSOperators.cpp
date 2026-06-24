@@ -158,7 +158,7 @@ void ALNSOperators::destroyShaw(ALNSSolution& sol, int q) {
     std::vector<std::pair<double, int>> relatedList;
     for (int other : assigned) {
         if (other == seedRequest) continue;
-        double R = calculateRelatedness(seedRequest, other);
+        double R = calculateRelatedness(seedRequest, other, sol);
         relatedList.push_back({R, other});
     }
     std::sort(relatedList.begin(), relatedList.end()); // Lower R is better
@@ -292,24 +292,22 @@ void ALNSOperators::repairRegret2(ALNSSolution& sol) {
     }
 }
 
-double ALNSOperators::calculateRelatedness(int i, int j) {
+double ALNSOperators::calculateRelatedness(int i, int j, const ALNSSolution& sol) {
+    int n = data.N_requests;
+
     // Heuristic weights
     double w_dist = params.shawDistWeight;
     double w_time = params.shawTimeWeight;
     double w_demand = params.shawDemandWeight;
 
-    double dist = data.getTravelTime(i, j); 
-    
-    // Temporal time difference: we can use the midpoint of the time windows as a representative time for each request
-    double mu_i = (data.getTimeWindowStart(i) + data.getTimeWindowEnd(i)) / 2.0;
-    double mu_j = (data.getTimeWindowStart(j) + data.getTimeWindowEnd(j)) / 2.0;
-    double timeDiff = std::abs(mu_i - mu_j);
-    
-    // Demand difference
+
+    double dist = data.getTravelTime(i, j) + data.getTravelTime(n + i, n + j);
+    double timeDiff = std::abs(sol.getB(i) - sol.getB(j)) +
+                      std::abs(sol.getB(n + i) - sol.getD(n + j));    
     double demandDiff = std::abs(data.getDemand(i) - data.getDemand(j));
 
     // Relatedness value
-    return w_dist * dist + w_time * timeDiff + w_demand * demandDiff;
+    return w_dist*dist + w_time*timeDiff + w_demand*demandDiff;
 }
 
 ALNSOperators::LocalInsertion ALNSOperators::findBestInsertion(

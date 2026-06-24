@@ -33,7 +33,7 @@ private:
     std::mt19937& rng;
 
     // Auxiliary for Shaw removal
-    double calculateRelatedness(int i, int j);
+    double calculateRelatedness(int i, int j, const ALNSSolution& sol);
 
     // Insertion evaluation methods
     struct LocalInsertion {
