@@ -36,34 +36,9 @@ void ALNSOperators::destroyRandom(ALNSSolution& sol, int q) {
         std::swap(requests[i], requests[j]);
     }
 
-    std::unordered_set<int> nodesToRemove;
-    nodesToRemove.reserve(removals * 2);
-    
-    std::vector<bool> routeNeedsUpdate(sol.routes.size(), false);
+    std::vector<int> toRemove(requests.begin(), requests.begin() + removals);
 
-    for (int i = 0; i < removals; ++i) {
-        int reqId = requests[i];
-        int vIdx = sol.getRouteIndexOf(reqId);
-
-        nodesToRemove.insert(reqId);                    // pickup
-        nodesToRemove.insert(reqId + data.N_requests);  // delivery
-
-        sol.unassignedRequests.insert(reqId);
-        routeNeedsUpdate[vIdx] = true;
-    }
-
-    // Apply removals in a single pass for each affected route to optimize performance
-    for (size_t v = 0; v < sol.routes.size(); ++v) {
-        if (routeNeedsUpdate[v]) {
-            auto& route = sol.routes[v];
-
-            std::erase_if(route.sequence,
-                [&nodesToRemove](int node) {
-                     // TODO: could be implemented more efficienly with unordered_set
-                    return nodesToRemove.contains(node);
-                });
-        }
-    }
+    sol.removeRequests(toRemove, n);
 
     evaluator.evaluateSolution(sol);
 }
@@ -114,30 +89,13 @@ void ALNSOperators::destroyWorst(ALNSSolution& sol, int q) {
         // Select based on biased index (to not always choose the strict #1)
         // index = floor(|L| * rand^p)
         double r = std::generate_canonical<double, 10>(rng);
-        int idx = std::floor(savingsMap.size() * std::pow(r, params.worstRemovalPower)); // Assumes power ~ 3-6
-        
+        int idx = std::floor(savingsMap.size() * std::pow(r, params.worstRemovalPower));
         if (idx >= (int)savingsMap.size()) idx = (int)savingsMap.size() - 1;
 
         int reqToRemove = savingsMap[idx].second;
         
-        // Physically remove from the solution
-        int vIdx = sol.getRouteIndexOf(reqToRemove);
-        if (vIdx != -1) {
-            auto& route = sol.routes[vIdx];
-            int deliveryId = reqToRemove + data.N_requests;
-            
-            // Reconstruir la ruta sin hacer std::find
-            std::vector<int> cleanSeq;
-            cleanSeq.reserve(route.sequence.size() - 2);
-            for(int node : route.sequence) {
-                if (node != reqToRemove && node != deliveryId) {
-                    cleanSeq.push_back(node);
-                }
-            }
-            route.sequence = std::move(cleanSeq); // std::move para evitar copia extra
-        }
+        sol.removeRequest(reqToRemove, data.N_requests);
         
-        sol.unassignedRequests.insert(reqToRemove);
         savingsMap.erase(savingsMap.begin() + idx);
         removedCount++;
     }
@@ -173,24 +131,7 @@ void ALNSOperators::destroyShaw(ALNSSolution& sol, int q) {
         relatedList.erase(relatedList.begin() + idx);
     }
 
-    // Execute removal
-    for (int req : toRemove) {
-        for (auto& route : sol.routes) {
-            // ... Same physical removal code as in destroyRandom/Worst ...
-            std::vector<int> newSeq;
-            int devId = req + data.N_requests;
-            bool found = false;
-            for (int n : route.sequence) {
-                if (n == req || n == devId) found = true;
-                else newSeq.push_back(n);
-            }
-            if (found) {
-                route.sequence = newSeq;
-                break;
-            }
-        }
-        sol.unassignedRequests.insert(req);
-    }
+    sol.removeRequests(toRemove, data.N_requests);
     
     evaluator.evaluateSolution(sol);
 }

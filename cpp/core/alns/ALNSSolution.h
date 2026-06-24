@@ -13,14 +13,12 @@ struct ALNSSolution {
     std::set<int> unassignedRequests;   // IDs of requests in P not served
     double objectiveValue = 0.0;        // Total penalized cost
     bool hasViolations = false;         // Whether the solution has any constraint violations
-    int maxNodeId = 0;                  // Maximum node ID in the problem instance
 
     // Mapping from node ID to route index for quick access
     std::vector<int> node2routeIndex;
 
     // Initialize the node-to-route mapping
     void initNodeDirectory(int maxNodeId) {
-        this->maxNodeId = maxNodeId;
         node2routeIndex.assign(maxNodeId + 1, -1);
     }
 
@@ -64,7 +62,55 @@ struct ALNSSolution {
         const ALNSRoute* r = getRouteOf(nodeId);
         return r ? r->getLoad(nodeId) : -1.0;
     }
-    
+
+    // Remove a single request from the solution
+    bool removeRequest(int reqId, int numRequests) {
+        int rIdx = getRouteIndexOf(reqId);
+        if (rIdx == -1) return false; // Request not assigned
+
+        int deliveryId = reqId + numRequests;
+        auto& route = routes[rIdx];
+
+        std::erase_if(route.sequence, [&](int nodeId) {
+            return nodeId == reqId || nodeId == deliveryId;
+        });
+
+        node2routeIndex[reqId] = -1;
+        node2routeIndex[deliveryId] = -1;
+        unassignedRequests.insert(reqId);
+        return true;
+    }
+
+    // Remove multiple requests from the solution
+    void removeRequests(const std::vector<int>& reqIds, int numRequests) {
+        if (reqIds.empty()) return;
+
+        std::vector<bool> toRemove(node2routeIndex.size(), false);
+        std::vector<bool> routeNeedsUpdate(routes.size(), false);
+
+        for (int reqId : reqIds) {
+            int rIdx = getRouteIndexOf(reqId);
+            if (rIdx != -1) {
+                int deliveryId = reqId + numRequests;
+                toRemove[reqId] = true;
+                toRemove[deliveryId] = true;
+                routeNeedsUpdate[rIdx] = true;
+
+                node2routeIndex[reqId] = -1;
+                node2routeIndex[deliveryId] = -1;
+                unassignedRequests.insert(reqId);
+            }
+        }
+
+        for (size_t r = 0; r < routes.size(); ++r) {
+            if (routeNeedsUpdate[r]) {
+                auto& route = routes[r];
+                std::erase_if(route.sequence, [&toRemove](int nodeId) {
+                    return toRemove[nodeId];
+                });
+            }
+        }
+    }
 
     void print() {
         std::cout << "  Routes:" << std::endl;
