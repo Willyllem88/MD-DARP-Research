@@ -207,8 +207,7 @@ void ALNSOperators::repairRegret2(ALNSSolution& sol) {
                 }
             }
 
-            double regret = (secondBestCost == std::numeric_limits<double>::infinity()) 
-                            ? 100000.0 : (secondBestCost - bestCost);
+            double regret = secondBestCost - bestCost;
 
             if (regret > maxRegretValue) {
                 maxRegretValue = regret;
@@ -226,6 +225,88 @@ void ALNSOperators::repairRegret2(ALNSSolution& sol) {
         sol.unassignedRequests.erase(bestReqId);
 
         // Just update the cache for the affected vehicle
+        for (int reqId : sol.unassignedRequests) {
+            LocalInsertion ins = findBestInsertion(sol.routes[winVehicle], reqId);
+            insertionCache[reqId][winVehicle] = {ins.pIdx, ins.dIdx, ins.deltaCost};
+        }
+    }
+}
+
+void ALNSOperators::repairRegret3(ALNSSolution& sol) {
+    int numReqs = data.N_requests;
+    int numVehicles = sol.routes.size();
+
+    // Initialize the cache
+    insertionCache.assign(numReqs + 1, std::vector<LocalInsertion>(numVehicles));
+
+    for (int reqId : sol.unassignedRequests) {
+        for (int v = 0; v < numVehicles; ++v) {
+            LocalInsertion ins = findBestInsertion(sol.routes[v], reqId);
+            insertionCache[reqId][v] = {ins.pIdx, ins.dIdx, ins.deltaCost};
+        }
+    }
+
+    while (!sol.unassignedRequests.empty()) {
+        int bestReqId = -1;
+        double maxRegretValue = -1.0;
+        LocalInsertion winMove;
+        int winVehicle = -1;
+
+        // Search the request with the highest regret-3 value
+        for (int reqId : sol.unassignedRequests) {
+            double bestCost = std::numeric_limits<double>::infinity();
+            double secondBestCost = std::numeric_limits<double>::infinity();
+            double thirdBestCost = std::numeric_limits<double>::infinity();
+            int bestVForThisReq = -1;
+            LocalInsertion bestMoveForThisReq;
+
+            // Find the 3 best insertions for this request
+            for (int v = 0; v < numVehicles; ++v) {
+                double cost = insertionCache[reqId][v].deltaCost;
+                if (cost < bestCost) {
+                    thirdBestCost = secondBestCost;
+                    secondBestCost = bestCost;
+                    bestCost = cost;
+                    bestVForThisReq = v;
+                    bestMoveForThisReq = insertionCache[reqId][v];
+                } else if (cost < secondBestCost) {
+                    thirdBestCost = secondBestCost;
+                    secondBestCost = cost;
+                } else if (cost < thirdBestCost) {
+                    thirdBestCost = cost;
+                }
+            }
+
+            double regret = 0.0;
+
+            // Calculate regret-3 value based on the number of vehicles available
+            if (numVehicles >= 3) {
+                regret = (secondBestCost - bestCost) + (thirdBestCost - bestCost);
+            } else if (numVehicles == 2) {
+                // Fallback to regret-2 if the instance has less than 3 vehicles
+                regret = secondBestCost - bestCost;
+            } else {
+                // If there is only 1 vehicle, regret has no comparative sense
+                regret = 0.0;
+            }
+
+            if (regret > maxRegretValue) {
+                maxRegretValue = regret;
+                bestReqId = reqId;
+                winVehicle = bestVForThisReq;
+                winMove = bestMoveForThisReq;
+            }
+        }
+
+        // Apply the best move
+        auto& r = sol.routes[winVehicle];
+        r.sequence.insert(r.sequence.begin() + winMove.pIdx, bestReqId);
+        r.sequence.insert(r.sequence.begin() + winMove.dIdx + 1, bestReqId + data.N_requests);
+        evaluator.evaluateRoute(r);
+        
+        sol.unassignedRequests.erase(bestReqId);
+
+        // Update the cache ONLY for the modified vehicle
         for (int reqId : sol.unassignedRequests) {
             LocalInsertion ins = findBestInsertion(sol.routes[winVehicle], reqId);
             insertionCache[reqId][winVehicle] = {ins.pIdx, ins.dIdx, ins.deltaCost};

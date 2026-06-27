@@ -94,7 +94,7 @@ private:
     bool acceptanceCriteria(double candidateObj, double currentObj, double temperature, bool isNew, double& score);
     
     enum class DestroyMethod {RANDOM, WORST, SHAW, COUNT}; // COUNT the number of methods for stats
-    enum class RepairMethod {GREEDY, REGRET2, COUNT};
+    enum class RepairMethod {GREEDY, REGRET2, REGRET3, COUNT};
 
     struct OperatorStats {
         std::vector<double> weights;

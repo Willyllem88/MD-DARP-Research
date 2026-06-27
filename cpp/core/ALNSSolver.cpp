@@ -137,7 +137,7 @@ void ALNSSolver::solve() {
             double avgScore = (repairStats.timesUsed[i] > 0) ? repairStats.scores[i] / repairStats.timesUsed[i] : 0.0;
             std::cout << "  Repair " << i << ": Weight=" << repairStats.weights[i] 
                     << ", Times Used=" << repairStats.timesUsed[i] 
-                    << ", Avg Score=" << avgScore << std::endl;
+                    << ", Avg Score=" << avgScore << std::endl; // TODO: not sure if this is correct
         }
     }
 }
@@ -272,6 +272,9 @@ void ALNSSolver::applyRepair(ALNSSolution& sol, int repairOpIdx) {
             break;
         case RepairMethod::REGRET2:
             operators->repairRegret2(sol);
+            break;
+        case RepairMethod::REGRET3:
+            operators->repairRegret3(sol);
             break;
         case RepairMethod::COUNT:
             break;
