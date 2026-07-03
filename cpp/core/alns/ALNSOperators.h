@@ -27,6 +27,9 @@ public:
     void repairRegret2(ALNSSolution& sol);
     void repairRegret3(ALNSSolution& sol);
 
+    // Applies a hill-climbing intra-route exchange to each route in the solution
+    void applyIntraRouteExchanges(ALNSSolution& sol);
+
 private:
     const MDDARP_ProblemInstance& data;
     const ALNSParams& params;

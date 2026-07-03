@@ -314,6 +314,94 @@ void ALNSOperators::repairRegret3(ALNSSolution& sol) {
     }
 }
 
+void ALNSOperators::applyIntraRouteExchanges(ALNSSolution& sol) {
+    bool globalImprovement = false;
+
+    for (auto& route : sol.routes) {
+        // Skip empty routes or routes with only Start -> End
+        if (route.sequence.size() <= 2) continue; 
+
+        bool routeImproved = true;
+        
+        // Keep looping until no further improvements can be found in this route
+        while (routeImproved) {
+            routeImproved = false;
+            double baselineRouteCost = route.totalCost;
+            double bestRouteCost = baselineRouteCost;
+
+            int bestNodeToMove = -1;
+            int bestInsertPos = -1;
+
+            // Extract a snapshot of the nodes to evaluate (excluding depots)
+            std::vector<int> nodesToMove = route.sequence;
+            nodesToMove.erase(nodesToMove.begin()); // Remove Start Depot
+            nodesToMove.pop_back();                 // Remove End Depot
+
+            // Scan all nodes to find the single best move (Hill Climbing)
+            for (int v : nodesToMove) {
+                int v_pos = route.getPosition(v);
+                if (v_pos == -1) continue; 
+                
+                int n = data.P.size();
+                bool isPickup = data.isPickup(v);
+                int partnerId = isPickup ? (v + n) : (v - n);
+                int partner_pos = route.getPosition(partnerId);
+
+                // Temporarily remove vertex v from the route
+                route.sequence.erase(route.sequence.begin() + v_pos);
+                
+                // Adjust partner position since we shifted the array down by 1
+                if (v_pos < partner_pos)
+                    partner_pos--;
+
+                // Determine valid insertion bounds
+                int minInsert = 1;
+                int maxInsert = route.sequence.size() - 1;
+                if (isPickup) maxInsert = partner_pos; // Pickup must go BEFORE delivery
+                else minInsert = partner_pos + 1;      // Delivery must go AFTER pickup
+
+                // Evaluate all valid positions for this specific node
+                for (int pos = minInsert; pos <= maxInsert; ++pos) {
+                    route.sequence.insert(route.sequence.begin() + pos, v);
+                    evaluator.evaluateRoute(route);
+                    
+                    // Track the absolute best move found across the entire route so far
+                    if (route.totalCost < bestRouteCost - 1e-6) {
+                        bestRouteCost = route.totalCost;
+                        bestNodeToMove = v;
+                        bestInsertPos = pos;
+                    }
+                    
+                    // Remove to try the next position
+                    route.sequence.erase(route.sequence.begin() + pos);
+                }
+
+                // Restore route to its original state so the next node is evaluated against
+                // the correct structure
+                route.sequence.insert(route.sequence.begin() + v_pos, v);
+                evaluator.evaluateRoute(route); 
+            }
+
+            // After checking all nodes, commit to the single best neighborhood move
+            if (bestNodeToMove != -1) {
+                int v_pos = route.getPosition(bestNodeToMove);
+                
+                route.sequence.erase(route.sequence.begin() + v_pos);
+                route.sequence.insert(route.sequence.begin() + bestInsertPos, bestNodeToMove);
+                evaluator.evaluateRoute(route); // Update the final route metrics
+
+                routeImproved = true;
+                globalImprovement = true;
+            }
+        }
+    }
+
+    // If any route was improved, re-evaluate the full solution to update overall objective and violations
+    if (globalImprovement) {
+        evaluator.evaluateSolution(sol);
+    }
+}
+
 double ALNSOperators::calculateRelatedness(int i, int j, const ALNSSolution& sol) {
     int n = data.N_requests;
 
