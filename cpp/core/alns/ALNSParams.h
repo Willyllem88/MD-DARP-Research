@@ -6,7 +6,7 @@ struct ALNSParams {
     int segmentIterations = 100;        // How many iterations before we consider a segment "completed" for adaptive operator selection
     int setPartitioningInterval = 2500; // Run CPLEX SP every X iterations
     double cplexTimeLimit = 1200.0;     // Time limit for CPLEX in seconds (per SP solve)
-    double w = 0.1883;                  // How much worse can a solution be to still be accepted in the first iterations (relative to the initial solution)
+    double w = 0.2;                     // How much worse can a solution be to still be accepted in the first iterations (relative to the initial solution)
     double coolingRate = 0.9992;
     double destroyFraction = 0.2466;    // Fraction of requests to remove in destroy phase
     
@@ -36,7 +36,6 @@ struct ALNSParams {
 
         int i = 0;
         p.maxIterations = std::stoi(args[i++]);
-        p.w = std::stod(args[i++]);
         p.coolingRate = std::stod(args[i++]);
         p.destroyFraction = std::stod(args[i++]);
 
@@ -44,9 +43,13 @@ struct ALNSParams {
         p.shawTimeWeight = std::stod(args[i++]);
         p.shawDemandWeight = std::stod(args[i++]);
 
+        p.worstRemovalPower = std::stod(args[i++]);
+
         p.sigma1 = std::stod(args[i++]);
         p.sigma2 = std::stod(args[i++]);
         p.sigma3 = std::stod(args[i++]);
+
+        p.reactionFactor = std::stod(args[i++]);
 
         // Could add more parameters here as needed, following the same pattern
         return p;

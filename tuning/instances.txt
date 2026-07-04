@@ -1,5 +1,5 @@
-../data/cordeau-instances/a2-16.json
-../data/cordeau-instances/a3-30.json
-../data/cordeau-instances/a4-40.json
-../data/cordeau-instances/a5-40.json
-../data/cordeau-instances/a6-48.json
+../data/cordeau-tabu-instances/pr01.json
+../data/cordeau-tabu-instances/pr03.json
+../data/cordeau-tabu-instances/pr05.json
+../data/cordeau-tabu-instances/pr07.json
+../data/cordeau-tabu-instances/pr09.json
