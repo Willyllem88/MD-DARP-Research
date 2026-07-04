@@ -26,18 +26,6 @@ void ALNSOperators::destroyRandom(ALNSSolution& sol, int q) {
     int removals = std::min(q, n);
     if (removals <= 0) return;
 
-    std::vector<int> reqToRoute(n + 1, -1);
-
-    for (size_t v = 0; v < sol.routes.size(); ++v) {
-        const auto& seq = sol.routes[v].sequence;
-        for (size_t i = 1; i < seq.size() - 1; ++i) { // skip depots
-            int node = seq[i];
-            if (data.isPickup(node)) {
-                reqToRoute[node] = (int)v;
-            }
-        }
-    }
-
     std::vector<int> requests(n);
     std::iota(requests.begin(), requests.end(), 1);
 
@@ -48,33 +36,9 @@ void ALNSOperators::destroyRandom(ALNSSolution& sol, int q) {
         std::swap(requests[i], requests[j]);
     }
 
-    std::unordered_set<int> nodesToRemove;
-    nodesToRemove.reserve(removals * 2);
-    
-    std::vector<bool> routeNeedsUpdate(sol.routes.size(), false);
+    std::vector<int> toRemove(requests.begin(), requests.begin() + removals);
 
-    for (int i = 0; i < removals; ++i) {
-        int reqId = requests[i];
-        int vIdx = reqToRoute[reqId];
-
-        nodesToRemove.insert(reqId);                    // pickup
-        nodesToRemove.insert(reqId + data.N_requests);  // delivery
-
-        sol.unassignedRequests.insert(reqId);
-        routeNeedsUpdate[vIdx] = true;
-    }
-
-    // Apply removals in a single pass for each affected route to optimize performance
-    for (size_t v = 0; v < sol.routes.size(); ++v) {
-        if (routeNeedsUpdate[v]) {
-            auto& route = sol.routes[v];
-
-            std::erase_if(route.sequence,
-                [&nodesToRemove](int node) {
-                    return nodesToRemove.contains(node);
-                });
-        }
-    }
+    sol.removeRequests(toRemove, n);
 
     evaluator.evaluateSolution(sol);
 }
@@ -125,29 +89,13 @@ void ALNSOperators::destroyWorst(ALNSSolution& sol, int q) {
         // Select based on biased index (to not always choose the strict #1)
         // index = floor(|L| * rand^p)
         double r = std::generate_canonical<double, 10>(rng);
-        int idx = std::floor(savingsMap.size() * std::pow(r, params.worstRemovalPower)); // Assumes power ~ 3-6
-        
+        int idx = std::floor(savingsMap.size() * std::pow(r, params.worstRemovalPower));
         if (idx >= (int)savingsMap.size()) idx = (int)savingsMap.size() - 1;
 
         int reqToRemove = savingsMap[idx].second;
         
-        // Physically remove from the solution
-        for (auto& route : sol.routes) {
-            auto& seq = route.sequence;
-            auto itP = std::find(seq.begin(), seq.end(), reqToRemove);
-            if (itP != seq.end()) {
-                // Rebuild vector without P and D
-                int deliveryId = reqToRemove + data.N_requests;
-                std::vector<int> cleanSeq;
-                for(int node : seq) {
-                    if (node != reqToRemove && node != deliveryId) cleanSeq.push_back(node);
-                }
-                route.sequence = cleanSeq;
-                break; // We found it in this route
-            }
-        }
+        sol.removeRequest(reqToRemove, data.N_requests);
         
-        sol.unassignedRequests.insert(reqToRemove);
         savingsMap.erase(savingsMap.begin() + idx);
         removedCount++;
     }
@@ -168,7 +116,7 @@ void ALNSOperators::destroyShaw(ALNSSolution& sol, int q) {
     std::vector<std::pair<double, int>> relatedList;
     for (int other : assigned) {
         if (other == seedRequest) continue;
-        double R = calculateRelatedness(seedRequest, other);
+        double R = calculateRelatedness(seedRequest, other, sol);
         relatedList.push_back({R, other});
     }
     std::sort(relatedList.begin(), relatedList.end()); // Lower R is better
@@ -183,24 +131,7 @@ void ALNSOperators::destroyShaw(ALNSSolution& sol, int q) {
         relatedList.erase(relatedList.begin() + idx);
     }
 
-    // Execute removal
-    for (int req : toRemove) {
-        for (auto& route : sol.routes) {
-            // ... Same physical removal code as in destroyRandom/Worst ...
-            std::vector<int> newSeq;
-            int devId = req + data.N_requests;
-            bool found = false;
-            for (int n : route.sequence) {
-                if (n == req || n == devId) found = true;
-                else newSeq.push_back(n);
-            }
-            if (found) {
-                route.sequence = newSeq;
-                break;
-            }
-        }
-        sol.unassignedRequests.insert(req);
-    }
+    sol.removeRequests(toRemove, data.N_requests);
     
     evaluator.evaluateSolution(sol);
 }
@@ -276,8 +207,7 @@ void ALNSOperators::repairRegret2(ALNSSolution& sol) {
                 }
             }
 
-            double regret = (secondBestCost == std::numeric_limits<double>::infinity()) 
-                            ? 100000.0 : (secondBestCost - bestCost);
+            double regret = secondBestCost - bestCost;
 
             if (regret > maxRegretValue) {
                 maxRegretValue = regret;
@@ -302,24 +232,192 @@ void ALNSOperators::repairRegret2(ALNSSolution& sol) {
     }
 }
 
-double ALNSOperators::calculateRelatedness(int i, int j) {
+void ALNSOperators::repairRegret3(ALNSSolution& sol) {
+    int numReqs = data.N_requests;
+    int numVehicles = sol.routes.size();
+
+    // Initialize the cache
+    insertionCache.assign(numReqs + 1, std::vector<LocalInsertion>(numVehicles));
+
+    for (int reqId : sol.unassignedRequests) {
+        for (int v = 0; v < numVehicles; ++v) {
+            LocalInsertion ins = findBestInsertion(sol.routes[v], reqId);
+            insertionCache[reqId][v] = {ins.pIdx, ins.dIdx, ins.deltaCost};
+        }
+    }
+
+    while (!sol.unassignedRequests.empty()) {
+        int bestReqId = -1;
+        double maxRegretValue = -1.0;
+        LocalInsertion winMove;
+        int winVehicle = -1;
+
+        // Search the request with the highest regret-3 value
+        for (int reqId : sol.unassignedRequests) {
+            double bestCost = std::numeric_limits<double>::infinity();
+            double secondBestCost = std::numeric_limits<double>::infinity();
+            double thirdBestCost = std::numeric_limits<double>::infinity();
+            int bestVForThisReq = -1;
+            LocalInsertion bestMoveForThisReq;
+
+            // Find the 3 best insertions for this request
+            for (int v = 0; v < numVehicles; ++v) {
+                double cost = insertionCache[reqId][v].deltaCost;
+                if (cost < bestCost) {
+                    thirdBestCost = secondBestCost;
+                    secondBestCost = bestCost;
+                    bestCost = cost;
+                    bestVForThisReq = v;
+                    bestMoveForThisReq = insertionCache[reqId][v];
+                } else if (cost < secondBestCost) {
+                    thirdBestCost = secondBestCost;
+                    secondBestCost = cost;
+                } else if (cost < thirdBestCost) {
+                    thirdBestCost = cost;
+                }
+            }
+
+            double regret = 0.0;
+
+            // Calculate regret-3 value based on the number of vehicles available
+            if (numVehicles >= 3) {
+                regret = (secondBestCost - bestCost) + (thirdBestCost - bestCost);
+            } else if (numVehicles == 2) {
+                // Fallback to regret-2 if the instance has less than 3 vehicles
+                regret = secondBestCost - bestCost;
+            } else {
+                // If there is only 1 vehicle, regret has no comparative sense
+                regret = 0.0;
+            }
+
+            if (regret > maxRegretValue) {
+                maxRegretValue = regret;
+                bestReqId = reqId;
+                winVehicle = bestVForThisReq;
+                winMove = bestMoveForThisReq;
+            }
+        }
+
+        // Apply the best move
+        auto& r = sol.routes[winVehicle];
+        r.sequence.insert(r.sequence.begin() + winMove.pIdx, bestReqId);
+        r.sequence.insert(r.sequence.begin() + winMove.dIdx + 1, bestReqId + data.N_requests);
+        evaluator.evaluateRoute(r);
+        
+        sol.unassignedRequests.erase(bestReqId);
+
+        // Update the cache ONLY for the modified vehicle
+        for (int reqId : sol.unassignedRequests) {
+            LocalInsertion ins = findBestInsertion(sol.routes[winVehicle], reqId);
+            insertionCache[reqId][winVehicle] = {ins.pIdx, ins.dIdx, ins.deltaCost};
+        }
+    }
+}
+
+void ALNSOperators::applyIntraRouteExchanges(ALNSSolution& sol) {
+    bool globalImprovement = false;
+
+    for (auto& route : sol.routes) {
+        // Skip empty routes or routes with only Start -> End
+        if (route.sequence.size() <= 2) continue; 
+
+        bool routeImproved = true;
+        
+        // Keep looping until no further improvements can be found in this route
+        while (routeImproved) {
+            routeImproved = false;
+            double baselineRouteCost = route.totalCost;
+            double bestRouteCost = baselineRouteCost;
+
+            int bestNodeToMove = -1;
+            int bestInsertPos = -1;
+
+            // Extract a snapshot of the nodes to evaluate (excluding depots)
+            std::vector<int> nodesToMove = route.sequence;
+            nodesToMove.erase(nodesToMove.begin()); // Remove Start Depot
+            nodesToMove.pop_back();                 // Remove End Depot
+
+            // Scan all nodes to find the single best move (Hill Climbing)
+            for (int v : nodesToMove) {
+                int v_pos = route.getPosition(v);
+                if (v_pos == -1) continue; 
+                
+                int n = data.P.size();
+                bool isPickup = data.isPickup(v);
+                int partnerId = isPickup ? (v + n) : (v - n);
+                int partner_pos = route.getPosition(partnerId);
+
+                // Temporarily remove vertex v from the route
+                route.sequence.erase(route.sequence.begin() + v_pos);
+                
+                // Adjust partner position since we shifted the array down by 1
+                if (v_pos < partner_pos)
+                    partner_pos--;
+
+                // Determine valid insertion bounds
+                int minInsert = 1;
+                int maxInsert = route.sequence.size() - 1;
+                if (isPickup) maxInsert = partner_pos; // Pickup must go BEFORE delivery
+                else minInsert = partner_pos + 1;      // Delivery must go AFTER pickup
+
+                // Evaluate all valid positions for this specific node
+                for (int pos = minInsert; pos <= maxInsert; ++pos) {
+                    route.sequence.insert(route.sequence.begin() + pos, v);
+                    evaluator.evaluateRoute(route);
+                    
+                    // Track the absolute best move found across the entire route so far
+                    if (route.totalCost < bestRouteCost - 1e-6) {
+                        bestRouteCost = route.totalCost;
+                        bestNodeToMove = v;
+                        bestInsertPos = pos;
+                    }
+                    
+                    // Remove to try the next position
+                    route.sequence.erase(route.sequence.begin() + pos);
+                }
+
+                // Restore route to its original state so the next node is evaluated against
+                // the correct structure
+                route.sequence.insert(route.sequence.begin() + v_pos, v);
+                evaluator.evaluateRoute(route); 
+            }
+
+            // After checking all nodes, commit to the single best neighborhood move
+            if (bestNodeToMove != -1) {
+                int v_pos = route.getPosition(bestNodeToMove);
+                
+                route.sequence.erase(route.sequence.begin() + v_pos);
+                route.sequence.insert(route.sequence.begin() + bestInsertPos, bestNodeToMove);
+                evaluator.evaluateRoute(route); // Update the final route metrics
+
+                routeImproved = true;
+                globalImprovement = true;
+            }
+        }
+    }
+
+    // If any route was improved, re-evaluate the full solution to update overall objective and violations
+    if (globalImprovement) {
+        evaluator.evaluateSolution(sol);
+    }
+}
+
+double ALNSOperators::calculateRelatedness(int i, int j, const ALNSSolution& sol) {
+    int n = data.N_requests;
+
     // Heuristic weights
     double w_dist = params.shawDistWeight;
     double w_time = params.shawTimeWeight;
     double w_demand = params.shawDemandWeight;
 
-    double dist = data.getTravelTime(i, j); 
-    
-    // Temporal time difference: we can use the midpoint of the time windows as a representative time for each request
-    double mu_i = (data.getTimeWindowStart(i) + data.getTimeWindowEnd(i)) / 2.0;
-    double mu_j = (data.getTimeWindowStart(j) + data.getTimeWindowEnd(j)) / 2.0;
-    double timeDiff = std::abs(mu_i - mu_j);
-    
-    // Demand difference
+
+    double dist = data.getTravelTime(i, j) + data.getTravelTime(n + i, n + j);
+    double timeDiff = std::abs(sol.getB(i) - sol.getB(j)) +
+                      std::abs(sol.getB(n + i) - sol.getD(n + j));    
     double demandDiff = std::abs(data.getDemand(i) - data.getDemand(j));
 
     // Relatedness value
-    return w_dist * dist + w_time * timeDiff + w_demand * demandDiff;
+    return w_dist*dist + w_time*timeDiff + w_demand*demandDiff;
 }
 
 ALNSOperators::LocalInsertion ALNSOperators::findBestInsertion(

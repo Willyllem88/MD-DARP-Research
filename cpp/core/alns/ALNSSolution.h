@@ -63,6 +63,54 @@ struct ALNSSolution {
         return r ? r->getLoad(nodeId) : -1.0;
     }
 
+    // Remove a single request from the solution
+    bool removeRequest(int reqId, int numRequests) {
+        int rIdx = getRouteIndexOf(reqId);
+        if (rIdx == -1) return false; // Request not assigned
+
+        int deliveryId = reqId + numRequests;
+        auto& route = routes[rIdx];
+
+        std::erase_if(route.sequence, [&](int nodeId) {
+            return nodeId == reqId || nodeId == deliveryId;
+        });
+
+        node2routeIndex[reqId] = -1;
+        node2routeIndex[deliveryId] = -1;
+        unassignedRequests.insert(reqId);
+        return true;
+    }
+
+    // Remove multiple requests from the solution
+    void removeRequests(const std::vector<int>& reqIds, int numRequests) {
+        if (reqIds.empty()) return;
+
+        std::vector<bool> toRemove(node2routeIndex.size(), false);
+        std::vector<bool> routeNeedsUpdate(routes.size(), false);
+
+        for (int reqId : reqIds) {
+            int rIdx = getRouteIndexOf(reqId);
+            if (rIdx != -1) {
+                int deliveryId = reqId + numRequests;
+                toRemove[reqId] = true;
+                toRemove[deliveryId] = true;
+                routeNeedsUpdate[rIdx] = true;
+
+                node2routeIndex[reqId] = -1;
+                node2routeIndex[deliveryId] = -1;
+                unassignedRequests.insert(reqId);
+            }
+        }
+
+        for (size_t r = 0; r < routes.size(); ++r) {
+            if (routeNeedsUpdate[r]) {
+                auto& route = routes[r];
+                std::erase_if(route.sequence, [&toRemove](int nodeId) {
+                    return toRemove[nodeId];
+                });
+            }
+        }
+    }
 
     void print() {
         std::cout << "  Routes:" << std::endl;

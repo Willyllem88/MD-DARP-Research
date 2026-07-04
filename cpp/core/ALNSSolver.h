@@ -88,13 +88,16 @@ private:
     std::map<int, std::vector<ALNSRoute>> routePool;
     std::unordered_map<int, std::unordered_set<std::vector<int>, RouteSequenceHash>> seenRoutes;
 
+    // Hash function for ALNSSolution to track visited solutions
+    std::unordered_set<std::size_t> visitedSolutionsHashes;
+
     // --- Core Logic Methods ---
 
     bool stoppingCriteria();
     bool acceptanceCriteria(double candidateObj, double currentObj, double temperature, bool isNew, double& score);
     
     enum class DestroyMethod {RANDOM, WORST, SHAW, COUNT}; // COUNT the number of methods for stats
-    enum class RepairMethod {GREEDY, REGRET2, COUNT};
+    enum class RepairMethod {GREEDY, REGRET2, REGRET3, COUNT};
 
     struct OperatorStats {
         std::vector<double> weights;
@@ -116,6 +119,9 @@ private:
     void applyRepair(ALNSSolution& sol, int repairOpIdx);
 
     void updateBestSolutions(const ALNSSolution& candidate, std::string context = "");
+
+    // Checks if a solution has been visited before based on its hash, returns false if it was already visited, true otherwise.
+    bool markSolutionAsVisited(const ALNSSolution& sol);
     
     // Solution Management
     ALNSSolution createInitialSolution();

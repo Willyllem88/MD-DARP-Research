@@ -25,6 +25,10 @@ public:
     // Repair Operators
     void repairGreedy(ALNSSolution& sol);
     void repairRegret2(ALNSSolution& sol);
+    void repairRegret3(ALNSSolution& sol);
+
+    // Applies a hill-climbing intra-route exchange to each route in the solution
+    void applyIntraRouteExchanges(ALNSSolution& sol);
 
 private:
     const MDDARP_ProblemInstance& data;
@@ -33,7 +37,7 @@ private:
     std::mt19937& rng;
 
     // Auxiliary for Shaw removal
-    double calculateRelatedness(int i, int j);
+    double calculateRelatedness(int i, int j, const ALNSSolution& sol);
 
     // Insertion evaluation methods
     struct LocalInsertion {
@@ -45,11 +49,9 @@ private:
     ReductionMethod reductionMethod = NONE;
     LocalInsertion findBestInsertion(const ALNSRoute& route, int reqId);
     LocalInsertion findBestInsertionExact(const ALNSRoute& route, int reqId);
-    LocalInsertion findBestInsertionGreedy(const ALNSRoute& route, int reqId);
     LocalInsertion findBestInsertionExact_R(const ALNSRoute& route, int reqId);
-    LocalInsertion findBestInsertionGreedy_R(const ALNSRoute& route, int reqId);
 
-    // Cache for regret-2 insertions to avoid redundant calculations
+    // Cache for regret-2 and regret-3 insertions to avoid redundant calculations
     std::vector<std::vector<LocalInsertion>> insertionCache;
      
 };

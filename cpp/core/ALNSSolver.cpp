@@ -41,10 +41,9 @@ void ALNSSolver::solve() {
     bestSolution = currentSol;
     bestObjective = currentSol.objectiveValue;
     bestFeasibleSolution = currentSol.hasViolations ? std::nullopt : std::make_optional(currentSol);
-
-    std::unordered_set<std::size_t> visitedSolutionsHashes;
-    visitedSolutionsHashes.insert(SolutionHash{}(currentSol));
-
+    visitedSolutionsHashes.clear();
+    
+    markSolutionAsVisited(currentSol);
     initializeStatsAndTemperature(currentSol);
     initializeRoutePool();
 
@@ -62,23 +61,20 @@ void ALNSSolver::solve() {
         applyRepair(neighbor, repairOpIdx);
         evaluator->evaluateSolution(neighbor);
 
-        std::size_t neighborHash = SolutionHash{}(neighbor);
-        bool isNew = (visitedSolutionsHashes.find(neighborHash) == visitedSolutionsHashes.end());
-        if (isNew)  visitedSolutionsHashes.insert(neighborHash);
-
-        for (const auto& route : neighbor.routes) {
-            if (!route.sequence.empty()) {
-                addRouteToPool(route);
-            }
-        }
-
         // --- Acceptance Criterion ---
         double iterScore = 0.0;
+        bool isNew = markSolutionAsVisited(neighbor);
         bool accept = acceptanceCriteria(neighbor.objectiveValue, currentSol.objectiveValue, currentTemperature, isNew, iterScore);
 
         if (accept) {
+            operators->applyIntraRouteExchanges(neighbor);
+            //markSolutionAsVisited(neighbor);
             currentSol = neighbor;
-            updateBestSolutions(neighbor);
+            updateBestSolutions(currentSol);
+        }
+
+        for (const auto& route : neighbor.routes) {
+            addRouteToPool(route);
         }
         
         // -- Update Operator Stats ---
@@ -137,7 +133,7 @@ void ALNSSolver::solve() {
             double avgScore = (repairStats.timesUsed[i] > 0) ? repairStats.scores[i] / repairStats.timesUsed[i] : 0.0;
             std::cout << "  Repair " << i << ": Weight=" << repairStats.weights[i] 
                     << ", Times Used=" << repairStats.timesUsed[i] 
-                    << ", Avg Score=" << avgScore << std::endl;
+                    << ", Avg Score=" << avgScore << std::endl; // TODO: not sure if this is correct
         }
     }
 }
@@ -273,9 +269,18 @@ void ALNSSolver::applyRepair(ALNSSolution& sol, int repairOpIdx) {
         case RepairMethod::REGRET2:
             operators->repairRegret2(sol);
             break;
+        case RepairMethod::REGRET3:
+            operators->repairRegret3(sol);
+            break;
         case RepairMethod::COUNT:
             break;
     }
+}
+
+bool ALNSSolver::markSolutionAsVisited(const ALNSSolution& sol) {
+    std::size_t solHash = SolutionHash{}(sol);
+    auto [it, inserted] = visitedSolutionsHashes.insert(solHash);
+    return inserted;
 }
 
 void ALNSSolver::updateBestSolutions(const ALNSSolution& candidate, std::string context) {
