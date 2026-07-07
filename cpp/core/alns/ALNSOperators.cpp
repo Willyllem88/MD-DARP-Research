@@ -39,7 +39,6 @@ void ALNSOperators::destroyRandom(ALNSSolution& sol, int q) {
     std::vector<int> toRemove(requests.begin(), requests.begin() + removals);
 
     sol.removeRequests(toRemove, n);
-
     evaluator.evaluateSolution(sol);
 }
 
@@ -64,7 +63,6 @@ void ALNSOperators::destroyWorst(ALNSSolution& sol, int q) {
         // Try removing each one to see how much we save
         ALNSRoute tempRoute = route;
         for (int reqId : requestsInRoute) {
-            tempRoute.sequence.clear();
             std::vector<int> newSeq;
             int deliveryId = reqId + data.N_requests;
 
@@ -72,6 +70,7 @@ void ALNSOperators::destroyWorst(ALNSSolution& sol, int q) {
                 if (node != reqId && node != deliveryId) newSeq.push_back(node);
             }
             tempRoute.sequence = newSeq;
+            tempRoute.makeDirty();
             evaluator.evaluateRoute(tempRoute);
 
             double saving = currentCost - tempRoute.totalCost;
@@ -132,7 +131,6 @@ void ALNSOperators::destroyShaw(ALNSSolution& sol, int q) {
     }
 
     sol.removeRequests(toRemove, data.N_requests);
-    
     evaluator.evaluateSolution(sol);
 }
 

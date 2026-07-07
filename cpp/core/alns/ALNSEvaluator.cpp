@@ -174,6 +174,21 @@ void ALNSEvaluator::evaluateRoute(ALNSRoute& route) {
     //globalCache[hash] = route;
 }
 
+double ALNSEvaluator::calculateRouteCost(ALNSRoute& route) {
+    std::size_t hash = route.getHash();
+    auto it = objectiveValCache.find(hash);
+    if (it != objectiveValCache.end()) {
+        return it->second; // Return cached value
+    }
+
+    evaluateRoute(route);
+    double cost = route.totalCost;
+
+    objectiveValCache[hash] = cost; // Cache the computed cost
+    //std::cout << "Hash table size: " << objectiveValCache.size() << std::endl;
+    return cost;
+}
+
 void ALNSEvaluator::evaluateSolution(ALNSSolution& sol) {
     sol.objectiveValue = 0.0;
     sol.hasViolations = false;
@@ -194,11 +209,13 @@ double ALNSEvaluator::calculateDelta(const ALNSRoute& route, ALNSRoute& temp, in
     temp.sequence.insert(temp.sequence.begin() + i, requestId); 
     temp.sequence.insert(temp.sequence.begin() + j + 1, requestId + data.N_requests);
     temp.makeDirty();
+    double cost = calculateRouteCost(temp);
     evaluateRoute(temp);
     temp.sequence.erase(temp.sequence.begin() + j + 1); // Revert to original state
     temp.sequence.erase(temp.sequence.begin() + i);
+    temp.makeDirty();
 
-    double delta = temp.totalCost - route.totalCost;
+    double delta = cost - route.totalCost;
 
     return delta;
 }

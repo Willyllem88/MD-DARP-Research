@@ -337,9 +337,9 @@ ALNSSolution ALNSSolver::createInitialSolution() {
         r.vehicleId = k;
         r.sequence.push_back(data.getVehicleStartNode(k));
         r.sequence.push_back(data.getVehicleEndNode(k));
-        evaluator->evaluateRoute(r); // Zero cost initially
         sol.routes.push_back(r);
     }
+    evaluator->evaluateSolution(sol);
 
     // All requests start as unassigned
     for (int i : data.P) {
