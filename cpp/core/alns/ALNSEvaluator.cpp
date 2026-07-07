@@ -7,6 +7,15 @@ ALNSEvaluator::ALNSEvaluator(const MDDARP_ProblemInstance& data,
     : data(data), params(params) { };
 
 void ALNSEvaluator::evaluateRoute(ALNSRoute& route) {
+    //if (route.isEvaluated) return;
+    /*std::size_t hash = route.getHash();
+    auto it = globalCache.find(hash);
+
+    if (it != globalCache.end()) {
+        route = it->second; // Copy cached evaluation
+        return; // Skip evaluation (we already have the result)
+    }*/
+
     // Reset metrics
     route.distanceCost = 0.0;
     route.timeWindowViolation = 0.0;
@@ -160,6 +169,9 @@ void ALNSEvaluator::evaluateRoute(ALNSRoute& route) {
                         route.vehicleMaxRouteTimeViolation <= 1e-6 &&
                         route.loadViolation <= 1e-6 && 
                         route.rideTimeViolation <= 1e-6);
+    
+    route.isEvaluated = true;
+    //globalCache[hash] = route;
 }
 
 void ALNSEvaluator::evaluateSolution(ALNSSolution& sol) {
@@ -181,6 +193,7 @@ double ALNSEvaluator::calculateDelta(const ALNSRoute& route, ALNSRoute& temp, in
     // Simulate a full evaluation of the route with the new request inserted at positions i (pickup) and j (delivery)
     temp.sequence.insert(temp.sequence.begin() + i, requestId); 
     temp.sequence.insert(temp.sequence.begin() + j + 1, requestId + data.N_requests);
+    temp.makeDirty();
     evaluateRoute(temp);
     temp.sequence.erase(temp.sequence.begin() + j + 1); // Revert to original state
     temp.sequence.erase(temp.sequence.begin() + i);

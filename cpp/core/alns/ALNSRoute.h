@@ -3,6 +3,16 @@
 #include <vector> 
 #include <map>
 
+struct RouteSequenceHash {
+    std::size_t operator()(const std::vector<int>& seq) const {
+        std::size_t hash = 0;
+        for (int nodeId : seq) {
+            hash ^= std::hash<int>{}(nodeId) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+        }
+        return hash;
+    }
+};
+
 // Internal representation of a single vehicle route
 struct ALNSRoute {
     int vehicleId;
@@ -68,14 +78,24 @@ struct ALNSRoute {
     int getNodeAtPosition(int pos) const { return sequence[pos]; }
     int getRouteSize() const { return sequence.size(); }
     bool containsNode(int nodeId) const { return id2pos[nodeId] != -1; }
-};
 
-struct RouteSequenceHash {
-    std::size_t operator()(const std::vector<int>& seq) const {
-        std::size_t hash = 0;
-        for (int nodeId : seq) {
-            hash ^= std::hash<int>{}(nodeId) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+
+    // Optimization
+    bool isEvaluated = false;
+    bool isHashValid = false;
+    std::size_t routeHash = 0;
+
+    void makeDirty() {
+        isEvaluated = false;
+        isHashValid = false;
+    }
+
+    std::size_t getHash() {
+        if (!isHashValid) {
+            RouteSequenceHash hasher;
+            routeHash = hasher(sequence);
+            isHashValid = true;
         }
-        return hash;
+        return routeHash;
     }
 };

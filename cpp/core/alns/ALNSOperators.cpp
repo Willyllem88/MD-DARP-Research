@@ -138,7 +138,7 @@ void ALNSOperators::destroyShaw(ALNSSolution& sol, int q) {
 
 void ALNSOperators::repairGreedy(ALNSSolution& sol) {    
     std::vector<int> todo(sol.unassignedRequests.begin(), sol.unassignedRequests.end());
-    sol.unassignedRequests.clear(); // Will re-add failures later
+    //sol.unassignedRequests.clear(); // Will re-add failures later
     std::shuffle(todo.begin(), todo.end(), rng);
 
     for (int reqId : todo) {
@@ -159,12 +159,9 @@ void ALNSOperators::repairGreedy(ALNSSolution& sol) {
                 bestDIdx = insertion.dIdx;
             }
         }
-
-        auto& r = sol.routes[bestVehicle];
-        r.sequence.insert(r.sequence.begin() + bestPIdx, reqId);
-        r.sequence.insert(r.sequence.begin() + bestDIdx + 1, deliveryId);
-
-        evaluator.evaluateRoute(r);
+        
+        sol.insertRequest(reqId, deliveryId, bestVehicle, bestPIdx, bestDIdx);
+        evaluator.evaluateRoute(sol.routes[bestVehicle]);
     }
 }
 
@@ -218,11 +215,8 @@ void ALNSOperators::repairRegret2(ALNSSolution& sol) {
         }
 
         auto& r = sol.routes[winVehicle];
-        r.sequence.insert(r.sequence.begin() + winMove.pIdx, bestReqId);
-        r.sequence.insert(r.sequence.begin() + winMove.dIdx + 1, bestReqId + data.N_requests);
-        evaluator.evaluateRoute(r);
-        
-        sol.unassignedRequests.erase(bestReqId);
+        sol.insertRequest(bestReqId, bestReqId + data.N_requests, winVehicle, winMove.pIdx, winMove.dIdx);
+        evaluator.evaluateRoute(r);  
 
         // Just update the cache for the affected vehicle
         for (int reqId : sol.unassignedRequests) {
@@ -300,11 +294,9 @@ void ALNSOperators::repairRegret3(ALNSSolution& sol) {
 
         // Apply the best move
         auto& r = sol.routes[winVehicle];
-        r.sequence.insert(r.sequence.begin() + winMove.pIdx, bestReqId);
-        r.sequence.insert(r.sequence.begin() + winMove.dIdx + 1, bestReqId + data.N_requests);
+        sol.insertRequest(bestReqId, bestReqId + data.N_requests, winVehicle, winMove.pIdx, winMove.dIdx);
         evaluator.evaluateRoute(r);
         
-        sol.unassignedRequests.erase(bestReqId);
 
         // Update the cache ONLY for the modified vehicle
         for (int reqId : sol.unassignedRequests) {
@@ -332,7 +324,6 @@ void ALNSOperators::applyIntraRouteExchanges(ALNSSolution& sol) {
             int bestNodeToMove = -1;
             int bestInsertPos = -1;
 
-            // Extract a snapshot of the nodes to evaluate (excluding depots)
             std::vector<int> nodesToMove = route.sequence;
             nodesToMove.erase(nodesToMove.begin()); // Remove Start Depot
             nodesToMove.pop_back();                 // Remove End Depot
@@ -363,6 +354,7 @@ void ALNSOperators::applyIntraRouteExchanges(ALNSSolution& sol) {
                 // Evaluate all valid positions for this specific node
                 for (int pos = minInsert; pos <= maxInsert; ++pos) {
                     route.sequence.insert(route.sequence.begin() + pos, v);
+                    route.makeDirty(); // Mark route as needing re-evaluation
                     evaluator.evaluateRoute(route);
                     
                     // Track the absolute best move found across the entire route so far
@@ -379,7 +371,8 @@ void ALNSOperators::applyIntraRouteExchanges(ALNSSolution& sol) {
                 // Restore route to its original state so the next node is evaluated against
                 // the correct structure
                 route.sequence.insert(route.sequence.begin() + v_pos, v);
-                evaluator.evaluateRoute(route); 
+                route.makeDirty();
+                evaluator.evaluateRoute(route);
             }
 
             // After checking all nodes, commit to the single best neighborhood move
@@ -388,11 +381,12 @@ void ALNSOperators::applyIntraRouteExchanges(ALNSSolution& sol) {
                 
                 route.sequence.erase(route.sequence.begin() + v_pos);
                 route.sequence.insert(route.sequence.begin() + bestInsertPos, bestNodeToMove);
+                route.makeDirty();
                 evaluator.evaluateRoute(route); // Update the final route metrics
 
                 routeImproved = true;
                 globalImprovement = true;
-            }
+            }           
         }
     }
 

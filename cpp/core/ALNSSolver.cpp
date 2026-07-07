@@ -329,6 +329,7 @@ void ALNSSolver::initializeRoutePool() {
 
 ALNSSolution ALNSSolver::createInitialSolution() {
     ALNSSolution sol;
+    sol.initNodeDirectory(data.max_node_id);
     
     // Initialize empty routes
     for (int k : data.K) {

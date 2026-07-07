@@ -25,4 +25,6 @@ public:
 private:
     const MDDARP_ProblemInstance& data;
     const ALNSParams& params;
+
+    //std::unordered_map<std::size_t, ALNSRoute> globalCache;
 };

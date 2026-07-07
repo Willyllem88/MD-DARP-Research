@@ -63,6 +63,16 @@ struct ALNSSolution {
         return r ? r->getLoad(nodeId) : -1.0;
     }
 
+    void insertRequest(int reqId, int deliveryId, int vehicleIdx, int pickupPos, int deliveryPos) {
+        auto& route = routes[vehicleIdx];
+        route.sequence.insert(route.sequence.begin() + pickupPos, reqId);
+        route.sequence.insert(route.sequence.begin() + deliveryPos + 1, deliveryId);
+        node2routeIndex[reqId] = vehicleIdx;
+        node2routeIndex[deliveryId] = vehicleIdx;
+        unassignedRequests.erase(reqId);
+        route.makeDirty(); // Mark route as needing re-evaluation
+    }
+
     // Remove a single request from the solution
     bool removeRequest(int reqId, int numRequests) {
         int rIdx = getRouteIndexOf(reqId);
@@ -78,6 +88,7 @@ struct ALNSSolution {
         node2routeIndex[reqId] = -1;
         node2routeIndex[deliveryId] = -1;
         unassignedRequests.insert(reqId);
+        route.makeDirty(); // Mark route as needing re-evaluation
         return true;
     }
 
@@ -108,6 +119,7 @@ struct ALNSSolution {
                 std::erase_if(route.sequence, [&toRemove](int nodeId) {
                     return toRemove[nodeId];
                 });
+                route.makeDirty(); // Mark route as needing re-evaluation
             }
         }
     }
