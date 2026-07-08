@@ -39,7 +39,6 @@ void ALNSOperators::destroyRandom(ALNSSolution& sol, int q) {
     std::vector<int> toRemove(requests.begin(), requests.begin() + removals);
 
     sol.removeRequests(toRemove, n);
-
     evaluator.evaluateSolution(sol);
 }
 
@@ -132,17 +131,14 @@ void ALNSOperators::destroyShaw(ALNSSolution& sol, int q) {
     }
 
     sol.removeRequests(toRemove, data.N_requests);
-    
     evaluator.evaluateSolution(sol);
 }
 
 void ALNSOperators::repairGreedy(ALNSSolution& sol) {    
     std::vector<int> todo(sol.unassignedRequests.begin(), sol.unassignedRequests.end());
-    sol.unassignedRequests.clear(); // Will re-add failures later
     std::shuffle(todo.begin(), todo.end(), rng);
 
     for (int reqId : todo) {
-        int deliveryId = reqId + data.N_requests;
         double bestCostIncrease = std::numeric_limits<double>::max();
         int bestVehicle = -1;
         int bestPIdx = -1;
@@ -161,9 +157,7 @@ void ALNSOperators::repairGreedy(ALNSSolution& sol) {
         }
 
         auto& r = sol.routes[bestVehicle];
-        r.sequence.insert(r.sequence.begin() + bestPIdx, reqId);
-        r.sequence.insert(r.sequence.begin() + bestDIdx + 1, deliveryId);
-
+        sol.insertRequest(reqId, bestVehicle, bestPIdx, bestDIdx, data.N_requests);
         evaluator.evaluateRoute(r);
     }
 }
@@ -218,12 +212,9 @@ void ALNSOperators::repairRegret2(ALNSSolution& sol) {
         }
 
         auto& r = sol.routes[winVehicle];
-        r.sequence.insert(r.sequence.begin() + winMove.pIdx, bestReqId);
-        r.sequence.insert(r.sequence.begin() + winMove.dIdx + 1, bestReqId + data.N_requests);
+        sol.insertRequest(bestReqId, winVehicle, winMove.pIdx, winMove.dIdx, data.N_requests);
         evaluator.evaluateRoute(r);
         
-        sol.unassignedRequests.erase(bestReqId);
-
         // Just update the cache for the affected vehicle
         for (int reqId : sol.unassignedRequests) {
             LocalInsertion ins = findBestInsertion(sol.routes[winVehicle], reqId);
@@ -300,12 +291,9 @@ void ALNSOperators::repairRegret3(ALNSSolution& sol) {
 
         // Apply the best move
         auto& r = sol.routes[winVehicle];
-        r.sequence.insert(r.sequence.begin() + winMove.pIdx, bestReqId);
-        r.sequence.insert(r.sequence.begin() + winMove.dIdx + 1, bestReqId + data.N_requests);
+        sol.insertRequest(bestReqId, winVehicle, winMove.pIdx, winMove.dIdx, data.N_requests);
         evaluator.evaluateRoute(r);
         
-        sol.unassignedRequests.erase(bestReqId);
-
         // Update the cache ONLY for the modified vehicle
         for (int reqId : sol.unassignedRequests) {
             LocalInsertion ins = findBestInsertion(sol.routes[winVehicle], reqId);

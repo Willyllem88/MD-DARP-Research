@@ -63,6 +63,16 @@ struct ALNSSolution {
         return r ? r->getLoad(nodeId) : -1.0;
     }
 
+    void insertRequest(int reqId, int vehicleId, int pickupPos, int deliveryPos, int numRequests) {
+        int deliveryId = reqId + numRequests;
+        auto& route = routes[vehicleId];
+        route.sequence.insert(route.sequence.begin() + pickupPos, reqId);
+        route.sequence.insert(route.sequence.begin() + deliveryPos + 1, deliveryId);
+        node2routeIndex[reqId] = vehicleId;
+        node2routeIndex[deliveryId] = vehicleId;
+        unassignedRequests.erase(reqId);
+    }
+
     // Remove a single request from the solution
     bool removeRequest(int reqId, int numRequests) {
         int rIdx = getRouteIndexOf(reqId);

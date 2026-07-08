@@ -329,6 +329,7 @@ void ALNSSolver::initializeRoutePool() {
 
 ALNSSolution ALNSSolver::createInitialSolution() {
     ALNSSolution sol;
+    sol.initNodeDirectory(data.max_node_id);
     
     // Initialize empty routes
     for (int k : data.K) {
@@ -367,27 +368,39 @@ void ALNSSolver::initializeStatsAndTemperature(const ALNSSolution& initialSoluti
 
 void ALNSSolver::solveMatheuristic() {
     if (hybridMethod == HybridMethod::NONE) return;
+    if (bestFeasibleSolution.has_value() == false) {
+        logger.log("Iter " + std::to_string(iteration) + "  [Matheuristic] Skipped (no feasible solution available).");
+        return;
+    }
 
+    // Time handling
     auto now = std::chrono::steady_clock::now();
     double elapsedSeconds = std::chrono::duration<double>(now - startTime).count();
     double remainingTime = timeLimit.has_value() ? 
         timeLimit.value() - elapsedSeconds 
         : std::numeric_limits<double>::infinity();
     double cplexMaxTime = std::min(params->cplexTimeLimit, remainingTime);
-
-    // If no time remains, skip the matheuristic step
     if (cplexMaxTime <= 0.0) {
         logger.log("Iter " + std::to_string(iteration) +
                 "  [Matheuristic] Skipped (no remaining time).");
         return;
     }
 
+    // Ensure bestFeasibleSolution is in the route pool
+    for (const auto& route : bestFeasibleSolution->routes) {
+        addRouteToPool(route);
+    }
+
     // Prune
     ALNSSolution matSol;
     bool isSC = (hybridMethod == HybridMethod::SET_COVERING); // For specific pruning
     setSolver->getRoutePool().prune(bestObjective, isSC);
-    bool solved = setSolver->solve(matSol, cplexMaxTime);
+    auto pruneTime = std::chrono::steady_clock::now();
+    double pruneElapsed = std::chrono::duration<double>(pruneTime - now).count();
+    logger.log("  [Matheuristic] Route pool pruned in " + std::to_string(pruneElapsed) + " seconds.");
 
+    // Solve
+    bool solved = setSolver->solve(matSol, cplexMaxTime);
     if (!solved) {
         logger.log("Iter " + std::to_string(iteration) + "  [Matheuristic] Failed to solve with CPLEX.");
         return;
