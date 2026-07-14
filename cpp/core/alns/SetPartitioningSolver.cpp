@@ -17,8 +17,8 @@ SetPartitioningSolver::SetPartitioningSolver(const MDDARP_ProblemInstance& data,
     }
 }
 
-bool SetPartitioningSolver::solve(ALNSSolution& newSol, double maxTime) {
-    std::unordered_map<int, std::vector<ALNSRoute>> routePool = getRoutePool().getRoutes();
+bool SetPartitioningSolver::solve(ALNSSolution& newSol, std::optional<ALNSSolution> mipStartSol, double maxTime) {
+    std::unordered_map<int, std::vector<ALNSRoute>> routePool = pool.getRoutes();
     
     // If no routes are available, return an empty solution
     if (routePool.empty()) {
@@ -103,9 +103,54 @@ bool SetPartitioningSolver::solve(ALNSSolution& newSol, double maxTime) {
             }
         }
 
-        // --- 3. Solve and Reconstruct ---
+        // MIP Start Solution (if provided)
+        /*if (mipStartSol.has_value()) {
+            IloNumArray startVals(env, vars.getSize());
+            for (int i = 0; i < vars.getSize(); ++i) {
+                startVals[i] = 0.0;
+            }
+
+            std::unordered_map<int, std::vector<int>> mipStartCanonical;
+            for (const auto& route : mipStartSol->routes) {
+                std::vector<int> canonSeq = route.sequence;
+                std::sort(canonSeq.begin(), canonSeq.end());
+                mipStartCanonical[route.vehicleId] = canonSeq;
+            }
+
+            int matchedRoutes = 0;
+            for (int i = 0; i < vars.getSize(); ++i) {
+                const auto& info = varMetadata[i]; // Info: vehicleId, routeIdx
+                
+                auto itStart = mipStartCanonical.find(info.vehicleId);
+                if (itStart != mipStartCanonical.end()) {
+                    // Obtener la ruta del pool y calcular su forma canónica
+                    std::vector<int> currentCanonSeq = routePool.at(info.vehicleId)[info.routeIdx].sequence;
+                    std::sort(currentCanonSeq.begin(), currentCanonSeq.end());
+
+                    // Si la combinación de nodos coincide, asignamos 1.0 a esta variable
+                    if (currentCanonSeq == itStart->second) {
+                        startVals[i] = 1.0;
+                        matchedRoutes++;
+                    }
+                }
+            }
+
+            if (matchedRoutes > 0) {
+                cplex.addMIPStart(vars, startVals, IloCplex::MIPStartAuto, "BestFeasibleALNS");
+                logger.log("  [SetPartitioning] Injecting MIP Start with " + std::to_string(matchedRoutes) + " mapped routes.");
+            } else {
+                logger.log("  [SetPartitioning] Warning: No routes could be mapped for the MIP Start.");
+            }
+
+            startVals.end();
+        }*/
         
-        if (cplex.solve()) {
+        // --- 3. Solve and Reconstruct ---
+
+        bool solve = cplex.solve();
+        logger.log("  [SetPartitioning] CPLEX time: " + std::to_string(cplex.getTime()) + " seconds");
+        
+        if (solve) {
             IloNumArray vals(env);
             cplex.getValues(vals, vars);
             
@@ -126,17 +171,11 @@ bool SetPartitioningSolver::solve(ALNSSolution& newSol, double maxTime) {
             // Final evaluation of the assembled solution
             evaluator.evaluateSolution(newSol);
 
-            // Logs informativos del proceso de CPLEX (Status)
-            int totalRoutes = 0;
-            for (const auto& [k, routes] : routePool) {
-                totalRoutes += routes.size();
-            }
-            logger.log("  [SetPartitioning] Total Routes in Pool: " + std::to_string(totalRoutes));
+            // Logs of the CPLEX process (Status)
             logger.log("  [SetPartitioning] CPLEX Status: " + std::string(
                 cplex.getStatus() == IloAlgorithm::Infeasible ? "Infeasible" : 
                 cplex.getStatus() == IloAlgorithm::Optimal ? "Optimal" :
                 cplex.getStatus() == IloAlgorithm::Feasible ? "Feasible (Time Limit)" : "Unknown"));
-            logger.log("  [SetPartitioning] CPLEX time: " + std::to_string(cplex.getTime()) + " seconds");
         }
         else {
             logger.log("  [SetPartitioning] CPLEX found no solution. Status: " + std::to_string(cplex.getStatus()));

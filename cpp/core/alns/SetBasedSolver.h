@@ -24,7 +24,11 @@ public:
 
     // Solve the Set Partitioning/Covering problem using the accumulated 
     // routePool and return the best solution found, returns true if a solution was found, false otherwise
-    virtual bool solve(ALNSSolution& newSol, double maxTime = 60.0) = 0;
+    virtual bool solve(
+        ALNSSolution& newSol,
+        std::optional<ALNSSolution> mipStartSol,
+        double maxTime = 60.0
+    ) = 0;
 
     // Accessor for the route pool, so the ALNSSolver can add routes to it 
     // during the ALNS search

@@ -17,8 +17,8 @@ SetCoveringSolver::SetCoveringSolver(const MDDARP_ProblemInstance& data,
     }
 }
 
-bool SetCoveringSolver::solve(ALNSSolution& newSol, double maxTime) {
-    std::unordered_map<int, std::vector<ALNSRoute>> routePool = getRoutePool().getRoutes();
+bool SetCoveringSolver::solve(ALNSSolution& newSol, std::optional<ALNSSolution> mipStartSol, double maxTime) {
+    std::unordered_map<int, std::vector<ALNSRoute>> routePool = pool.getRoutes();
     
     // If no routes are available, return an empty solution
     if (routePool.empty()) return false;
@@ -101,8 +101,12 @@ bool SetCoveringSolver::solve(ALNSSolution& newSol, double maxTime) {
         }
 
         // --- 3. Solve and Reconstruct ---
+
+        bool solve = cplex.solve();
+        logger.log("  [SetCovering] CPLEX time: " + std::to_string(cplex.getTime()) + " seconds");
+
         
-        if (cplex.solve()) {
+        if (solve) {
             IloNumArray vals(env);
             cplex.getValues(vals, vars);
             
@@ -125,20 +129,14 @@ bool SetCoveringSolver::solve(ALNSSolution& newSol, double maxTime) {
             repairSolution(newSol);
             evaluator.evaluateSolution(newSol);
 
-            // Logs informativos del proceso de CPLEX (Status)
-            int totalRoutes = 0;
-            for (const auto& [k, routes] : routePool) {
-                totalRoutes += routes.size();
-            }
-            std::cout << "  [SetCovering] Total Routes in Pool: " << totalRoutes << std::endl;
-            std::cout << "  [SetCovering] CPLEX Status: " 
-                      << (cplex.getStatus() == IloAlgorithm::Infeasible ? "Infeasible" : 
-                          cplex.getStatus() == IloAlgorithm::Optimal ? "Optimal" :
-                          cplex.getStatus() == IloAlgorithm::Feasible ? "Feasible (Time Limit)" : "Unknown") << std::endl;
-            std::cout << "  [SetCovering] CPLEX time: " << cplex.getTime() << " seconds" << std::endl;
+            // Logs of the CPLEX process (Status)
+            logger.log("  [SetCovering] CPLEX Status: " + std::string(
+                cplex.getStatus() == IloAlgorithm::Infeasible ? "Infeasible" : 
+                cplex.getStatus() == IloAlgorithm::Optimal ? "Optimal" :
+                cplex.getStatus() == IloAlgorithm::Feasible ? "Feasible (Time Limit)" : "Unknown"));
         }
         else {
-            std::cout << "  [SetCovering] CPLEX found no solution. Status: " << cplex.getStatus() << std::endl;
+            logger.log("  [SetCovering] CPLEX found no solution. Status: " + std::to_string(cplex.getStatus()));
             return false;
         }
 
@@ -170,7 +168,7 @@ void SetCoveringSolver::warnIfDuplicateRequests(const ALNSSolution& sol) const {
         for (int nodeId : route.sequence) {
             if (!requestToIndex.count(nodeId)) continue;
             if (!seen.insert(nodeId).second) {
-                std::cout << "WARNING: solution contains duplicate requests" << std::endl;
+                logger.log("WARNING: solution contains duplicate requests");
                 return;
             }
         }

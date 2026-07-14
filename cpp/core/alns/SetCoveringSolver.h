@@ -23,7 +23,7 @@ public:
     );
     ~SetCoveringSolver() {};
 
-    bool solve(ALNSSolution& newSol, double maxTime) override;
+    bool solve(ALNSSolution& newSol, std::optional<ALNSSolution> mipStartSol, double maxTime) override;
 
 private:
     // Map to quickly find which routes cover each request (built from routePool)
