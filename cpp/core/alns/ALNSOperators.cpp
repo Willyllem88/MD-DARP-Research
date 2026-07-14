@@ -401,7 +401,7 @@ double ALNSOperators::calculateRelatedness(int i, int j, const ALNSSolution& sol
 
     double dist = data.getTravelTime(i, j) + data.getTravelTime(n + i, n + j);
     double timeDiff = std::abs(sol.getB(i) - sol.getB(j)) +
-                      std::abs(sol.getB(n + i) - sol.getD(n + j));    
+                      std::abs(sol.getB(n + i) - sol.getB(n + j));    
     double demandDiff = std::abs(data.getDemand(i) - data.getDemand(j));
 
     // Relatedness value
