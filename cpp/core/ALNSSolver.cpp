@@ -50,6 +50,7 @@ void ALNSSolver::solve() {
     // 2. Main Loop
     for (iteration = 0; ; ++iteration) {
         if (stoppingCriteria()) break;
+        iterationsSinceLastBest++;
 
         // Adaptive Operator Selection
         int destroyOpIdx = selectOperator(destroyStats.weights);
@@ -73,9 +74,7 @@ void ALNSSolver::solve() {
             updateBestSolutions(currentSol);
         }
 
-        for (const auto& route : neighbor.routes) {
-            addRouteToPool(route);
-        }
+        addSolutionRouteToPool(currentSol);
         
         // -- Update Operator Stats ---
         destroyStats.scores[destroyOpIdx] += iterScore;
@@ -153,6 +152,12 @@ std::string ALNSSolver::name() const {
         return "ALNS_SC";
     } else {
         return "ALNS";
+    }
+}
+
+void ALNSSolver::addSolutionRouteToPool(const ALNSSolution& sol) {
+    for (const auto& route : sol.routes) {
+        addRouteToPool(route);
     }
 }
 
@@ -277,6 +282,32 @@ void ALNSSolver::applyRepair(ALNSSolution& sol, int repairOpIdx) {
     }
 }
 
+int ALNSSolver::computeDestroySize() {
+    int numRequests = (int)data.P.size();
+    if (numRequests <= 2) return 1;
+
+    // Base bounds (classic ALNS destroys between 5% and 25% of requests)
+    double minFraction = 0.05;
+    double maxFraction = 0.25;
+
+    // Strategic Oscillation: If stuck, scale upper bound up to 45% over 500 iterations
+    int stagnationThreshold = 500; 
+    double maxStuckFraction = 0.45; 
+
+    if (iterationsSinceLastBest > 50) { // Give it a small grace period
+        double stagnationRatio = std::min(1.0, (double)iterationsSinceLastBest / stagnationThreshold);
+        maxFraction = maxFraction + stagnationRatio * (maxStuckFraction - maxFraction);
+    }
+
+    // Convert fractions to absolute request counts
+    int minQ = std::max(1, (int)(minFraction * numRequests));
+    int maxQ = std::clamp((int)(maxFraction * numRequests), minQ + 1, numRequests - 1);
+
+    // Uniformly sample q from the dynamic range
+    std::uniform_int_distribution<int> dist(minQ, maxQ);
+    return dist(rng);
+}
+
 bool ALNSSolver::markSolutionAsVisited(const ALNSSolution& sol) {
     std::size_t solHash = SolutionHash{}(sol);
     auto [it, inserted] = visitedSolutionsHashes.insert(solHash);
@@ -292,6 +323,9 @@ void ALNSSolver::updateBestSolutions(const ALNSSolution& candidate, std::string 
         bestSolution = candidate;
         bestObjective = candidate.objectiveValue;
         bestImproved = true;
+
+        // Reset the counter for iterations since last best
+        iterationsSinceLastBest = 0;
     }
 
     // Update best feasible solution if improved and has no violations
@@ -362,16 +396,14 @@ void ALNSSolver::initializeStatsAndTemperature(const ALNSSolution& initialSoluti
     double initialTemperature = (params->w * z0) / std::log(2.0);
     currentTemperature = initialTemperature;
 
+    iterationsSinceLastBest = 0;
+
     logger.log("Initial solution created. Objective: " + std::to_string(bestObjective) 
         + " (Violations: " + (initialSolution.hasViolations ? "Yes" : "No") + ")");
 }
 
 void ALNSSolver::solveMatheuristic() {
     if (hybridMethod == HybridMethod::NONE) return;
-    if (bestFeasibleSolution.has_value() == false) {
-        logger.log("Iter " + std::to_string(iteration) + "  [Matheuristic] Skipped (no feasible solution available).");
-        return;
-    }
 
     // Time handling
     auto now = std::chrono::steady_clock::now();
@@ -387,9 +419,8 @@ void ALNSSolver::solveMatheuristic() {
     }
 
     // Ensure bestFeasibleSolution is in the route pool
-    for (const auto& route : bestFeasibleSolution->routes) {
-        addRouteToPool(route);
-    }
+    if (bestFeasibleSolution.has_value() == false)
+        addSolutionRouteToPool(bestFeasibleSolution.value());
 
     // Prune
     ALNSSolution matSol;
@@ -398,15 +429,17 @@ void ALNSSolver::solveMatheuristic() {
     auto pruneTime = std::chrono::steady_clock::now();
     double pruneElapsed = std::chrono::duration<double>(pruneTime - now).count();
     logger.log("  [Matheuristic] Route pool pruned in " + std::to_string(pruneElapsed) + " seconds.");
+    logger.log("  [Matheuristic] Total Routes in Pool after pruning: " + std::to_string(setSolver->getRoutePool().getTotalNumberOfRoutes()));
 
     // Solve
-    bool solved = setSolver->solve(matSol, cplexMaxTime);
+    bool solved = setSolver->solve(matSol, bestFeasibleSolution, cplexMaxTime);
     if (!solved) {
         logger.log("Iter " + std::to_string(iteration) + "  [Matheuristic] Failed to solve with CPLEX.");
         return;
     }
 
     updateBestSolutions(matSol, "  [Matheuristic] ");
+    //setSolver->getRoutePool().clear(); // Clear the pool after solving
 }
 
 MDDARP_ResultInstance ALNSSolver::solveScheduleLater(ALNSSolution& sol) {

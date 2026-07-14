@@ -51,6 +51,7 @@ public:
     std::string name() const override;
 
     // Utility to save a route to the pool if it's good/feasible
+    void addSolutionRouteToPool(const ALNSSolution& sol);
     void addRouteToPool(const ALNSRoute& route);
 
 private:
@@ -101,7 +102,7 @@ private:
 
     struct OperatorStats {
         std::vector<double> weights;
-        std::vector<int> scores;
+        std::vector<double> scores;
         std::vector<int> timesUsed;
 
         void init(int size) {
