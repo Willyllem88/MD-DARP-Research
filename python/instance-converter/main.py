@@ -151,7 +151,7 @@ def generate_json_structure(data):
             for k in range(1, n_vehicles + 1):
                 # Calcular distancia
                 dist = euclidean_distance(all_nodes_map[i], all_nodes_map[j])
-                dist = round(dist, 3)
+                dist = round(dist, 5)
 
                 # Add arc to matrix_c (cost matrix, specific for each vehicle)
                 output["matrix_c"].append({
