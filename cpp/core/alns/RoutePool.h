@@ -23,6 +23,7 @@ public:
     // Get all routes (useful for the solver to read them)
     const std::unordered_map<int, std::vector<ALNSRoute>>& getRoutes();
 
+    int getTotalNumberOfRoutes() const;
     
     void prune(double currentBestTotalSolutionCost, bool pruneSCP = false);
 

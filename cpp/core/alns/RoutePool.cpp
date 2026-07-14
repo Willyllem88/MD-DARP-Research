@@ -69,20 +69,12 @@ RoutePool::RoutePool(const MDDARP_ProblemInstance& instance) : problemInstance(i
 
         emptyRouteCosts[k] = minCost;
         totalEmptyCost += minCost;
-
-        ALNSRoute emptyRoute;
-        emptyRoute.vehicleId = k;
-        emptyRoute.sequence = path;
-        emptyRoute.totalCost = minCost;
-        emptyRoute.distanceCost = minCost; 
-        emptyRoute.isFeasible = true; 
-
-        addRoute(emptyRoute, std::numeric_limits<double>::infinity());
     }
 }
 
 void RoutePool::addRoute(const ALNSRoute& route, double currentBestTotalSolutionCost) {
     if (route.sequence.empty()) return;
+    if (route.isFeasible == false) return;
 
     double lowerBound = route.totalCost;
     if (!emptyRouteCosts.empty() && route.vehicleId < (int)emptyRouteCosts.size())
@@ -121,6 +113,14 @@ const std::unordered_map<int, std::vector<ALNSRoute>>& RoutePool::getRoutes() {
     }
 
     return routePool;
+}
+
+int RoutePool::getTotalNumberOfRoutes() const {
+    int total = 0;
+    for (const auto& [vehicleId, mapRoutes] : bestRoutes) {
+        total += mapRoutes.size();
+    }
+    return total;
 }
 
 void RoutePool::clear() {
