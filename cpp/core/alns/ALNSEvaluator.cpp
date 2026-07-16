@@ -177,7 +177,7 @@ void ALNSEvaluator::evaluateSolution(ALNSSolution& sol) {
     sol.updateNodeToRouteMapping();
 }
 
-double ALNSEvaluator::calculateDelta(const ALNSRoute& route, ALNSRoute& temp, int requestId, int i, int j) {
+std::pair<double, bool> ALNSEvaluator::calculateDelta(const ALNSRoute& route, ALNSRoute& temp, int requestId, int i, int j) {
     // Simulate a full evaluation of the route with the new request inserted at positions i (pickup) and j (delivery)
     temp.sequence.insert(temp.sequence.begin() + i, requestId); 
     temp.sequence.insert(temp.sequence.begin() + j + 1, requestId + data.N_requests);
@@ -187,5 +187,5 @@ double ALNSEvaluator::calculateDelta(const ALNSRoute& route, ALNSRoute& temp, in
 
     double delta = temp.totalCost - route.totalCost;
 
-    return delta;
+    return std::make_pair(delta, temp.isFeasible);
 }

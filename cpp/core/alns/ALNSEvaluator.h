@@ -20,7 +20,7 @@ public:
     void evaluateSolution(ALNSSolution& sol);
 
     // Calculate the change in objective value if a request is inserted into a route at positions i and j
-    double calculateDelta(const ALNSRoute& route, ALNSRoute& temp, int requestId, int i, int j);
+    std::pair<double, bool> calculateDelta(const ALNSRoute& route, ALNSRoute& temp, int requestId, int i, int j);
 
 private:
     const MDDARP_ProblemInstance& data;

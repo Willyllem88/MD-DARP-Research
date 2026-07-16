@@ -426,16 +426,24 @@ ALNSOperators::LocalInsertion ALNSOperators::findBestInsertionExact(const ALNSRo
     LocalInsertion best;
     int n = route.sequence.size();
 
+    bool feasibleFound = false;  // Track if any feasible insertion was found (for early stoppage)
+    const double threshold = 100000; // Threshold for early stopping based on feasibility
+
     ALNSRoute temp = route;
 
     for (int i = 1; i < n; ++i) { // Pickup can be inserted between any two nodes
         for (int j = i; j < n; ++j) { // Delivery must come after pickup
-            double delta = evaluator.calculateDelta(route, temp, reqId, i, j);
+            auto [delta, isFeasible] = evaluator.calculateDelta(route, temp, reqId, i, j);
+
             if (delta < best.deltaCost) {
                 best.deltaCost = delta;
                 best.pIdx = i;
                 best.dIdx = j;
+                feasibleFound = isFeasible || feasibleFound;
             }
+
+            if (feasibleFound && !isFeasible && delta > best.deltaCost * (1 + threshold))
+                break; // Early stopping if we have found a feasible insertion and the current one is significantly worse
         }
     }
     return best;
@@ -445,34 +453,50 @@ ALNSOperators::LocalInsertion ALNSOperators::findBestInsertionExact_R(const ALNS
     LocalInsertion best;
     ALNSRoute temp = route;
     int n = route.sequence.size();
+
+    bool feasibleFound = false;  // Track if any feasible insertion was found (for early stoppage)
+    const double threshold = 100000; // Threshold for early stopping based on feasibility (2x worse than the best feasible found)
     
-    // 1. Determine which vertex is critical. According to Cordeau & Laporte, a vertex is critical if e_i != 0 or l_i != T.
-    bool pickupIsCritical = data.getTimeWindowStart(reqId) > 0 || 
-                            data.getTimeWindowEnd(reqId) < data.getVehicleMaxRouteTime(route.vehicleId);
+    // 1. Determine which vertex is critical. The critical vertex will have the smallest time window
+    double pickupTW = data.getTimeWindowEnd(reqId) - data.getTimeWindowStart(reqId);
+    double deliveryTW = data.getTimeWindowEnd(reqId + data.N_requests) - data.getTimeWindowStart(reqId + data.N_requests);
+    bool pickupIsCritical = pickupTW < deliveryTW;
 
     if (pickupIsCritical) {
         // PHASE 1: Find the best position for Pickup (i)
         int bestI = -1;
         double bestDeltaI = std::numeric_limits<double>::infinity();
+        
 
         for (int i = 1; i < n; ++i) {
             // We evaluate the insertion by placing the delivery right after the pickup (j = i)
-            double delta = evaluator.calculateDelta(route, temp, reqId, i, i);
+            auto [delta, isFeasible] = evaluator.calculateDelta(route, temp, reqId, i, i);
+            
             if (delta < bestDeltaI) {
                 bestDeltaI = delta;
                 bestI = i;
+                feasibleFound = isFeasible || feasibleFound;
             }
-        }
+
+            if (feasibleFound && !isFeasible && delta > bestDeltaI * threshold)
+                break; // Eary stopping if we have found a feasible insertion and the current one is significantly worse
+        } 
 
         // PHASE 2: Maintaining the Pickup fixed (bestI), test all valid positions for the Delivery (j)
+        feasibleFound = false; // Reset for the second phase
         if (bestI != -1) {
             for (int j = bestI; j < n; ++j) {
-                double delta = evaluator.calculateDelta(route, temp, reqId, bestI, j);
+                auto [delta, isFeasible] = evaluator.calculateDelta(route, temp, reqId, bestI, j);
+
                 if (delta < best.deltaCost) {
                     best.deltaCost = delta;
                     best.pIdx = bestI;
                     best.dIdx = j;
+                    feasibleFound = isFeasible || feasibleFound;
                 }
+
+                if (feasibleFound && !isFeasible && delta > best.deltaCost * threshold)
+                    break; // Eary stopping if we have found a feasible insertion and the current one is significantly worse
             }
         }
     } else {
@@ -482,22 +506,33 @@ ALNSOperators::LocalInsertion ALNSOperators::findBestInsertionExact_R(const ALNS
 
         for (int j = 1; j < n; ++j) {
             // We evaluate the insertion by placing the pickup right before the delivery (i = j)
-            double delta = evaluator.calculateDelta(route, temp, reqId, j, j);
+            auto [delta, isFeasible] = evaluator.calculateDelta(route, temp, reqId, j, j);
+
             if (delta < bestDeltaJ) {
                 bestDeltaJ = delta;
                 bestJ = j;
+                feasibleFound = isFeasible || feasibleFound;
             }
+
+            if (feasibleFound && !isFeasible && delta > bestDeltaJ * threshold)
+                break; // Eary stopping if we have found a feasible insertion and the current one is significantly worse
         }
 
         // PHASE 2: Maintaining the Delivery fixed (bestJ), test all valid positions for the Pickup (i)
+        feasibleFound = false; // Reset for the second phase
         if (bestJ != -1) {
             for (int i = 1; i <= bestJ; ++i) {
-                double delta = evaluator.calculateDelta(route, temp, reqId, i, bestJ);
+                auto [delta, isFeasible] = evaluator.calculateDelta(route, temp, reqId, i, bestJ);
+
                 if (delta < best.deltaCost) {
                     best.deltaCost = delta;
                     best.pIdx = i;
                     best.dIdx = bestJ;
+                    feasibleFound = isFeasible || feasibleFound;
                 }
+
+                if (feasibleFound && !isFeasible && delta > best.deltaCost * threshold)
+                    break; // Eary stopping if we have found a feasible insertion and the current one is significantly worse
             }
         }
     }
