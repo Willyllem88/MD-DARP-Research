@@ -8,7 +8,10 @@ struct ALNSParams {
     double cplexTimeLimit = 1200.0;     // Time limit for CPLEX in seconds (per SP solve)
     double w = 0.2;                     // How much worse can a solution be to still be accepted in the first iterations (relative to the initial solution)
     double coolingRate = 0.9991;
-    double destroyFraction = 0.3005;    // Fraction of requests to remove in destroy phase
+
+    // Destroy fractions
+    double minDestroyFraction = 0.15;    // Fraction of requests to remove in destroy phase
+    double maxDestroyFraction = 0.35;    // Maximum fraction of requests to remove in destroy phase
     
     // Penalties
     double capacityPenalty = 1000.0;             // (alfa) per unit
@@ -31,13 +34,17 @@ struct ALNSParams {
     double sigma3 = 22.0589;     // For accepted (but not better)
     double reactionFactor = 0.8041; // How much to adjust weights based on performance
 
+    // Balas-Simonetti parameter for intra-route exchanges
+    int balasSimonettiK = 3;
+
     static ALNSParams fromArgs(const std::vector<std::string>& args) {
         ALNSParams p;
 
         int i = 0;
         p.maxIterations = std::stoi(args[i++]);
         p.coolingRate = std::stod(args[i++]);
-        p.destroyFraction = std::stod(args[i++]);
+        p.minDestroyFraction = std::stod(args[i++]);
+        p.maxDestroyFraction = std::stod(args[i++]);
 
         p.shawDistWeight = std::stod(args[i++]);
         p.shawTimeWeight = std::stod(args[i++]);

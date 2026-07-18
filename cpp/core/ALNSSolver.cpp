@@ -248,7 +248,12 @@ void ALNSSolver::updateWeights(OperatorStats& stats) {
 }
 
 void ALNSSolver::applyDestroy(ALNSSolution& sol, int destroyOpIdx) {
-    double q = std::clamp((int)(params->destroyFraction * data.P.size()), 1, (int)data.P.size() - 1);
+    // Calculate q based on the number of requests and destroy fractions
+    int n = (int)data.P.size();
+    int qMin = std::clamp((int)std::round(params->minDestroyFraction * n), 1, n);
+    int qMax = std::clamp((int)std::round(params->maxDestroyFraction * n), qMin, n);
+    std::uniform_int_distribution<int> qDist(qMin, qMax);
+    int q = qDist(rng);
 
     switch ((DestroyMethod)destroyOpIdx) {
         case DestroyMethod::RANDOM:

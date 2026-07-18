@@ -52,7 +52,7 @@ void printUsage(const char* program_name) {
               << "This program solves the Multi-Depot Dial-a-Ride Problem using various methods.\n\n"
               << "Usage: " << program_name << R"( [-i instance_path] [-t time_limit] [-o output_path]
       [-m method] [-s seed] [-v] [--NR]
-      [--alnsParams maxIterations coolingRate destroyFraction
+      [--alnsParams maxIterations coolingRate minDestroyFraction maxDestroyFraction
                     shawDistWeight shawTimeWeight shawDemandWeight
                     worstRemovalPower sigma1 sigma2 sigma3 reactionFactor]
 
@@ -62,9 +62,9 @@ void printUsage(const char* program_name) {
   -m, --method     Solver method: ILP, ILPSoft, ALNS, ALNS_SP, ALNS_SC
   -s, --seed       Random seed for reproducibility
   -v, --verbose    Enable verbose output
-  --alnsParams     Additional ALNS parameters in order (maxIterations, coolingRate, destroyFraction,
-                    shawDistWeight, shawTimeWeight, shawDemandWeight, worstRemovalPower, sigma1,
-                    sigma2, sigma3, reactionFactor)
+  --alnsParams     Additional ALNS parameters in order (maxIterations, coolingRate, minDestroyFraction,
+                    maxDestroyFraction, shawDistWeight, shawTimeWeight, shawDemandWeight, worstRemovalPower,
+                    sigma1, sigma2, sigma3, reactionFactor)
   --NR             Enable Neighbor Reduction in ALNS
   -h, --help       Show this help message
 )"

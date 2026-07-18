@@ -304,6 +304,7 @@ void ALNSOperators::repairRegret3(ALNSSolution& sol) {
 
 void ALNSOperators::applyIntraRouteExchanges(ALNSSolution& sol) {
     bool globalImprovement = false;
+    int k = params.balasSimonettiK; // Balas-Simonetti parameter
 
     for (auto& route : sol.routes) {
         // Skip empty routes or routes with only Start -> End
@@ -328,6 +329,7 @@ void ALNSOperators::applyIntraRouteExchanges(ALNSSolution& sol) {
             // Scan all nodes to find the single best move (Hill Climbing)
             for (int v : nodesToMove) {
                 int v_pos = route.getPosition(v);
+                int originalPos = v_pos; // Save original position
                 if (v_pos == -1) continue; 
                 
                 int n = data.P.size();
@@ -343,10 +345,12 @@ void ALNSOperators::applyIntraRouteExchanges(ALNSSolution& sol) {
                     partner_pos--;
 
                 // Determine valid insertion bounds
-                int minInsert = 1;
-                int maxInsert = route.sequence.size() - 1;
-                if (isPickup) maxInsert = partner_pos; // Pickup must go BEFORE delivery
-                else minInsert = partner_pos + 1;      // Delivery must go AFTER pickup
+                int minInsert = std::max(1, originalPos - (k - 1));
+                int maxInsert = std::min((int)route.sequence.size() - 1,
+                             originalPos + (k - 1));
+
+                if (isPickup) maxInsert = std::min(maxInsert, partner_pos); // Pickup must go BEFORE delivery
+                else minInsert = std::max(minInsert, partner_pos + 1); // Delivery must go AFTER pickup
 
                 // Evaluate all valid positions for this specific node
                 for (int pos = minInsert; pos <= maxInsert; ++pos) {
