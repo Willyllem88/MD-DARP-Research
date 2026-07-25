@@ -32,7 +32,7 @@ struct ALNSParams {
     double sigma1 = 29.4073;     // For new best global
     double sigma2 = 20.2625;     // For better than current
     double sigma3 = 22.0589;     // For accepted (but not better)
-    double reactionFactor = 0.8041; // How much to adjust weights based on performance
+    double reactionFactor = 0.1; // How much to adjust weights based on performance
 
     // Balas-Simonetti parameter for intra-route exchanges
     int balasSimonettiK = 3;
