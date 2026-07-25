@@ -52,9 +52,10 @@ def generate_mddarp_instances(num_instances=20, output_dir="./mddarp-inst/", see
     for inst_idx in range(1, num_instances + 1):
         if inst_idx <= len(sizes):
             n_req, n_vehicles = sizes[inst_idx - 1]
+            group = 'a'
         else:
-            n_req = random.choice([24, 48, 72, 96, 120])
-            n_vehicles = max(3, n_req // 10)
+            n_req, n_vehicles = sizes[(inst_idx - 1) % len(sizes)]
+            group = 'b'
             
         L_ride = 90
         planning_horizon = 600
@@ -76,7 +77,7 @@ def generate_mddarp_instances(num_instances=20, output_dir="./mddarp-inst/", see
             end_node_id = (2 * n_req) + n_vehicles + k
             
             # Heterogeneous properties
-            capacity = random.choice([4, 6, 8])
+            capacity = random.choice([3, 6, 8])
             
             # Heterogeneous operational shifts (constrained to guarantee global feasibility)
             shift_start = random.randint(0, 60) # Ensures vehicles are awake for early requests
@@ -125,7 +126,8 @@ def generate_mddarp_instances(num_instances=20, output_dir="./mddarp-inst/", see
             if i <= half_n:
                 # OUTBOUND REQUEST: Strict Pickup, Relaxed Delivery
                 e_pickup = random.randint(60, 360) # Scaled for T=600
-                l_pickup = e_pickup + random.randint(15, 45)
+                l_pickup_offset = random.randint(15, 45) if group == 'a' else random.randint(30, 90)
+                l_pickup = e_pickup + l_pickup_offset
                 
                 nodes.append({
                     "id": i, "service_time": service_time, "demand": 1,
@@ -138,7 +140,8 @@ def generate_mddarp_instances(num_instances=20, output_dir="./mddarp-inst/", see
             else:
                 # INBOUND REQUEST: Relaxed Pickup, Strict Delivery
                 e_delivery = random.randint(180, 480) # Placed later in the day, scaled for T=600
-                l_delivery = e_delivery + random.randint(15, 45)
+                l_delivery_offeset = random.randint(15, 45) if group == 'a' else random.randint(30, 90)
+                l_delivery = e_delivery + l_delivery_offeset
                 
                 nodes.append({
                     "id": i, "service_time": service_time, "demand": 1,
@@ -208,15 +211,17 @@ def generate_mddarp_instances(num_instances=20, output_dir="./mddarp-inst/", see
         }
         
         # 6. Save JSON
-        json_file_path = os.path.join(output_dir, f"md{inst_idx:02d}.json")
+        instance_num = ((inst_idx - 1) % len(sizes)) + 1
+        instance_name = f"md{instance_num}{group}"
+        json_file_path = os.path.join(output_dir, f"{instance_name}.json")
         with open(json_file_path, 'w') as f:
             json.dump(output_data, f, indent=2)
 
         # 7. Save Cordeau-like Text Format
-        text_file_path = os.path.join(output_dir, f"md{inst_idx:02d}.txt")
+        text_file_path = os.path.join(output_dir, f"{instance_name}.txt")
         export_to_cordeau_text(output_data, coords, text_file_path)
 
-        print(f"Instance {inst_idx} generated: {n_req} requests, {n_vehicles} vehicles.")
+        print(f"Instance {instance_name} generated: {n_req} requests, {n_vehicles} vehicles.")
             
     print(f"Successfully generated {num_instances} strictly feasible MDDARP instances in '{output_dir}'.")
 
