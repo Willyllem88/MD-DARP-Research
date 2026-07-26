@@ -19,7 +19,7 @@ def export_to_cordeau_text(instance_data, coords_map, output_filepath):
     with open(output_filepath, 'w') as f:
         # 1. Header: m, n, max_route_time, capacity, max_ride_time
         # Set max_route_time and capacity to 0 in header to denote heterogeneity
-        f.write(f"{n_veh} {n_req} 0 0 {l_ride}\n")
+        f.write(f"{n_veh} {n_req} {l_ride}\n")
         
         # 2. Heterogeneous Vehicles (Custom addition to Cordeau format)
         f.write("\n# VEHICLES: id start_node end_node capacity max_time\n")
@@ -84,8 +84,7 @@ def generate_mddarp_instances(num_instances=20, output_dir="./mddarp-inst/", see
             shift_end = random.randint(540, planning_horizon) # Ensures coverage later in the day
             
             # Generate and Clamp Max Route Time to ensure feasibility
-            raw_max_time = random.randint(420, 600)
-            clamped_max_time = min(raw_max_time, shift_end - shift_start)
+            max_ride_time = random.randint(420, 600)
             
             # Distinct depots for each vehicle start/end
             depot_coords[start_node_id] = {
@@ -102,7 +101,7 @@ def generate_mddarp_instances(num_instances=20, output_dir="./mddarp-inst/", see
                 "start_node": start_node_id,
                 "end_node": end_node_id,
                 "capacity": capacity,
-                "max_time": clamped_max_time,
+                "max_time": max_ride_time,
                 "shift_start": shift_start,
                 "shift_end": shift_end
             })
@@ -223,7 +222,7 @@ def generate_mddarp_instances(num_instances=20, output_dir="./mddarp-inst/", see
 
         print(f"{instance_name} generated: {n_req} requests, {n_vehicles} vehicles.")
             
-    print(f"Successfully generated {num_instances} strictly feasible MDDARP instances in '{output_dir}'.")
+    print(f"Successfully generated {num_instances} MDDARP instances in '{output_dir}'.")
 
 if __name__ == "__main__":
     generate_mddarp_instances(num_instances=20, output_dir="../data/mddarp", seed=123)
