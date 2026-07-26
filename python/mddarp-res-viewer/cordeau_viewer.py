@@ -34,11 +34,18 @@ class CordeauRouteVisualizer(RouteVisualizer):
         """
         Draws the problem context: Depot, Pickup nodes, Delivery nodes, and their relationships.
         """
-        # A. Draw First Depot (as all vehicles start from the same depot in Cordeau instances)
-        first_depot_index = str(2 * self.N_requests + 1)
-        print(f"🏠 Drawing depot at node {first_depot_index}...")
-        y_depot, x_depot = self.coordinates[first_depot_index]
-        ax.scatter(x_depot, y_depot, c='black', marker='s', s=150, zorder=5)
+        # A. Draw Depots (as all vehicles start from the same depot in Cordeau instances)
+        for depot in range(2 * self.N_requests + 1,
+                   2 * self.N_requests + self.K_vehicles + 1):
+            start_id = str(depot)
+            end_id = str(depot + self.K_vehicles)
+            ys, xs = self.coordinates[start_id]
+            ye, xe = self.coordinates[end_id]
+            ax.scatter(xs, ys, c='black', marker='s', s=150, zorder=5)
+            ax.scatter(xe, ye, c='black', marker='s', s=150, zorder=5)
+
+            # Draw a line connecting the start and end depot for visual clarity
+            ax.plot([xs, xe], [ys, ye], c='black', linestyle='--', alpha=0.5, zorder=1)
 
         # B. Draw Requests (Pickup -> Delivery relationships)
         # We iterate from 1 to N_requests to match Cordeau standard IDs
@@ -78,7 +85,7 @@ class CordeauRouteVisualizer(RouteVisualizer):
                 )
 
                 # Relationship Line (Dotted Gray)
-                ax.plot([px, dx], [py, dy], c='gray', linestyle=':', alpha=0.3, zorder=1)
+                ax.plot([px, dx], [py, dy], c='gray', linestyle=':', alpha=0.25, zorder=1)
 
     def _draw_dynamic_routes(self, ax):
         """
@@ -132,7 +139,8 @@ class CordeauRouteVisualizer(RouteVisualizer):
                 markerfacecolor='none', markeredgecolor='blue', markersize=8),
             Line2D([0], [0], marker='s', color='w', label='Depot',
                    markerfacecolor='black', markeredgecolor='black', markersize=8),
-            Line2D([0], [0], linestyle=':', color='gray', label='P-D Relationship')
+            Line2D([0], [0], linestyle=':', color='gray', label='P-D Relationship'),
+            Line2D([0], [0], linestyle='--', color='black', label='Depot Connection')
         ]
 
         ax.legend(handles=custom_lines + vehicle_patches, loc='best')
