@@ -36,7 +36,7 @@ def export_to_cordeau_text(instance_data, coords_map, output_filepath):
             y = coords_map[n_id]["y"]
             
             # Format to strictly match the requested parameters
-            line = f"{n_id} {x:.4f} {y:.4f} {node['service_time']} {node['demand']} {node['tw_start']} {node['tw_end']}\n"
+            line = f"{n_id} {x:.5f} {y:.5f} {node['service_time']} {node['demand']} {node['tw_start']} {node['tw_end']}\n"
             f.write(line)
 
 def generate_mddarp_instances(num_instances=20, output_dir="./mddarp-inst/", seed=123):
@@ -46,7 +46,7 @@ def generate_mddarp_instances(num_instances=20, output_dir="./mddarp-inst/", see
     # Instance sizes similar to Cordeau & Laporte 2003
     sizes = [
         (24, 3), (48, 5), (72, 7), (96, 9), (120, 11), (144, 13),
-        (36, 4), (72, 6), (108, 8), (144, 10)
+        (36, 4), (72, 6), (108, 10), (144, 12)
     ]
     
     for inst_idx in range(1, num_instances + 1):
@@ -65,8 +65,8 @@ def generate_mddarp_instances(num_instances=20, output_dir="./mddarp-inst/", see
         coords = {}
         for i in range(1, (2 * n_req) + 1):
             coords[i] = {
-                "x": round(random.uniform(-10.0, 10.0), 4),
-                "y": round(random.uniform(-10.0, 10.0), 4)
+                "x": round(random.uniform(-10.0, 10.0), 5),
+                "y": round(random.uniform(-10.0, 10.0), 5)
             }
             
         # 2. Generate Heterogeneous Vehicles & Depots
@@ -89,12 +89,12 @@ def generate_mddarp_instances(num_instances=20, output_dir="./mddarp-inst/", see
             
             # Distinct depots for each vehicle start/end
             depot_coords[start_node_id] = {
-                "x": round(random.uniform(-10.0, 10.0), 4),
-                "y": round(random.uniform(-10.0, 10.0), 4)
+                "x": round(random.uniform(-7.5, 7.5), 5),
+                "y": round(random.uniform(-7.5, 7.5), 5)
             }
             depot_coords[end_node_id] = {
-                "x": round(random.uniform(-10.0, 10.0), 4),
-                "y": round(random.uniform(-10.0, 10.0), 4)
+                "x": round(random.uniform(-7.5, 7.5), 5),
+                "y": round(random.uniform(-7.5, 7.5), 5)
             }
             
             vehicles.append({
@@ -125,7 +125,7 @@ def generate_mddarp_instances(num_instances=20, output_dir="./mddarp-inst/", see
 
             if i <= half_n:
                 # OUTBOUND REQUEST: Strict Pickup, Relaxed Delivery
-                e_pickup = random.randint(60, 360) # Scaled for T=600
+                e_pickup = random.randint(60, 420) # Scaled for T=600
                 l_pickup_offset = random.randint(15, 45) if group == 'a' else random.randint(30, 90)
                 l_pickup = e_pickup + l_pickup_offset
                 
@@ -139,7 +139,7 @@ def generate_mddarp_instances(num_instances=20, output_dir="./mddarp-inst/", see
                 })
             else:
                 # INBOUND REQUEST: Relaxed Pickup, Strict Delivery
-                e_delivery = random.randint(180, 480) # Placed later in the day, scaled for T=600
+                e_delivery = random.randint(180, 540) # Placed later in the day, scaled for T=600
                 l_delivery_offeset = random.randint(15, 45) if group == 'a' else random.randint(30, 90)
                 l_delivery = e_delivery + l_delivery_offeset
                 
@@ -221,9 +221,9 @@ def generate_mddarp_instances(num_instances=20, output_dir="./mddarp-inst/", see
         text_file_path = os.path.join(output_dir, f"{instance_name}.txt")
         export_to_cordeau_text(output_data, coords, text_file_path)
 
-        print(f"Instance {instance_name} generated: {n_req} requests, {n_vehicles} vehicles.")
+        print(f"{instance_name} generated: {n_req} requests, {n_vehicles} vehicles.")
             
     print(f"Successfully generated {num_instances} strictly feasible MDDARP instances in '{output_dir}'.")
 
 if __name__ == "__main__":
-    generate_mddarp_instances(num_instances=20, seed=123)
+    generate_mddarp_instances(num_instances=20, output_dir="../data/mddarp", seed=123)
