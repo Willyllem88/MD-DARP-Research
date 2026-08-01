@@ -12,7 +12,8 @@ shift 4
 # Initialize variables
 MAX_ITER="10000"
 COOLING=""
-DESTROY=""
+MIN_DESTROY=""
+MAX_DESTROY=""
 SHAW_DIST=""
 SHAW_TIME=""
 SHAW_DEMAND=""
@@ -26,7 +27,8 @@ REACTION_FACTOR=""
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --coolingRate) COOLING="$2"; shift 2 ;;
-        --destroyFraction) DESTROY="$2"; shift 2 ;;
+        --minDestroyFraction) MIN_DESTROY="$2"; shift 2 ;;
+        --maxDestroyFraction) MAX_DESTROY="$2"; shift 2 ;;
         --shawDistWeight) SHAW_DIST="$2"; shift 2 ;;
         --shawTimeWeight) SHAW_TIME="$2"; shift 2 ;;
         --shawDemandWeight) SHAW_DEMAND="$2"; shift 2 ;;
@@ -45,4 +47,4 @@ done
     -m ALNS \
     -s "$SEED" \
     --NR \
-    --alnsParams "$MAX_ITER" "$COOLING" "$DESTROY" "$WORST_REMOVAL_POWER" "$SHAW_DIST" "$SHAW_TIME" "$SHAW_DEMAND" "$SIGMA1" "$SIGMA2" "$SIGMA3" "$REACTION_FACTOR"
+    --alnsParams "$MAX_ITER" "$COOLING" "$MIN_DESTROY" "$MAX_DESTROY" "$WORST_REMOVAL_POWER" "$SHAW_DIST" "$SHAW_TIME" "$SHAW_DEMAND" "$SIGMA1" "$SIGMA2" "$SIGMA3" "$REACTION_FACTOR"

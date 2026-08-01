@@ -1,5 +1,5 @@
-../data/cordeau-tabu-instances/pr01.json
-../data/cordeau-tabu-instances/pr03.json
-../data/cordeau-tabu-instances/pr05.json
-../data/cordeau-tabu-instances/pr07.json
-../data/cordeau-tabu-instances/pr09.json
+../data/mddarp/md1a.json
+../data/mddarp/md3a.json
+../data/mddarp/md5a.json
+../data/mddarp/md7a.json
+../data/mddarp/md9a.json
