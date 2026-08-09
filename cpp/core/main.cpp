@@ -19,6 +19,7 @@ struct Args {
     int seed = 42;
     bool verbose = false;
     std::optional<double> time_limit;
+    std::optional<std::string> alnsLogFilePath;
     std::vector<std::string> alnsParams;
     bool enableNR = false;
 };
@@ -51,7 +52,7 @@ void printUsage(const char* program_name) {
               << "===================================\n"
               << "This program solves the Multi-Depot Dial-a-Ride Problem using various methods.\n\n"
               << "Usage: " << program_name << R"( [-i instance_path] [-t time_limit] [-o output_path]
-      [-m method] [-s seed] [-v] [--NR]
+      [-m method] [-s seed] [-v] [--NR] [--alnsLog log_path]
       [--alnsParams maxIterations coolingRate minDestroyFraction maxDestroyFraction
                     shawDistWeight shawTimeWeight shawDemandWeight
                     worstRemovalPower sigma1 sigma2 sigma3 reactionFactor]
@@ -62,6 +63,7 @@ void printUsage(const char* program_name) {
   -m, --method     Solver method: ILP, ILPSoft, ALNS, ALNS_SP, ALNS_SC
   -s, --seed       Random seed for reproducibility
   -v, --verbose    Enable verbose output
+  --alnsLog        Path to save ALNS logs (convergence and weights evolution)
   --alnsParams     Additional ALNS parameters in order (maxIterations, coolingRate, minDestroyFraction,
                     maxDestroyFraction, shawDistWeight, shawTimeWeight, shawDemandWeight, worstRemovalPower,
                     sigma1, sigma2, sigma3, reactionFactor)
@@ -114,6 +116,9 @@ Args parseArgs(int argc, char** argv) {
         else if (a == "--NR") {
             args.enableNR = true;
         }
+        else if (a == "--alnsLog" && i + 1 < argc) {
+            args.alnsLogFilePath = argv[++i];
+        }
         else if (a == "-h" || a == "--help") {
             printUsage(argv[0]);
             exit(0);
@@ -164,7 +169,8 @@ int main(int argc, char** argv) {
             hybridMethod, args.seed,
             args.verbose,
             params,
-            args.enableNR
+            args.enableNR,
+            args.alnsLogFilePath
         );
     } else {
         std::cerr << "Invalid method selected." << std::endl;

@@ -13,15 +13,17 @@ ALNSSolver::ALNSSolver(MDDARP_ProblemInstance& instance,
                        int seed,
                        bool verbose,
                        const ALNSParams& alnsParams,
-                       bool enableNR
+                       bool enableNR,
+                       std::optional<std::string> logFilePath
                        )
-    : Solver(verbose), data(instance), timeLimit(timeLimit), hybridMethod(hybridMethod) {
+    : Solver(verbose), data(instance), timeLimit(timeLimit), hybridMethod(hybridMethod), logFilePath(logFilePath) {
 
     rng = std::mt19937(seed);
 
     params = std::make_unique<ALNSParams>(alnsParams);
     evaluator = std::make_unique<ALNSEvaluator>(data, *params);
     operators = std::make_unique<ALNSOperators>(data, *params, *evaluator, rng, enableNR);
+    dataLogger = std::make_unique<ALNSLogger>(params->maxIterations, params->maxIterations / params->segmentIterations);
 
     if (hybridMethod == HybridMethod::SET_PARTITIONING) {
         setSolver = std::make_unique<SetPartitioningSolver>(data, *params, *evaluator, logger);
@@ -46,6 +48,8 @@ void ALNSSolver::solve() {
     markSolutionAsVisited(currentSol);
     initializeStatsAndTemperature(currentSol);
     initializeRoutePool();
+    dataLogger->recordWeights(0, 0.0, destroyStats.weights, repairStats.weights);
+
 
     // 2. Main Loop
     for (iteration = 0; ; ++iteration) {
@@ -84,6 +88,10 @@ void ALNSSolver::solve() {
         if (iteration > 0 && iteration % params->segmentIterations == 0) {
             updateWeights(destroyStats);
             updateWeights(repairStats);
+
+            double elapsedSecs = std::chrono::duration<double>(std::chrono::steady_clock::now() - startTime).count();
+            int currentSegment = iteration / params->segmentIterations;
+            dataLogger->recordWeights(currentSegment, elapsedSecs, destroyStats.weights, repairStats.weights);
         }
 
         // --- Cooling ---
@@ -92,6 +100,14 @@ void ALNSSolver::solve() {
         // --- Matheuristic Integration ---
         if (iteration > 0 && iteration % params->setPartitioningInterval == 0)
             solveMatheuristic();
+
+        double elapsedSecs = std::chrono::duration<double>(std::chrono::steady_clock::now() - startTime).count();
+        double currentFeasible = bestFeasibleSolution.has_value() ? bestFeasibleSolution->objectiveValue : std::numeric_limits<double>::infinity();
+        int currentSegment = iteration / params->segmentIterations;
+        dataLogger->recordIteration(
+            iteration, elapsedSecs, currentSol.objectiveValue, bestObjective, currentFeasible,
+            destroyOpIdx, repairOpIdx, iterScore, currentTemperature, currentSegment
+        );
     }
 
     // Final clean run of SP
@@ -115,25 +131,9 @@ void ALNSSolver::solve() {
     this->solveTime = totalElapsed.count();
     result->solveTime = this->solveTime;
 
-    // Print operator stats
-    if (verbose) {
-        std::cout << std::endl << "Operator Usage Stats:" << std::endl;
-        std::cout << "Destroy Operator Stats:" << std::endl;
-        for (size_t i = 0; i < destroyStats.weights.size(); ++i) {
-            double avgScore = (destroyStats.timesUsed[i] > 0) ? destroyStats.scores[i] / destroyStats.timesUsed[i] : 0.0;
-            std::cout << "  Destroy " << i << ": Weight=" << destroyStats.weights[i] 
-                    << ", Times Used=" << destroyStats.timesUsed[i] 
-                    << ", Avg Score=" << avgScore << std::endl;
-        }
-
-        std::cout << "Repair Operator Stats:" << std::endl;
-        for (size_t i = 0; i < repairStats.weights.size(); ++i) {
-            double avgScore = (repairStats.timesUsed[i] > 0) ? repairStats.scores[i] / repairStats.timesUsed[i] : 0.0;
-            std::cout << "  Repair " << i << ": Weight=" << repairStats.weights[i] 
-                    << ", Times Used=" << repairStats.timesUsed[i] 
-                    << ", Avg Score=" << avgScore << std::endl; // TODO: not sure if this is correct
-        }
-    }
+    // Export logs and operator stats
+    exportLogs();
+    printOperatorStats();
 }
 
 MDDARP_ResultInstance ALNSSolver::getResult() const {
@@ -443,4 +443,31 @@ MDDARP_ResultInstance ALNSSolver::solveScheduleLater(ALNSSolution& sol) {
     
     // NRVO: the compiler optimize this copy
     return result;
+}
+
+void ALNSSolver::exportLogs() const {
+    if (logFilePath.has_value()) {
+        logger.log("Exporting logs to " + logFilePath.value() + "_convergence.csv and " + logFilePath.value() + "_weights_evolution.csv");
+        dataLogger->exportConvergenceCSV(logFilePath.value() + "_convergence.csv");
+        dataLogger->exportWeightsEvolutionCSV(logFilePath.value() + "_weights_evolution.csv");
+    }
+}
+
+void ALNSSolver::printOperatorStats() const {
+    std::cout << std::endl << "Operator Usage Stats:" << std::endl;
+    std::cout << "Destroy Operator Stats:" << std::endl;
+    for (size_t i = 0; i < destroyStats.weights.size(); ++i) {
+        double avgScore = (destroyStats.timesUsed[i] > 0) ? destroyStats.scores[i] / destroyStats.timesUsed[i] : 0.0;
+        std::cout << "  Destroy " << i << ": Weight=" << destroyStats.weights[i] 
+                << ", Times Used=" << destroyStats.timesUsed[i] 
+                << ", Avg Score=" << avgScore << std::endl;
+    }
+
+    std::cout << "Repair Operator Stats:" << std::endl;
+    for (size_t i = 0; i < repairStats.weights.size(); ++i) {
+        double avgScore = (repairStats.timesUsed[i] > 0) ? repairStats.scores[i] / repairStats.timesUsed[i] : 0.0;
+        std::cout << "  Repair " << i << ": Weight=" << repairStats.weights[i] 
+                << ", Times Used=" << repairStats.timesUsed[i] 
+                << ", Avg Score=" << avgScore << std::endl; // TODO: not sure if this is correct
+    }
 }

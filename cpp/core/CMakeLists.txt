@@ -9,6 +9,7 @@ add_library(mddarp_core
     alns/SetCoveringSolver.cpp
     alns/ALNSOperators.cpp
     alns/RoutePool.cpp
+    alns/ALNSLogger.cpp
 )
 
 target_include_directories(mddarp_core PUBLIC

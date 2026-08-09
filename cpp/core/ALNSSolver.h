@@ -11,6 +11,7 @@
 #include "alns/SetPartitioningSolver.h"
 #include "alns/SetCoveringSolver.h"
 #include "alns/ALNSOperators.h"
+#include "alns/ALNSLogger.h"
 
 #include <ilcplex/ilocplex.h>
 
@@ -32,12 +33,13 @@ public:
 
     ALNSSolver(
         MDDARP_ProblemInstance& instance, 
-        std::optional<double> timeLimit = std::nullopt, 
+        std::optional<double> timeLimit = std::nullopt,
         HybridMethod hybridMethod = HybridMethod::NONE,
         int seed = 42, 
         bool verbose = false,
         const ALNSParams& params = ALNSParams(),
-        bool enableNR = false
+        bool enableNR = false,
+        std::optional<std::string> logFilePath = std::nullopt
     );
         
     ~ALNSSolver() {};
@@ -65,6 +67,8 @@ private:
     std::unique_ptr<ALNSEvaluator> evaluator;
     std::unique_ptr<SetBasedSolver> setSolver;
     std::unique_ptr<ALNSOperators> operators;
+    std::unique_ptr<ALNSLogger> dataLogger;
+    std::optional<std::string> logFilePath;
 
     // Random engine
     std::mt19937 rng;
@@ -95,9 +99,10 @@ private:
     // --- Core Logic Methods ---
 
     bool stoppingCriteria();
-    bool acceptanceCriteria(double candidateObj, double currentObj, double temperature, bool isNew, double& score);
+    bool acceptanceCriteria(double candidateObj, 
+        double currentObj, double temperature, bool isNew, double& score);
     
-    enum class DestroyMethod {RANDOM, WORST, SHAW, COUNT}; // COUNT the number of methods for stats
+    enum class DestroyMethod {RANDOM, WORST, SHAW, COUNT};
     enum class RepairMethod {GREEDY, REGRET2, REGRET3, COUNT};
 
     struct OperatorStats {
@@ -135,4 +140,8 @@ private:
     void solveMatheuristic(); 
     // Solve schedule later
     MDDARP_ResultInstance solveScheduleLater(ALNSSolution& sol);
+
+    // --- Logging ---
+    void exportLogs() const;
+    void printOperatorStats() const;
 };
