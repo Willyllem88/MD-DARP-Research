@@ -248,7 +248,7 @@ void MDDARP_ResultInstance::saveToJSON(const std::string& filename) const {
     }
 
     // 5. Save to file
-    std::ofstream file(filename);
+    std::ofstream file(filename + ".json");
     if (file.is_open()) {
         file << std::setw(4) << root << std::endl;
     } else {

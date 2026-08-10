@@ -59,11 +59,12 @@ void printUsage(const char* program_name) {
 
   -i, --instance   Path to problem instance JSON file
   -t, --time       Time limit in seconds
-  -o, --output     Path to output solution file
+  -o, --output     Path to output solution file (.json extension will be added automatically)
   -m, --method     Solver method: ILP, ILPSoft, ALNS, ALNS_SP, ALNS_SC
   -s, --seed       Random seed for reproducibility
   -v, --verbose    Enable verbose output
-  --alnsLog        Path to save ALNS logs (convergence and weights evolution)
+  --alnsLog        Path to save ALNS logs (convergence and weights evolution) (.csv extension will be
+                    added automatically)
   --alnsParams     Additional ALNS parameters in order (maxIterations, coolingRate, minDestroyFraction,
                     maxDestroyFraction, shawDistWeight, shawTimeWeight, shawDemandWeight, worstRemovalPower,
                     sigma1, sigma2, sigma3, reactionFactor)
@@ -71,7 +72,7 @@ void printUsage(const char* program_name) {
   -h, --help       Show this help message
 )"
               << "\nExample: " << program_name
-              << " -i ./a2-16.json -t 300 -o ./solution.json -m ILP -s 42 -v\n";
+              << " -i ./a2-16.json -t 300 -o ./solution -m ILP -s 42 -v\n";
 }
 
 Args parseArgs(int argc, char** argv) {
