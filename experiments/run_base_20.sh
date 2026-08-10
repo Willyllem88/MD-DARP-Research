@@ -45,6 +45,6 @@ echo "Executable: $EXE"
 echo "========================================================="
 
 # Run the executable with the specified parameters
-$EXE -i $DATA_DIR/$inst_file      -m ALNS      -s $seed      -o $OUT_FILE      --alnsLog $LOG_FILE
+$EXE -i $DATA_DIR/$inst_file -m ALNS -s $seed -o $OUT_FILE --alnsLog $LOG_FILE --time 7200
 
 echo "Execution completed."
