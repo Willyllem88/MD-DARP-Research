@@ -303,8 +303,10 @@ void ALNSOperators::repairRegret3(ALNSSolution& sol) {
 }
 
 void ALNSOperators::applyIntraRouteExchanges(ALNSSolution& sol) {
+    if (params.balasSimonettiK == -2) return; // Deactivated
+
     bool globalImprovement = false;
-    int k = params.balasSimonettiK; // Balas-Simonetti parameter
+    int k = params.balasSimonettiK; // Balas-Simonetti parameter (-1 means deactivated)
 
     for (auto& route : sol.routes) {
         // Skip empty routes or routes with only Start -> End
@@ -345,10 +347,13 @@ void ALNSOperators::applyIntraRouteExchanges(ALNSSolution& sol) {
                     partner_pos--;
 
                 // Determine valid insertion bounds
-                int minInsert = std::max(1, originalPos - (k - 1));
-                int maxInsert = std::min((int)route.sequence.size() - 1,
-                             originalPos + (k - 1));
-
+                int minInsert = 1; // After Start Depot
+                int maxInsert = (int)route.sequence.size() - 1;
+                if (k > 0) {
+                    minInsert = std::max(1, originalPos - (k - 1));
+                    maxInsert = std::min((int)route.sequence.size() - 1,
+                                originalPos + (k - 1));
+                }
                 if (isPickup) maxInsert = std::min(maxInsert, partner_pos); // Pickup must go BEFORE delivery
                 else minInsert = std::max(minInsert, partner_pos + 1); // Delivery must go AFTER pickup
 
