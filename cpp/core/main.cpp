@@ -140,6 +140,9 @@ Args parseArgs(int argc, char** argv) {
                 } catch (const std::invalid_argument&) {
                     std::cerr << "Invalid value for --intraRoute: " << intraRouteParam << ". Must be a non-negative integer, 'UNRESTRICTED', or 'NONE'." << std::endl;
                     exit(1);
+                } catch (const std::out_of_range&) {
+                    std::cerr << "Invalid value for --intraRoute: " << intraRouteParam << ". Value is out of range." << std::endl;
+                    exit(1);
                 }
             }
         }
