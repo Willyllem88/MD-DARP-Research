@@ -35,6 +35,9 @@ struct ALNSParams {
     double reactionFactor = 0.1; // How much to adjust weights based on performance
 
     // Balas-Simonetti parameter for intra-route exchanges
+    // -1 means UNRESTRICTED (all insertions considered)
+    // -2 means DISABLED (intra-route local-search deactivated)
+    // any positive integer is the k value
     int balasSimonettiK = 3;
 
     static ALNSParams fromArgs(const std::vector<std::string>& args) {

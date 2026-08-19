@@ -20,6 +20,7 @@ struct Args {
     bool verbose = false;
     std::optional<double> time_limit;
     std::optional<std::string> alnsLogFilePath;
+    std::optional<int> intraRouteK; // Balas-Simonetti parameter k
     std::vector<std::string> alnsParams;
     bool enableNR = false;
 };
@@ -52,10 +53,11 @@ void printUsage(const char* program_name) {
               << "===================================\n"
               << "This program solves the Multi-Depot Dial-a-Ride Problem using various methods.\n\n"
               << "Usage: " << program_name << R"( [-i instance_path] [-t time_limit] [-o output_path]
-      [-m method] [-s seed] [-v] [--NR] [--alnsLog log_path]
+      [-m method] [-s seed] [-v] [--NR] [--intraRoute {k | UNRESTRICTED | NONE}] [--alnsLog log_path]
       [--alnsParams maxIterations coolingRate minDestroyFraction maxDestroyFraction
                     shawDistWeight shawTimeWeight shawDemandWeight
                     worstRemovalPower sigma1 sigma2 sigma3 reactionFactor]
+      [-h | --help]
 
   -i, --instance   Path to problem instance JSON file
   -t, --time       Time limit in seconds
@@ -63,12 +65,13 @@ void printUsage(const char* program_name) {
   -m, --method     Solver method: ILP, ILPSoft, ALNS, ALNS_SP, ALNS_SC
   -s, --seed       Random seed for reproducibility
   -v, --verbose    Enable verbose output
+  --NR             Enable Neighbor Reduction in ALNS
+  --intraRoute     ALNS intra-route exchange parameter (k), UNRESTRICTED, or NONE (default: k = 3)
   --alnsLog        Path to save ALNS logs (convergence and weights evolution) (.csv extension will be
                     added automatically)
   --alnsParams     Additional ALNS parameters in order (maxIterations, coolingRate, minDestroyFraction,
                     maxDestroyFraction, shawDistWeight, shawTimeWeight, shawDemandWeight, worstRemovalPower,
                     sigma1, sigma2, sigma3, reactionFactor)
-  --NR             Enable Neighbor Reduction in ALNS
   -h, --help       Show this help message
 )"
               << "\nExample: " << program_name
@@ -120,6 +123,29 @@ Args parseArgs(int argc, char** argv) {
         else if (a == "--alnsLog" && i + 1 < argc) {
             args.alnsLogFilePath = argv[++i];
         }
+        else if (a == "--intraRoute" && i + 1 < argc) {
+            std::string intraRouteParam = argv[++i];
+            if (intraRouteParam == "UNRESTRICTED") {
+                args.intraRouteK = -1;
+            } else if (intraRouteParam == "NONE") {
+                args.intraRouteK = -2;
+            } else {
+                try {
+                    int k = std::stoi(intraRouteParam);
+                    if (k <= 0) {
+                        std::cerr << "Invalid value for --intraRoute: " << intraRouteParam << ". Must be a positive integer, 'UNRESTRICTED', or 'NONE'." << std::endl;
+                        exit(1);
+                    }
+                    args.intraRouteK = k;
+                } catch (const std::invalid_argument&) {
+                    std::cerr << "Invalid value for --intraRoute: " << intraRouteParam << ". Must be a non-negative integer, 'UNRESTRICTED', or 'NONE'." << std::endl;
+                    exit(1);
+                } catch (const std::out_of_range&) {
+                    std::cerr << "Invalid value for --intraRoute: " << intraRouteParam << ". Value is out of range." << std::endl;
+                    exit(1);
+                }
+            }
+        }
         else if (a == "-h" || a == "--help") {
             printUsage(argv[0]);
             exit(0);
@@ -163,6 +189,7 @@ int main(int argc, char** argv) {
         ALNSParams params = !args.alnsParams.empty() 
             ? ALNSParams::fromArgs(args.alnsParams)
             : ALNSParams();
+        params.balasSimonettiK = args.intraRouteK.value_or(3); // Default k = 3 if not specified
 
         solver = std::make_unique<ALNSSolver>(
             instance,
