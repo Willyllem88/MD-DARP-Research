@@ -132,8 +132,8 @@ Args parseArgs(int argc, char** argv) {
             } else {
                 try {
                     int k = std::stoi(intraRouteParam);
-                    if (k < 0) {
-                        std::cerr << "Invalid value for --intraRoute: " << intraRouteParam << ". Must be a non-negative integer, 'UNRESTRICTED', or 'NONE'." << std::endl;
+                    if (k <= 0) {
+                        std::cerr << "Invalid value for --intraRoute: " << intraRouteParam << ". Must be a positive integer, 'UNRESTRICTED', or 'NONE'." << std::endl;
                         exit(1);
                     }
                     args.intraRouteK = k;
