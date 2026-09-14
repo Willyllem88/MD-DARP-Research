@@ -392,7 +392,7 @@ void ALNSSolver::solveMatheuristic() {
     }
 
     // Ensure bestFeasibleSolution is in the route pool
-    if (bestFeasibleSolution.has_value() == false)
+    if (bestFeasibleSolution.has_value())
         addSolutionRouteToPool(bestFeasibleSolution.value());
 
     // Prune
