@@ -6,13 +6,16 @@
 #include <queue>
 #include <iostream>
 
-RoutePool::RoutePool(const MDDARP_ProblemInstance& instance) : problemInstance(instance) {
+RoutePool::RoutePool(const MDDARP_ProblemInstance& instance, const ALNSParams& params)
+    : problemInstance(instance), params(params) {
 
     int numNodes = problemInstance.max_node_id + 1;
-    int numVehicles = problemInstance.K_vehicles;
+    int numReqs = problemInstance.N_requests;
+    int numVeh = problemInstance.K_vehicles;
 
-    emptyRouteCosts.resize(numVehicles+1, 0.0);
-    totalEmptyCost = 0.0;
+    emptyRouteCost.assign(numVeh+1, 0.0);
+    emptySolutionCost = 0.0;
+    lambda_ik.assign(numReqs+1, std::vector<double>(numVeh+1));
     
     // Lambda to run Dijkstra's algorithm for a given vehicle's start and end nodes
     auto runDijkstra = [&](int start, int end, int vehicleId) -> std::pair<double, std::vector<int>> {
@@ -60,25 +63,51 @@ RoutePool::RoutePool(const MDDARP_ProblemInstance& instance) : problemInstance(i
         return {dist[end], path};
     };
 
-    // Initialize empty routes for each vehicle and calculate their costs using Dijkstra's algorithm
-    for (int k = 1; k <= numVehicles; ++k) {
+    // Initialize empty routes for each vehicle and calculate their costs using Dijkstra's algorithm,
+    for (int k = 1; k <= numVeh; ++k) {
         int startNode = problemInstance.getVehicleStartNode(k);
         int endNode = problemInstance.getVehicleEndNode(k);
 
-        auto [minCost, path] = runDijkstra(startNode, endNode, k);
+        auto [minVehCost, path] = runDijkstra(startNode, endNode, k);
 
-        emptyRouteCosts[k] = minCost;
-        totalEmptyCost += minCost;
+        emptyRouteCost[k] = minVehCost;
+        emptySolutionCost += minVehCost;
     }
+
+    // Initialize lambda_ik, marginal_ik is an auxiliary matrix to do so
+    std::vector<std::vector<double>> marginal(numReqs + 1, std::vector<double>(numVeh + 1, 0.0));
+
+    for (int k = 1; k <= numVeh; ++k) {
+        int startNode = problemInstance.getVehicleStartNode(k);
+        int endNode = problemInstance.getVehicleEndNode(k);
+
+        for (int i = 1; i <= numReqs; ++i) {
+            int deliveryNode = numReqs + i;
+            double routeWithICost = runDijkstra(startNode, i, k).first 
+                                + runDijkstra(i, deliveryNode, k).first 
+                                + runDijkstra(deliveryNode, endNode, k).first;
+
+            marginal[i][k] = routeWithICost - emptyRouteCost[k];
+        }
+    }
+    for (int i = 1; i <= numReqs; ++i) {
+        for (int k = 1; k <= numVeh; ++k) {
+            double minMarginal = std::numeric_limits<double>::infinity();
+            for (int kp = 1; kp <= numVeh; ++kp) {
+                if (kp == k) continue; // k' != k
+                minMarginal = std::min(minMarginal, marginal[i][kp]);
+            }
+            lambda_ik[i][k] = minMarginal;
+        }
+    }
+
 }
 
 void RoutePool::addRoute(const ALNSRoute& route, double currentBestTotalSolutionCost) {
     if (route.sequence.empty()) return;
     if (route.isFeasible == false) return;
 
-    double lowerBound = route.totalCost;
-    if (!emptyRouteCosts.empty() && route.vehicleId < (int)emptyRouteCosts.size())
-        lowerBound += (totalEmptyCost - emptyRouteCosts[route.vehicleId]);
+    double lowerBound = calculateLowerBound(route, route.vehicleId);
 
     if (lowerBound >= currentBestTotalSolutionCost) return;
 
@@ -127,23 +156,22 @@ void RoutePool::clear() {
     routePool.clear();
     bestRoutes.clear();
 
-    emptyRouteCosts.clear();
-    totalEmptyCost = 0.0;
+    emptyRouteCost.clear();
+    emptySolutionCost = 0.0;
+    lambda_ik.clear();
 }
 
 void RoutePool::prune(double currentBestTotalSolutionCost, bool pruneSCP) {
     for (auto& [vehicleId, mapRoutes] : bestRoutes) {
         for (auto it = mapRoutes.begin(); it != mapRoutes.end(); ) {
-            double lowerBound = it->second.totalCost;
-            if (!emptyRouteCosts.empty() && vehicleId < (int)emptyRouteCosts.size())
-                lowerBound += (totalEmptyCost - emptyRouteCosts[vehicleId]);
-            
+            double lowerBound = calculateLowerBound(it->second, vehicleId);
             if (lowerBound > currentBestTotalSolutionCost)
                 it = mapRoutes.erase(it);
             else
                 ++it;
         }
 
+        // TODO: could be in a separatted function
         if (pruneSCP) {
             for (auto itA = mapRoutes.begin(); itA != mapRoutes.end(); ) {
                 bool dominated = false;
@@ -173,4 +201,37 @@ void RoutePool::prune(double currentBestTotalSolutionCost, bool pruneSCP) {
             }
         }
     }
+}
+
+double RoutePool::calculateLowerBound(const ALNSRoute& route, int k){
+    if (params.lowerBound_xi < 0) return calculateLowerBoundValid(route, k);
+    else return calculateLowerBoundHeuristic(route, k, params.lowerBound_xi);
+}
+
+double RoutePool::calculateLowerBoundValid(const ALNSRoute& route, int k) {
+    double max_lambda_ik = 0.0;
+    for (int i = 1; i <= problemInstance.N_requests; ++i) {
+        if (route.containsNode(i)) continue;
+        max_lambda_ik = std::max(max_lambda_ik, lambda_ik[i][k]);
+    }
+
+    return route.totalCost + (emptySolutionCost - emptyRouteCost[k]) + max_lambda_ik;
+}
+
+double RoutePool::calculateLowerBoundHeuristic(const ALNSRoute& route, int k, double xi) {
+    int notRsize = problemInstance.N_requests - (route.getRouteSize() - 2) / 2;
+    int p = std::max(1, static_cast<int>(std::floor(xi * notRsize)));
+    double sum_max_p = 0.0;
+
+    std::priority_queue<double> topK;
+    for (int i = 1; i <= problemInstance.N_requests; i++) {
+        if (route.containsNode(i)) continue;
+        topK.push(lambda_ik[i][k]);
+    }
+    for (int i = 0; i < p; ++i) {
+        if (topK.empty()) break; //Should not happen
+        sum_max_p += topK.top();
+        topK.pop();
+    }
+    return route.totalCost + (emptySolutionCost - emptyRouteCost[k]) + sum_max_p;
 }
