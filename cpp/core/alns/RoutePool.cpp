@@ -156,9 +156,7 @@ void RoutePool::clear() {
     routePool.clear();
     bestRoutes.clear();
 
-    emptyRouteCost.clear();
-    emptySolutionCost = 0.0;
-    lambda_ik.clear();
+    // Keep the precomputed lower-bound data; it is required by later addRoute/prune calls.
 }
 
 void RoutePool::prune(double currentBestTotalSolutionCost, bool pruneSCP) {
