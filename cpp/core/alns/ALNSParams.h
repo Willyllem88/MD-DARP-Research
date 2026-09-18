@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 // Configuration for the ALNS
 struct ALNSParams {
     int maxIterations = 10000;
@@ -39,6 +41,9 @@ struct ALNSParams {
     // -2 means DISABLED (intra-route local-search deactivated)
     // any positive integer is the k value
     int balasSimonettiK = 3;
+
+    // Parameter to heurizize the lower bound pruning, 0 < xi <= 1, xi = -1 means deactivated
+    double lowerBound_xi = -1;
 
     static ALNSParams fromArgs(const std::vector<std::string>& args) {
         ALNSParams p;

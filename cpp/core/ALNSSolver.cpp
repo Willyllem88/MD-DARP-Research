@@ -397,8 +397,7 @@ void ALNSSolver::solveMatheuristic() {
 
     // Prune
     ALNSSolution matSol;
-    bool isSC = (hybridMethod == HybridMethod::SET_COVERING); // For specific pruning
-    setSolver->getRoutePool().prune(bestObjective, isSC);
+    setSolver->getRoutePool().prune(bestObjective, false);
     auto pruneTime = std::chrono::steady_clock::now();
     double pruneElapsed = std::chrono::duration<double>(pruneTime - now).count();
     logger.log("  [Matheuristic] Route pool pruned in " + std::to_string(pruneElapsed) + " seconds.");

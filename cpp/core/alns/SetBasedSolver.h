@@ -16,7 +16,7 @@ public:
         const ALNSParams& params, 
         ALNSEvaluator& evaluator,
         Logger& logger
-    ): data(data), params(params), evaluator(evaluator), logger(logger), pool(data) { }
+    ): data(data), params(params), evaluator(evaluator), logger(logger), pool(data, params) { }
 
     virtual ~SetBasedSolver() {
         env.end();
