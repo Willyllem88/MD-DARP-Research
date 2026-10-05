@@ -5,8 +5,7 @@ add_library(mddarp_core
     MDDARP_ProblemInstance.cpp
     MDDARP_ResultInstance.cpp
     alns/ALNSEvaluator.cpp
-    alns/SetPartitioningSolver.cpp
-    alns/SetCoveringSolver.cpp
+    alns/SetBased.cpp
     alns/ALNSOperators.cpp
     alns/RoutePool.cpp
     alns/ALNSLogger.cpp
