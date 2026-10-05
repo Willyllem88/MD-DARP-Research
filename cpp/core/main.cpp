@@ -22,6 +22,8 @@ struct Args {
     std::optional<std::string> alnsLogFilePath;
     std::optional<int> intraRouteK; // Balas-Simonetti parameter k
     std::optional<double> lowerBound_xi;
+    bool useEquivalentRoutePruning = true;
+    bool useLowerBoundPruning = true;
     std::vector<std::string> alnsParams;
     bool enableNR = false;
 };
@@ -55,7 +57,7 @@ void printUsage(const char* program_name) {
               << "This program solves the Multi-Depot Dial-a-Ride Problem using various methods.\n\n"
               << "Usage: " << program_name << R"( [-i instance_path] [-t time_limit] [-o output_path]
       [-m method] [-s seed] [-v] [--NR] [--intraRoute {k | UNRESTRICTED | NONE}] [--lowerBound_xi xi]
-      [--alnsLog log_path]
+      [--deactivateLowerBoundPruning] [--deactivateEquivalentRoutePruning] [--alnsLog log_path]
       [--alnsParams maxIterations coolingRate minDestroyFraction maxDestroyFraction
                     shawDistWeight shawTimeWeight shawDemandWeight
                     worstRemovalPower sigma1 sigma2 sigma3 reactionFactor]
@@ -70,6 +72,8 @@ void printUsage(const char* program_name) {
   --NR             Enable Neighbor Reduction in ALNS
   --intraRoute     ALNS intra-route exchange parameter (k), UNRESTRICTED, or NONE (default: k = 3)
   --lowerBound_xi  ALNS lower bound heuristic parameter xi (-1 deactivated, 0 < xi <= 1)
+  --deactivateLowerBoundPruning  Deactivate lower bound pruning
+  --deactivateEquivalentRoutePruning  Deactivate equivalent route pruning
   --alnsLog        Path to save ALNS logs (convergence and weights evolution) (.csv extension will be
                     added automatically)
   --alnsParams     Additional ALNS parameters in order (maxIterations, coolingRate, minDestroyFraction,
@@ -122,6 +126,12 @@ Args parseArgs(int argc, char** argv) {
         }
         else if (a == "--NR") {
             args.enableNR = true;
+        }
+        else if (a == "--deactivateLowerBoundPruning") {
+            args.useLowerBoundPruning = false;
+        }
+        else if (a == "--deactivateEquivalentRoutePruning") {
+            args.useEquivalentRoutePruning = false;
         }
         else if (a == "--alnsLog" && i + 1 < argc) {
             args.alnsLogFilePath = argv[++i];
@@ -184,6 +194,8 @@ int main(int argc, char** argv) {
             : ALNSParams();
         params.balasSimonettiK = args.intraRouteK.value_or(3); // Default k = 3 if not specified
         params.lowerBound_xi = args.lowerBound_xi.value_or(-1); // -1 deactivated
+        params.useEquivalentRoutePruning = args.useEquivalentRoutePruning;
+        params.useLowerBoundPruning = args.useLowerBoundPruning;
 
         solver = std::make_unique<ALNSSolver>(
             instance,

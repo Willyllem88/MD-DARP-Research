@@ -42,8 +42,11 @@ struct ALNSParams {
     // any positive integer is the k value
     int balasSimonettiK = 3;
 
+    bool useEquivalentRoutePruning = true;
+    bool useLowerBoundPruning = true;
+
     // Parameter to heurizize the lower bound pruning, 0 < xi <= 1, xi = -1 means deactivated
-    double lowerBound_xi = -1;
+    double lowerBound_xi = -1;  
 
     static ALNSParams fromArgs(const std::vector<std::string>& args) {
         ALNSParams p;

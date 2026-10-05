@@ -11,9 +11,11 @@
 #include "ALNSParams.h"
 #include "../MDDARP_ProblemInstance.h"
 
+class SetBasedSolver;
+
 class RoutePool {
 public:
-    RoutePool(const MDDARP_ProblemInstance& instance, const ALNSParams& params);
+    RoutePool(const MDDARP_ProblemInstance& instance, const ALNSParams& params, const SetBasedSolver& solver);
     ~RoutePool() = default;
 
     // Add the route if it's not a duplicate and if it has potential to improve the current best solution
@@ -38,9 +40,11 @@ private:
     double calculateLowerBoundValid(const ALNSRoute& route, int k);
     double calculateLowerBoundHeuristic(const ALNSRoute& route, int k, double xi);
 
+    double calculateLowerBoundLP(const ALNSRoute& route);
+
     const MDDARP_ProblemInstance& problemInstance;
     const ALNSParams& params;
-
+    const SetBasedSolver& solver;
     // Key: VehicleID, Value: List of routes
     std::unordered_map<int, std::vector<ALNSRoute>> routePool;
 

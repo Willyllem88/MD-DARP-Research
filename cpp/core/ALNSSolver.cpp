@@ -26,9 +26,9 @@ ALNSSolver::ALNSSolver(MDDARP_ProblemInstance& instance,
     dataLogger = std::make_unique<ALNSLogger>(params->maxIterations, params->maxIterations / params->segmentIterations);
 
     if (hybridMethod == HybridMethod::SET_PARTITIONING) {
-        setSolver = std::make_unique<SetPartitioningSolver>(data, *params, *evaluator, logger);
+        setSolver = std::make_unique<SetBasedSolver>(data, *params, *evaluator, logger, SetModelType::PARTITIONING);
     } else if (hybridMethod == HybridMethod::SET_COVERING) {
-        setSolver = std::make_unique<SetCoveringSolver>(data, *params, *evaluator, logger);
+        setSolver = std::make_unique<SetBasedSolver>(data, *params, *evaluator, logger, SetModelType::COVERING);
     }
 
     bestObjective = std::numeric_limits<double>::infinity();

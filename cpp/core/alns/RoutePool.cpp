@@ -1,4 +1,5 @@
 #include "RoutePool.h"
+#include "SetBasedSolver.h"
 
 #include <algorithm>
 #include <unordered_map>
@@ -6,8 +7,8 @@
 #include <queue>
 #include <iostream>
 
-RoutePool::RoutePool(const MDDARP_ProblemInstance& instance, const ALNSParams& params)
-    : problemInstance(instance), params(params) {
+RoutePool::RoutePool(const MDDARP_ProblemInstance& instance, const ALNSParams& params, const SetBasedSolver& solver)
+    : problemInstance(instance), params(params), solver(solver) {
 
     int numNodes = problemInstance.max_node_id + 1;
     int numReqs = problemInstance.N_requests;
@@ -107,13 +108,15 @@ void RoutePool::addRoute(const ALNSRoute& route, double currentBestTotalSolution
     if (route.sequence.empty()) return;
     if (route.isFeasible == false) return;
 
-    double lowerBound = calculateLowerBound(route, route.vehicleId);
-
-    if (lowerBound >= currentBestTotalSolutionCost) return;
+    if (params.useLowerBoundPruning) {
+        double lowerBound = calculateLowerBound(route, route.vehicleId);
+        if (lowerBound > currentBestTotalSolutionCost) return;
+    }
 
     // Canonical key (order-independent)
     NodeSetKey key = route.sequence;
-    std::sort(key.begin(), key.end());
+    if (params.useEquivalentRoutePruning)
+        std::sort(key.begin(), key.end());
 
     auto& vehicleMap = bestRoutes[route.vehicleId];
     auto it = vehicleMap.find(key);
@@ -161,12 +164,15 @@ void RoutePool::clear() {
 
 void RoutePool::prune(double currentBestTotalSolutionCost, bool pruneSCP) {
     for (auto& [vehicleId, mapRoutes] : bestRoutes) {
-        for (auto it = mapRoutes.begin(); it != mapRoutes.end(); ) {
-            double lowerBound = calculateLowerBound(it->second, vehicleId);
-            if (lowerBound > currentBestTotalSolutionCost)
-                it = mapRoutes.erase(it);
-            else
-                ++it;
+        if (params.useLowerBoundPruning) {
+            for (auto it = mapRoutes.begin(); it != mapRoutes.end(); ) {
+                double lowerBound = calculateLowerBound(it->second, vehicleId);
+                //double lowerBoundLP = calculateLowerBoundLP(it->second, vehicleId);
+                if (lowerBound > currentBestTotalSolutionCost)
+                    it = mapRoutes.erase(it);
+                else
+                    ++it;
+            }
         }
 
         // TODO: could be in a separatted function
@@ -232,4 +238,16 @@ double RoutePool::calculateLowerBoundHeuristic(const ALNSRoute& route, int k, do
         topK.pop();
     }
     return route.totalCost + (emptySolutionCost - emptyRouteCost[k]) + sum_max_p;
+}
+
+double RoutePool::calculateLowerBoundLP(const ALNSRoute& route) {
+    // Call the solver. We must const_cast because computeLPBoundFixingRoute modifies the CPLEX model.
+    LPBoundResult result = const_cast<SetBasedSolver&>(solver).computeLPBoundFixingRoute(route, 60.0);
+
+    // Return the calculated bound (if infeasible, return infinity so it gets pruned)
+    if (result.status == LPStatus::Infeasible) {
+        return std::numeric_limits<double>::infinity();
+    }
+
+    return result.bound;
 }

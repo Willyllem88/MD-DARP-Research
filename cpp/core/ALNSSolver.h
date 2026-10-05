@@ -8,8 +8,6 @@
 #include "alns/ALNSParams.h"
 #include "alns/ALNSEvaluator.h"
 #include "alns/SetBasedSolver.h"
-#include "alns/SetPartitioningSolver.h"
-#include "alns/SetCoveringSolver.h"
 #include "alns/ALNSOperators.h"
 #include "alns/ALNSLogger.h"
 
