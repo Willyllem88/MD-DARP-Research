@@ -376,11 +376,14 @@ void ALNSSolver::initializeStatsAndTemperature(const ALNSSolution& initialSoluti
 }
 
 void ALNSSolver::solveMatheuristic() {
+    auto timeUntilNow = [](auto startTime) {
+        return std::chrono::duration<double>(std::chrono::steady_clock::now() - startTime).count();
+    };
+
     if (hybridMethod == HybridMethod::NONE) return;
 
     // Time handling
-    auto now = std::chrono::steady_clock::now();
-    double elapsedSeconds = std::chrono::duration<double>(now - startTime).count();
+    double elapsedSeconds = timeUntilNow(startTime);
     double remainingTime = timeLimit.has_value() ? 
         timeLimit.value() - elapsedSeconds 
         : std::numeric_limits<double>::infinity();
@@ -397,14 +400,20 @@ void ALNSSolver::solveMatheuristic() {
 
     // Prune
     ALNSSolution matSol;
-    setSolver->getRoutePool().prune(bestObjective, false);
-    auto pruneTime = std::chrono::steady_clock::now();
-    double pruneElapsed = std::chrono::duration<double>(pruneTime - now).count();
+    auto pruneStart = std::chrono::steady_clock::now();
+    setSolver->getRoutePool().prune(bestObjective, false);    
+    double pruneElapsed = timeUntilNow(pruneStart);
     logger.log("  [Matheuristic] Route pool pruned in " + std::to_string(pruneElapsed) + " seconds.");
     logger.log("  [Matheuristic] Total Routes in Pool after pruning: " + std::to_string(setSolver->getRoutePool().getTotalNumberOfRoutes()));
 
     // Solve
-    bool solved = setSolver->solve(matSol, cplexMaxTime);
+    auto solveStart = std::chrono::steady_clock::now();
+    std::string status;
+    bool solved = setSolver->solve(matSol, status, cplexMaxTime);
+
+    dataLogger->recordHybridPerformance(iteration, setSolver->getRoutePool().getTotalNumberOfRoutes(), 
+        timeUntilNow(solveStart), bestObjective, matSol.objectiveValue, status);
+
     if (!solved) {
         logger.log("Iter " + std::to_string(iteration) + "  [Matheuristic] Failed to solve with CPLEX.");
         return;
@@ -446,9 +455,10 @@ MDDARP_ResultInstance ALNSSolver::solveScheduleLater(ALNSSolution& sol) {
 
 void ALNSSolver::exportLogs() const {
     if (logFilePath.has_value()) {
-        logger.log("Exporting logs to " + logFilePath.value() + "_convergence.csv and " + logFilePath.value() + "_weights_evolution.csv");
+        logger.log("Exporting logs to " + logFilePath.value() + "_convergence.csv and " + logFilePath.value() + "_weights_evolution.csv and " + logFilePath.value() + "_hybrid_performance.csv");
         dataLogger->exportConvergenceCSV(logFilePath.value() + "_convergence.csv");
         dataLogger->exportWeightsEvolutionCSV(logFilePath.value() + "_weights_evolution.csv");
+        dataLogger->exportHybridPerformanceCSV(logFilePath.value() + "_hybrid_performance.csv");
     }
 }
 

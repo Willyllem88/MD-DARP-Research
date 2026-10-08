@@ -111,7 +111,7 @@ void SetBasedSolver::buildColumns(Model& m, const RouteMap& routePool, bool inte
 // ============================================================================
 // MIP solve
 // ============================================================================
-bool SetBasedSolver::solve(ALNSSolution& newSol, double maxTime, double cutoff) {
+bool SetBasedSolver::solve(ALNSSolution& newSol, std::string& status, double maxTime, std::optional<double> cutoff) {
     const RouteMap& routePool = pool.getRoutes();
     if (routePool.empty()) return false;   // no routes available
 
@@ -121,10 +121,13 @@ bool SetBasedSolver::solve(ALNSSolution& newSol, double maxTime, double cutoff) 
         buildColumns(m, routePool, /*integer=*/true);
 
         m.cplex.setParam(IloCplex::Param::TimeLimit, maxTime);
-        if (cutoff < IloInfinity)
-            m.cplex.setParam(IloCplex::Param::MIP::Tolerances::UpperCutoff, cutoff);
+        if (cutoff.has_value())
+            m.cplex.setParam(IloCplex::Param::MIP::Tolerances::UpperCutoff, cutoff.value() + 1e-6);  // small tolerance
 
-        if (!m.cplex.solve()) {
+        bool solutionFound = m.cplex.solve();
+        status = statusName(m.cplex.getStatus());
+
+        if (!solutionFound) {
             logger.log(std::string("  ") + tag() + " CPLEX found no solution. Status: " +
                        std::to_string(static_cast<int>(m.cplex.getStatus())));
             return false;

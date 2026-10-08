@@ -20,6 +20,11 @@ void ALNSLogger::recordWeights(int segment, double time,
     weightsHistory.push_back({segment, time, destWeights, repWeights});
 }
 
+void ALNSLogger::recordHybridPerformance(int iter, int numCols, double time, double currObj, double newObj, const std::string& status) {
+    bool doesImprove = newObj < currObj - 1e-6;
+    hybridHistory.push_back({iter, numCols, time, currObj, newObj, status, doesImprove});
+}
+
 void ALNSLogger::exportConvergenceCSV(const std::string& filepath) const {
     std::ofstream file(filepath);
     if (!file.is_open()) {
@@ -72,6 +77,25 @@ void ALNSLogger::exportWeightsEvolutionCSV(const std::string& filepath) const {
         for (double val : w.destroyWeights) file << "," << val;
         for (double val : w.repairWeights) file << "," << val;
         file << "\n";
+    }
+    file.close();
+}
+
+void ALNSLogger::exportHybridPerformanceCSV(const std::string& filepath) const {
+    std::ofstream file(filepath);
+    if (!file.is_open() || hybridHistory.empty()) return;
+
+    // Cabeceras
+    file << "iteration,num_cols,elapsed_time,current_obj,new_obj,status,does_improve\n";
+
+    for (const auto& r : hybridHistory) {
+        file << r.iteration << ","
+             << r.numCols << ","
+             << r.elapsedTime << ","
+             << r.currentObjective << ","
+             << r.newObjective << ","
+             << r.status << ","
+             << (r.doesImprove ? "true" : "false") << "\n";
     }
     file.close();
 }

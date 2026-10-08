@@ -51,9 +51,15 @@ public:
     SetBasedSolver& operator=(const SetBasedSolver&) = delete;
 
     // Solve the MIP over the accumulated route pool. Returns true if a solution
-    // was found. 'cutoff' (optional) prunes solutions costlier than that value.
-    bool solve(ALNSSolution& newSol, double maxTime = 60.0,
-               double cutoff = std::numeric_limits<double>::infinity());
+    // was found (optimal or feasible). 'cutoff' (optional) prunes solutions costlier
+    // than that value, it can return solutions of cutoff cost if no better solution
+    // exists. 'status' returns the CPLEX status string, can be "Infeasible", "Optimal", 
+    // "Feasible (Time Limit)" or "Unknown".
+    //      WARNING FOR CUTOFF: deactivated for set covering, if activated CPLEX will prematurely 
+    //      prune candidate solutions whose raw cost exceeds the cutoff, even if their repaired 
+    //      cost would have been significantly lower than bestFeasibleObjective.
+    bool solve(ALNSSolution& newSol, std::string& status, double maxTime = 60.0,
+               std::optional<double> cutoff = std::nullopt);
 
     // First lower bound: LP relaxation of the model selected by SetModelType.
     LPBoundResult computeLPBound(double maxTime = 60.0);
@@ -90,6 +96,7 @@ private:
     std::vector<int> nodeOfRow;  // request row -> pickup node id
 
     bool isCovering() const { return type == SetModelType::COVERING; }
+    bool isPartitioning() const { return type == SetModelType::PARTITIONING; }
     const char* tag() const { return isCovering() ? "[SetCovering]" : "[SetPartitioning]"; }
     int requestRow(int nodeId) const {
         return (nodeId >= 0 && static_cast<size_t>(nodeId) < rowOfNode.size()) ? rowOfNode[nodeId] : -1;
