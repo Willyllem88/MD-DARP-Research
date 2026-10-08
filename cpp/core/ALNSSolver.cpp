@@ -463,20 +463,20 @@ void ALNSSolver::exportLogs() const {
 }
 
 void ALNSSolver::printOperatorStats() const {
-    std::cout << std::endl << "Operator Usage Stats:" << std::endl;
-    std::cout << "Destroy Operator Stats:" << std::endl;
+    logger.log("\nOperator Usage Stats:");
+    logger.log("Destroy Operator Stats:");
     for (size_t i = 0; i < destroyStats.weights.size(); ++i) {
         double avgScore = (destroyStats.timesUsed[i] > 0) ? destroyStats.scores[i] / destroyStats.timesUsed[i] : 0.0;
-        std::cout << "  Destroy " << i << ": Weight=" << destroyStats.weights[i] 
-                << ", Times Used=" << destroyStats.timesUsed[i] 
-                << ", Avg Score=" << avgScore << std::endl;
+        logger.log("  Destroy " + std::to_string(i) + ": Weight=" + std::to_string(destroyStats.weights[i]) 
+                + ", Times Used=" + std::to_string(destroyStats.timesUsed[i]) 
+                + ", Avg Score=" + std::to_string(avgScore));
     }
 
-    std::cout << "Repair Operator Stats:" << std::endl;
+    logger.log("Repair Operator Stats:");
     for (size_t i = 0; i < repairStats.weights.size(); ++i) {
         double avgScore = (repairStats.timesUsed[i] > 0) ? repairStats.scores[i] / repairStats.timesUsed[i] : 0.0;
-        std::cout << "  Repair " << i << ": Weight=" << repairStats.weights[i] 
-                << ", Times Used=" << repairStats.timesUsed[i] 
-                << ", Avg Score=" << avgScore << std::endl; // TODO: not sure if this is correct
+        logger.log("  Repair " + std::to_string(i) + ": Weight=" + std::to_string(repairStats.weights[i]) 
+                + ", Times Used=" + std::to_string(repairStats.timesUsed[i]) 
+                + ", Avg Score=" + std::to_string(avgScore));
     }
 }
