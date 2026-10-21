@@ -366,7 +366,7 @@ void ALNSSolver::initializeStatsAndTemperature(const ALNSSolution& initialSoluti
     destroyStats.init((int)DestroyMethod::COUNT);
     repairStats.init((int)RepairMethod::COUNT);
 
-    // Accept 10% worst solution at the beggining with probability of 50%
+    // Accept w% worst solution at the beggining with probability of 50%
     double z0 = initialSolution.objectiveValue;
     double initialTemperature = (params->w * z0) / std::log(2.0);
     currentTemperature = initialTemperature;
