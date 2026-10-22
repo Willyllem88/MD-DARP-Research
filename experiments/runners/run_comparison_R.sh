@@ -1,8 +1,7 @@
-```bash
 #!/bin/bash
 #SBATCH --job-name=mddarp_alns_cordeau
-#SBATCH --output=slurm_logs_cordeau/%x_%A_%a.out
-#SBATCH --error=slurm_logs_cordeau/%x_%A_%a.err
+#SBATCH --output=../slurm_logs_cordeau/%x_%A_%a.out
+#SBATCH --error=../slurm_logs_cordeau/%x_%A_%a.err
 #SBATCH --time=2:30:00
 #SBATCH --mail-user=guillem.cabre@estudiantat.upc.edu
 #SBATCH --mail-type=END,FAIL
@@ -15,9 +14,9 @@
 
 
 # Create directories for outputs and logs if they don't exist
-mkdir -p run_cordeau_10/outputs
-mkdir -p run_cordeau_10/alns_logs
-mkdir -p slurm_logs_cordeau
+mkdir -p ../run_cordeau_10/outputs
+mkdir -p ../run_cordeau_10/alns_logs
+mkdir -p ../slurm_logs_cordeau
 
 instances=(
     "pr01" "pr02" "pr03" "pr04" "pr05"
@@ -39,11 +38,11 @@ inst_name=${instances[$inst_idx]}
 method=${methods[$method_idx]}
 inst_file="${inst_name}.json"
 
-EXE="../build/cpp/core/mddarp_run"
-DATA_DIR="../data/cordeau-tabu-insatance"
+EXE="../../build/cpp/core/mddarp_run"
+DATA_DIR="../../data/cordeau-tabu-instances"
 
-OUT_FILE="run_cordeau_10/outputs/sol_${inst_name}_${method}_seed${seed}"
-LOG_FILE="run_cordeau_10/alns_logs/log_${inst_name}_${method}_seed${seed}"
+OUT_FILE="../run_cordeau_10/outputs/sol_${inst_name}_${method}_seed${seed}"
+LOG_FILE="../run_cordeau_10/alns_logs/log_${inst_name}_${method}_seed${seed}"
 
 echo "========================================================="
 echo "Initializing task SLURM: ${SLURM_ARRAY_TASK_ID}"
@@ -54,7 +53,6 @@ echo "Executable: $EXE"
 echo "========================================================="
 
 # Run the executable with the specified parameters
-$EXE -i "$DATA_DIR/$inst_file" -m "$method" -s "$seed" -o "$OUT_FILE" --alnsLog "$LOG_FILE" --time 7200
+$EXE -i "$DATA_DIR/$inst_file" -m "$method" -s "$seed" -o "$OUT_FILE" --alnsLog "$LOG_FILE" --time 7200 -v
 
 echo "Execution completed."
-```
